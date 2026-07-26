@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/di/providers.dart';
 import '../../../core/design_system/status_chip.dart';
+import '../../../core/sync/sync_engine.dart';
 import '../../../domain/common/status.dart';
 import '../application/offline_queue_provider.dart';
 
@@ -81,7 +82,7 @@ class _PendingHeader extends StatelessWidget {
 
 class _QueueTile extends ConsumerWidget {
   const _QueueTile({required this.item});
-  final dynamic item; // SyncTaskView
+  final SyncTaskView item;
 
   ({String label, StatusTone tone}) _status(String s) => switch (s) {
         'pendingSync' => (label: 'Pending sync', tone: StatusTone.warning),
@@ -94,7 +95,7 @@ class _QueueTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final engine = ref.read(syncEngineProvider);
-    final st = _status(item.status as String);
+    final st = _status(item.status);
 
     return ListTile(
       title: Text('Carpenter ${item.carpenterId ?? '—'}'),
@@ -109,11 +110,11 @@ class _QueueTile extends ConsumerWidget {
           onSelected: (action) async {
             switch (action) {
               case 'retry':
-                await engine.retry(item.id as String);
+                await engine.retry(item.id);
               case 'pause':
-                await engine.pause(item.id as String);
+                await engine.pause(item.id);
               case 'discard':
-                await _confirmDiscard(context, ref, item.id as String);
+                await _confirmDiscard(context, ref, item.id);
             }
           },
           itemBuilder: (_) => const [

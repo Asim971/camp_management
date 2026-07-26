@@ -51,9 +51,8 @@ class CampaignDraft with _$CampaignDraft {
       List.generate(4, validate).every((errors) => errors.isEmpty);
 
   bool get _hasSessionConflict {
-    final windows = sessions
-        .where((s) => s.startAt != null && s.endAt != null)
-        .toList();
+    final windows =
+        sessions.where((s) => s.startAt != null && s.endAt != null).toList();
     for (var i = 0; i < windows.length; i++) {
       for (var j = i + 1; j < windows.length; j++) {
         final a = windows[i], b = windows[j];

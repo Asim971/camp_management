@@ -117,8 +117,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Mobile field: search → capture, plus the offline queue monitor.
       GoRoute(
         path: '/search/:sessionId',
-        builder: (_, state) =>
-            CarpenterSearchScreen(sessionId: state.pathParameters['sessionId']!),
+        builder: (_, state) => CarpenterSearchScreen(
+            sessionId: state.pathParameters['sessionId']!),
       ),
       GoRoute(
         path: '/capture/:sessionId/:carpenterId',
@@ -151,7 +151,8 @@ Permission? _requiredPermission(String location) {
   }
   if (location.endsWith('/import')) return Permission.bulkImport;
   if (location.endsWith('/register')) return Permission.campaignCreate;
-  if (location.startsWith('/verification')) return Permission.verificationDecide;
+  if (location.startsWith('/verification'))
+    return Permission.verificationDecide;
   if (location.startsWith('/capture') ||
       location.startsWith('/search') ||
       location.startsWith('/queue')) {

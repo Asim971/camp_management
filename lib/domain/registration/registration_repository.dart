@@ -11,7 +11,8 @@ abstract interface class RegistrationRepository {
 
   /// Filters the locally-cached roster. Returns an empty list when nothing
   /// matches or the cache is empty — the UI distinguishes those cases.
-  Future<List<RegisteredCarpenter>> searchCached(String sessionId, String query);
+  Future<List<RegisteredCarpenter>> searchCached(
+      String sessionId, String query);
 
   // ---- Web registration workspace (W-06) ----------------------------------
 
@@ -24,5 +25,6 @@ abstract interface class RegistrationRepository {
 
   /// Submits a Sales Eco new-profile request; the participant shows as
   /// "Pending profile sync" until reconciliation (§9.2, §9.4).
-  Future<Result<void>> requestNewProfile(String campaignId, String name, String phone);
+  Future<Result<void>> requestNewProfile(
+      String campaignId, String name, String phone);
 }

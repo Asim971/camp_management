@@ -82,7 +82,8 @@ class _EvidenceZone extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: _EvidenceImage(label: 'Captured', url: vcase.capturedImageUrl),
+              child: _EvidenceImage(
+                  label: 'Captured', url: vcase.capturedImageUrl),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -250,7 +251,8 @@ class _DecisionPanelState extends ConsumerState<_DecisionPanel> {
     final messenger = ScaffoldMessenger.of(context);
     switch (result) {
       case DecisionResult.submitted:
-        messenger.showSnackBar(const SnackBar(content: Text('Decision recorded')));
+        messenger
+            .showSnackBar(const SnackBar(content: Text('Decision recorded')));
         Navigator.of(context).maybePop();
       case DecisionResult.conflict:
         messenger.showSnackBar(
@@ -260,7 +262,8 @@ class _DecisionPanelState extends ConsumerState<_DecisionPanel> {
         );
       case DecisionResult.error:
         messenger.showSnackBar(
-          const SnackBar(content: Text("Couldn't record the decision. Try again.")),
+          const SnackBar(
+              content: Text("Couldn't record the decision. Try again.")),
         );
     }
   }

@@ -42,8 +42,14 @@ class StatusChip extends StatelessWidget {
       };
 
   ({Color fg, Color bg}) _colors() => switch (tone) {
-        StatusTone.success => (fg: BmdColor.success, bg: const Color(0x141F7A4D)),
-        StatusTone.warning => (fg: BmdColor.warning, bg: const Color(0x14B54708)),
+        StatusTone.success => (
+            fg: BmdColor.success,
+            bg: const Color(0x141F7A4D)
+          ),
+        StatusTone.warning => (
+            fg: BmdColor.warning,
+            bg: const Color(0x14B54708)
+          ),
         StatusTone.error => (fg: BmdColor.error, bg: const Color(0x14B42318)),
         StatusTone.info => (fg: BmdColor.info, bg: const Color(0x14175CD3)),
         StatusTone.neutral => (

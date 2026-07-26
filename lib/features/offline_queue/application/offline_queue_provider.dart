@@ -12,5 +12,7 @@ final syncQueueProvider = StreamProvider.autoDispose<List<SyncTaskView>>(
 /// Count of items not yet handed off to the server (for the persistent header).
 final pendingCountProvider = Provider.autoDispose<int>((ref) {
   final queue = ref.watch(syncQueueProvider).valueOrNull ?? const [];
-  return queue.where((t) => t.status == 'pendingSync' || t.status == 'paused').length;
+  return queue
+      .where((t) => t.status == 'pendingSync' || t.status == 'paused')
+      .length;
 });

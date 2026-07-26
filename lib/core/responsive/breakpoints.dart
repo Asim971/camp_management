@@ -29,5 +29,6 @@ class ContentConstraints {
   const ContentConstraints._();
   static const double maxWorkingWidth = 1440;
 
-  static double gutter(Breakpoint bp) => bp == Breakpoint.largeDesktop ? 32 : 24;
+  static double gutter(Breakpoint bp) =>
+      bp == Breakpoint.largeDesktop ? 32 : 24;
 }

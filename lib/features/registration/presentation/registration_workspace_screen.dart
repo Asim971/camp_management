@@ -6,7 +6,6 @@ import '../../../core/design_system/status_chip.dart';
 import '../../../core/responsive/adaptive_scaffold.dart';
 import '../../../core/responsive/breakpoints.dart';
 import '../../../domain/common/status.dart';
-import '../../../domain/registration/registration.dart';
 import '../application/registration_controller.dart';
 
 /// Registration Workspace (W-06). Search Sales Eco master on the left, build a
@@ -84,7 +83,8 @@ class _SearchPanel extends ConsumerWidget {
                     itemBuilder: (_, i) {
                       final person = list[i];
                       final inBasket = state.basket.containsKey(person.id);
-                      final blocked = person.alreadyCaptured || !person.eligible;
+                      final blocked =
+                          person.alreadyCaptured || !person.eligible;
                       return ListTile(
                         leading: CircleAvatar(
                           backgroundImage: person.thumbnailUrl != null

@@ -45,7 +45,8 @@ class RegistrationController
       return;
     }
     state = state.copyWith(results: const AsyncLoading());
-    final res = await ref.read(registrationRepositoryProvider).searchMaster(query);
+    final res =
+        await ref.read(registrationRepositoryProvider).searchMaster(query);
     state = state.copyWith(
       results: res.fold(
         AsyncData.new,
@@ -88,7 +89,8 @@ class RegistrationController
         .read(registrationRepositoryProvider)
         .requestNewProfile(arg, name, phone);
     state = res.fold(
-      (_) => state.copyWith(message: 'Profile request submitted — pending sync'),
+      (_) =>
+          state.copyWith(message: 'Profile request submitted — pending sync'),
       (f) => state.copyWith(message: f.message ?? 'Request failed'),
     );
   }

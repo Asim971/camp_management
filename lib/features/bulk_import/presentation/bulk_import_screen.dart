@@ -6,6 +6,7 @@ import '../../../core/design_system/bmd_button.dart';
 import '../../../core/design_system/bmd_data_table.dart';
 import '../../../core/design_system/status_chip.dart';
 import '../../../core/responsive/adaptive_scaffold.dart';
+import '../../../domain/common/status.dart';
 import '../../../domain/import/import_job.dart';
 import '../application/import_controller.dart';
 
@@ -41,15 +42,17 @@ class BulkImportScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
           state.job.when(
-            loading: () => const Center(child: Padding(
+            loading: () => const Center(
+                child: Padding(
               padding: EdgeInsets.all(24),
               child: CircularProgressIndicator(),
             )),
-            error: (_, __) =>
-                const Text('Import failed to process. Check the file and retry.'),
+            error: (_, __) => const Text(
+                'Import failed to process. Check the file and retry.'),
             data: (job) => job == null
                 ? const _Hint()
-                : _Results(job: job, committing: state.committing, onCommit: c.commit),
+                : _Results(
+                    job: job, committing: state.committing, onCommit: c.commit),
           ),
         ],
       ),
@@ -77,7 +80,9 @@ class _UploadPanel extends StatelessWidget {
             BmdButton(
               label: 'Download template',
               variant: BmdButtonVariant.text,
-              onPressed: () {/* asset: assets/templates/participants_template.csv */},
+              onPressed: () {
+                /* asset: assets/templates/participants_template.csv */
+              },
             ),
             const SizedBox(width: 8),
             BmdButton(
@@ -113,13 +118,22 @@ class _Results extends StatelessWidget {
 
   ({String label, StatusTone tone}) _outcome(ImportRowOutcome o) => switch (o) {
         ImportRowOutcome.valid => (label: 'Valid', tone: StatusTone.success),
-        ImportRowOutcome.warning => (label: 'Warning', tone: StatusTone.warning),
-        ImportRowOutcome.duplicate =>
-          (label: 'Duplicate', tone: StatusTone.warning),
-        ImportRowOutcome.needsProfile =>
-          (label: 'Needs profile', tone: StatusTone.info),
-        ImportRowOutcome.unauthorized =>
-          (label: 'Unauthorized', tone: StatusTone.error),
+        ImportRowOutcome.warning => (
+            label: 'Warning',
+            tone: StatusTone.warning
+          ),
+        ImportRowOutcome.duplicate => (
+            label: 'Duplicate',
+            tone: StatusTone.warning
+          ),
+        ImportRowOutcome.needsProfile => (
+            label: 'Needs profile',
+            tone: StatusTone.info
+          ),
+        ImportRowOutcome.unauthorized => (
+            label: 'Unauthorized',
+            tone: StatusTone.error
+          ),
         ImportRowOutcome.error => (label: 'Error', tone: StatusTone.error),
       };
 

@@ -14,6 +14,7 @@ class AppConfig {
     this.e2e = false,
     this.e2eRole = 'field_user',
     this.e2eQuality = 'pass',
+    this.e2eSeed = '',
   });
 
   final Flavor flavor;
@@ -45,8 +46,7 @@ class AppConfig {
       ),
       e2e: const bool.fromEnvironment('E2E'),
       e2eRole: const String.fromEnvironment('ROLE', defaultValue: 'field_user'),
-      e2eQuality:
-          const String.fromEnvironment('QUALITY', defaultValue: 'pass'),
+      e2eQuality: const String.fromEnvironment('QUALITY', defaultValue: 'pass'),
       e2eSeed: const String.fromEnvironment('SEED'),
     );
   }

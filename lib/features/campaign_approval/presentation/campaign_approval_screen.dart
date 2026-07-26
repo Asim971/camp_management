@@ -138,7 +138,8 @@ class _DecisionPanelState extends ConsumerState<_DecisionPanel> {
     final messenger = ScaffoldMessenger.of(context);
     switch (result) {
       case ApprovalResult.done:
-        messenger.showSnackBar(const SnackBar(content: Text('Decision recorded')));
+        messenger
+            .showSnackBar(const SnackBar(content: Text('Decision recorded')));
         context.go('/campaigns');
       case ApprovalResult.conflict:
         messenger.showSnackBar(const SnackBar(
@@ -151,8 +152,9 @@ class _DecisionPanelState extends ConsumerState<_DecisionPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final sod =
-        ref.read(approvalControllerProvider(widget.campaignId).notifier).sodViolation;
+    final sod = ref
+        .read(approvalControllerProvider(widget.campaignId).notifier)
+        .sodViolation;
     final scheme = Theme.of(context).colorScheme;
 
     return Card(

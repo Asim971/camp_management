@@ -30,8 +30,7 @@ Dio buildDio({
 /// never inspect raw [DioException]s.
 Failure mapDioError(Object error) {
   if (error is DioException) {
-    final correlationId =
-        error.response?.headers.value('x-correlation-id');
+    final correlationId = error.response?.headers.value('x-correlation-id');
     final code = error.response?.statusCode;
     final kind = switch (code) {
       401 => FailureKind.unauthorized,
@@ -41,8 +40,9 @@ Failure mapDioError(Object error) {
       422 => FailureKind.validation,
       _ when error.type == DioExceptionType.connectionError =>
         FailureKind.network,
-      _ when error.type == DioExceptionType.connectionTimeout ||
-          error.type == DioExceptionType.receiveTimeout =>
+      _
+          when error.type == DioExceptionType.connectionTimeout ||
+              error.type == DioExceptionType.receiveTimeout =>
         FailureKind.timeout,
       _ when code != null && code >= 500 => FailureKind.server,
       _ => FailureKind.unknown,

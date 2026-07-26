@@ -107,7 +107,8 @@ final mediaEncryptorProvider = Provider<MediaEncryptor>((ref) {
 
 final faceQualityCheckerProvider = Provider<FaceQualityChecker>((ref) {
   final config = ref.watch(appConfigProvider);
-  if (config.e2e) return E2EQualityChecker(failFirst: config.e2eQuality == 'fail');
+  if (config.e2e)
+    return E2EQualityChecker(failFirst: config.e2eQuality == 'fail');
   return const PassthroughQualityChecker(); // TODO(T-2.2.2): ML Kit impl
 });
 

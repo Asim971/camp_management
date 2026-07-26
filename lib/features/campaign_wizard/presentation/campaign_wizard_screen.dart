@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/design_system/bmd_button.dart';
 import '../../../core/responsive/adaptive_scaffold.dart';
-import '../../../domain/campaign/campaign_draft.dart';
 import '../application/wizard_controller.dart';
 
 /// Create/Edit Campaign Wizard (W-03). Five steps with a persistent draft save
@@ -34,7 +33,8 @@ class CampaignWizardScreen extends ConsumerWidget {
 
     final state = ref.watch(wizardControllerProvider);
     final c = ref.read(wizardControllerProvider.notifier);
-    final errors = state.showErrors ? state.draft.validate(state.step) : const <String>[];
+    final errors =
+        state.showErrors ? state.draft.validate(state.step) : const <String>[];
 
     return AdaptiveScaffold(
       title: 'Create campaign',
@@ -196,8 +196,7 @@ class _BasicsStep extends StatelessWidget {
           initialValue: d.type.isEmpty ? null : d.type,
           decoration: const InputDecoration(labelText: 'Campaign type'),
           items: [
-            for (final t in _types)
-              DropdownMenuItem(value: t, child: Text(t)),
+            for (final t in _types) DropdownMenuItem(value: t, child: Text(t)),
           ],
           onChanged: (v) => c.edit((x) => x.copyWith(type: v ?? '')),
         ),
@@ -325,7 +324,8 @@ class _SessionsStep extends StatelessWidget {
                         child: OutlinedButton(
                           onPressed: () async {
                             final dt = await _pick(context, s.startAt);
-                            if (dt != null) c.updateSession(s.copyWith(startAt: dt));
+                            if (dt != null)
+                              c.updateSession(s.copyWith(startAt: dt));
                           },
                           child: Text(s.startAt == null
                               ? 'Start time'
@@ -337,7 +337,8 @@ class _SessionsStep extends StatelessWidget {
                         child: OutlinedButton(
                           onPressed: () async {
                             final dt = await _pick(context, s.endAt);
-                            if (dt != null) c.updateSession(s.copyWith(endAt: dt));
+                            if (dt != null)
+                              c.updateSession(s.copyWith(endAt: dt));
                           },
                           child: Text(
                               s.endAt == null ? 'End time' : 'End: ${s.endAt}'),

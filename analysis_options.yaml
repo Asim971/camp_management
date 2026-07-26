@@ -10,6 +10,7 @@ analyzer:
     - "**/*.g.dart"
     - "**/*.freezed.dart"
     - "lib/l10n/generated/**"
+    - "tool/**" # standalone mock_server package with its own pubspec
 
 linter:
   rules:

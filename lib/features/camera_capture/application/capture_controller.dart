@@ -27,7 +27,13 @@ class CaptureArgs {
 
 /// The five capture steps (§8.10): purpose notice → face positioning → live
 /// camera → quality result → submit, then a terminal captured state.
-enum CaptureStep { purposeNotice, positioning, liveCamera, qualityResult, captured }
+enum CaptureStep {
+  purposeNotice,
+  positioning,
+  liveCamera,
+  qualityResult,
+  captured
+}
 
 class CaptureState {
   const CaptureState({
@@ -68,7 +74,8 @@ class CaptureState {
 /// testable part: encrypt → persist evidence → write draft → enqueue. It hands
 /// off to the [SyncEngine]; from the user's view, a queued item IS a successful
 /// capture (capture ≠ upload — §8.11).
-class CaptureController extends AutoDisposeFamilyNotifier<CaptureState, CaptureArgs> {
+class CaptureController
+    extends AutoDisposeFamilyNotifier<CaptureState, CaptureArgs> {
   static const _uuid = Uuid();
 
   // Transient captured bytes — deliberately kept out of persisted state; they
@@ -79,7 +86,8 @@ class CaptureController extends AutoDisposeFamilyNotifier<CaptureState, CaptureA
   CaptureState build(CaptureArgs arg) => const CaptureState();
 
   void acceptNotice(String language) {
-    state = state.copyWith(step: CaptureStep.positioning, noticeLanguage: language);
+    state =
+        state.copyWith(step: CaptureStep.positioning, noticeLanguage: language);
     // TODO(T-0.5.2): persist consent notice version + language + timestamp.
   }
 
@@ -111,7 +119,8 @@ class CaptureController extends AutoDisposeFamilyNotifier<CaptureState, CaptureA
 
       // 1) encrypt at rest, 2) persist to private evidence dir.
       final cipher = await ref.read(mediaEncryptorProvider).encrypt(bytes);
-      final path = await ref.read(evidenceStoreProvider).write('$id.enc', cipher);
+      final path =
+          await ref.read(evidenceStoreProvider).write('$id.enc', cipher);
 
       final qualityJson = jsonEncode({
         'faceCount': quality.faceCount,
@@ -151,7 +160,8 @@ class CaptureController extends AutoDisposeFamilyNotifier<CaptureState, CaptureA
       // TODO(T-0.3.6): emit AuditAction.attendanceCaptured.
 
       _pendingBytes = null;
-      state = state.copyWith(step: CaptureStep.captured, submitting: false, attendanceId: id);
+      state = state.copyWith(
+          step: CaptureStep.captured, submitting: false, attendanceId: id);
     } catch (e) {
       state = state.copyWith(submitting: false, error: e.toString());
     }
@@ -159,4 +169,5 @@ class CaptureController extends AutoDisposeFamilyNotifier<CaptureState, CaptureA
 }
 
 final captureControllerProvider = NotifierProvider.autoDispose
-    .family<CaptureController, CaptureState, CaptureArgs>(CaptureController.new);
+    .family<CaptureController, CaptureState, CaptureArgs>(
+        CaptureController.new);

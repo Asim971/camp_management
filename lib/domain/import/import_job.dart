@@ -17,8 +17,7 @@ class ImportJob with _$ImportJob {
 
   const ImportJob._();
 
-  int count(ImportRowOutcome o) =>
-      rows.where((r) => r.outcome == o).length;
+  int count(ImportRowOutcome o) => rows.where((r) => r.outcome == o).length;
 
   int get committable => count(ImportRowOutcome.valid);
 }

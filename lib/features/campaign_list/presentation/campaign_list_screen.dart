@@ -82,7 +82,8 @@ class CampaignListScreen extends ConsumerWidget {
           StatusTone.success,
         CampaignStatus.returned || CampaignStatus.paused => StatusTone.warning,
         CampaignStatus.cancelled => StatusTone.error,
-        CampaignStatus.active || CampaignStatus.pendingApproval =>
+        CampaignStatus.active ||
+        CampaignStatus.pendingApproval =>
           StatusTone.info,
         CampaignStatus.draft => StatusTone.neutral,
       };

@@ -16,7 +16,8 @@ class VerificationRepositoryImpl implements VerificationRepository {
   final Dio _dio;
 
   @override
-  Future<Result<List<VerificationQueueItem>>> queue({String? assigneeId}) async {
+  Future<Result<List<VerificationQueueItem>>> queue(
+      {String? assigneeId}) async {
     try {
       final res = await _dio.get<Map<String, dynamic>>(
         '/verification/queue',
@@ -66,7 +67,8 @@ class VerificationRepositoryImpl implements VerificationRepository {
 
   // ---- mappers -------------------------------------------------------------
 
-  VerificationQueueItem _queueItem(Map<String, dynamic> j) => VerificationQueueItem(
+  VerificationQueueItem _queueItem(Map<String, dynamic> j) =>
+      VerificationQueueItem(
         attendanceId: j['attendanceId'] as String,
         carpenterName: j['carpenterName'] as String,
         campaignName: j['campaignName'] as String,

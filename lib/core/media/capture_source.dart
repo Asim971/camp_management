@@ -56,12 +56,12 @@ class FakeCaptureSource implements CaptureSource {
   Future<void> initialize() async {}
 
   @override
-  Widget buildPreview() => const ColoredBox(
+  Widget buildPreview() => ColoredBox(
         color: Colors.black26,
         child: Center(
           child: Semantics(
             identifier: 'e2e_camera_preview',
-            child: Text('E2E camera'),
+            child: const Text('E2E camera'),
           ),
         ),
       );

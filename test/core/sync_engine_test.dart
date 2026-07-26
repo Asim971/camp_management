@@ -60,8 +60,7 @@ void main() {
     await engine.enqueue(spec('t2'));
     await engine.drain();
 
-    final row = await (db.select(db.syncTasks)
-          ..where((t) => t.id.equals('t2')))
+    final row = await (db.select(db.syncTasks)..where((t) => t.id.equals('t2')))
         .getSingle();
     expect(row.status, 'matchProcessing');
   });
@@ -76,8 +75,7 @@ void main() {
     await engine.enqueue(spec('t3'));
     await engine.drain();
 
-    final row = await (db.select(db.syncTasks)
-          ..where((t) => t.id.equals('t3')))
+    final row = await (db.select(db.syncTasks)..where((t) => t.id.equals('t3')))
         .getSingle();
     expect(row.status, 'pendingSync'); // never lost, never processed
   });
@@ -92,8 +90,7 @@ void main() {
     await engine.enqueue(spec('t4'));
     await engine.drain();
 
-    final row = await (db.select(db.syncTasks)
-          ..where((t) => t.id.equals('t4')))
+    final row = await (db.select(db.syncTasks)..where((t) => t.id.equals('t4')))
         .getSingle();
     expect(row.status, 'pendingSync');
     expect(row.retryCount, 1);
@@ -110,8 +107,7 @@ void main() {
     await engine.enqueue(spec('t5'));
     await engine.drain();
 
-    final row = await (db.select(db.syncTasks)
-          ..where((t) => t.id.equals('t5')))
+    final row = await (db.select(db.syncTasks)..where((t) => t.id.equals('t5')))
         .getSingle();
     expect(row.status, 'failed');
   });
@@ -126,8 +122,7 @@ void main() {
     await engine.enqueue(spec('t6'));
     await engine.drain();
 
-    final row = await (db.select(db.syncTasks)
-          ..where((t) => t.id.equals('t6')))
+    final row = await (db.select(db.syncTasks)..where((t) => t.id.equals('t6')))
         .getSingle();
     expect(row.status, 'matchProcessing');
   });
@@ -152,7 +147,8 @@ void main() {
     await engine.drain();
     var row = await (db.select(db.syncTasks)..where((t) => t.id.equals('t7')))
         .getSingle();
-    expect(row.retryCount, 1, reason: 'should not retry before backoff elapses');
+    expect(row.retryCount, 1,
+        reason: 'should not retry before backoff elapses');
 
     // Advance the clock past the backoff window and drain again → succeeds.
     clock = clock.add(const Duration(seconds: 10));

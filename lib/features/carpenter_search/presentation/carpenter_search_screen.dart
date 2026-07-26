@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/design_system/status_chip.dart';
-import '../../../domain/common/status.dart';
 import '../../../domain/registration/registration.dart';
 import '../application/carpenter_search_controller.dart';
 
@@ -114,30 +113,30 @@ class _ResultTile extends StatelessWidget {
     return Semantics(
       identifier: 'search_result',
       child: ListTile(
-      enabled: !disabled,
-      leading: CircleAvatar(
-        backgroundImage:
-            c.thumbnailUrl != null ? NetworkImage(c.thumbnailUrl!) : null,
-        child: c.thumbnailUrl == null ? const Icon(Icons.person) : null,
-      ),
-      title: Row(
-        children: [
-          Flexible(child: Text(c.name)),
-          if (similarName) ...[
-            const SizedBox(width: 6),
-            Tooltip(
-              message: 'Similar name in results — confirm carefully',
-              child: Icon(Icons.warning_amber,
-                  size: 16, color: Theme.of(context).colorScheme.error),
-            ),
+        enabled: !disabled,
+        leading: CircleAvatar(
+          backgroundImage:
+              c.thumbnailUrl != null ? NetworkImage(c.thumbnailUrl!) : null,
+          child: c.thumbnailUrl == null ? const Icon(Icons.person) : null,
+        ),
+        title: Row(
+          children: [
+            Flexible(child: Text(c.name)),
+            if (similarName) ...[
+              const SizedBox(width: 6),
+              Tooltip(
+                message: 'Similar name in results — confirm carefully',
+                child: Icon(Icons.warning_amber,
+                    size: 16, color: Theme.of(context).colorScheme.error),
+              ),
+            ],
           ],
-        ],
-      ),
-      subtitle: Text('${c.displayId} · ${c.territory} · •${c.phoneSuffix}'),
-      trailing: c.alreadyCaptured
-          ? StatusChip.attendance(c.attendanceState, label: 'Captured')
-          : const Icon(Icons.chevron_right),
-      onTap: disabled ? null : onSelect,
+        ),
+        subtitle: Text('${c.displayId} · ${c.territory} · •${c.phoneSuffix}'),
+        trailing: c.alreadyCaptured
+            ? StatusChip.attendance(c.attendanceState, label: 'Captured')
+            : const Icon(Icons.chevron_right),
+        onTap: disabled ? null : onSelect,
       ),
     );
   }

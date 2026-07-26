@@ -79,9 +79,8 @@ class _BmdDataTableState<T> extends State<BmdDataTable<T>> {
   }
 
   void _toggleAll(bool? on) {
-    final next = (on ?? false)
-        ? widget.rows.map(widget.rowId).toSet()
-        : <String>{};
+    final next =
+        (on ?? false) ? widget.rows.map(widget.rowId).toSet() : <String>{};
     widget.onSelectionChanged?.call(next);
   }
 
@@ -154,8 +153,9 @@ class _BmdDataTableState<T> extends State<BmdDataTable<T>> {
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: BmdSpace.s3),
                 child: Align(
-                  alignment:
-                      col.numeric ? Alignment.centerRight : Alignment.centerLeft,
+                  alignment: col.numeric
+                      ? Alignment.centerRight
+                      : Alignment.centerLeft,
                   child: Text(col.label, style: style),
                 ),
               ),

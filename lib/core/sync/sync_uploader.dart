@@ -84,9 +84,11 @@ class DioSyncUploader implements SyncUploader {
       final kind = switch (code) {
         401 => FailureKind.unauthorized,
         403 => FailureKind.forbidden,
-        409 => FailureKind.conflict, // already confirmed — treat as success upstream
+        409 =>
+          FailureKind.conflict, // already confirmed — treat as success upstream
         422 => FailureKind.validation,
-        _ when e.type == DioExceptionType.connectionError => FailureKind.network,
+        _ when e.type == DioExceptionType.connectionError =>
+          FailureKind.network,
         _ when code != null && code >= 500 => FailureKind.server,
         _ => FailureKind.unknown,
       };

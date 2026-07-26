@@ -54,7 +54,8 @@ class _CaptureFlowScreenState extends ConsumerState<CaptureFlowScreen> {
     final controller = ref.read(captureControllerProvider(_args).notifier);
 
     return Scaffold(
-      appBar: AppBar(toolbarHeight: 56, title: const Text('Capture attendance')),
+      appBar:
+          AppBar(toolbarHeight: 56, title: const Text('Capture attendance')),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -78,7 +79,8 @@ class _CaptureFlowScreenState extends ConsumerState<CaptureFlowScreen> {
                 onSubmit: controller.submit,
                 onRecapture: controller.recapture,
               ),
-            CaptureStep.captured => _Captured(attendanceId: state.attendanceId!),
+            CaptureStep.captured =>
+              _Captured(attendanceId: state.attendanceId!),
           },
         ),
       ),
@@ -154,14 +156,18 @@ class _Positioning extends StatelessWidget {
           style: Theme.of(context).textTheme.bodyLarge,
         ),
         const Spacer(),
-        BmdButton(label: "I'm ready", identifier: 'capture_ready', onPressed: onReady),
+        BmdButton(
+            label: "I'm ready",
+            identifier: 'capture_ready',
+            onPressed: onReady),
       ],
     );
   }
 }
 
 class _LiveCamera extends StatelessWidget {
-  const _LiveCamera({required this.init, required this.source, required this.onCapture});
+  const _LiveCamera(
+      {required this.init, required this.source, required this.onCapture});
   final Future<void>? init;
   final CaptureSource source;
   final Future<void> Function() onCapture;
@@ -249,7 +255,8 @@ class _QualityResult extends StatelessWidget {
           ),
         if (error != null) ...[
           const SizedBox(height: 8),
-          Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+          Text(error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error)),
         ],
         const Spacer(),
         if (passes)

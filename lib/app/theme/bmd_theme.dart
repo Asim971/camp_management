@@ -77,7 +77,7 @@ ThemeData bmdTheme({Brightness brightness = Brightness.light}) {
         ),
       ),
     ),
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(BmdRadius.card),

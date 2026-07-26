@@ -13,12 +13,20 @@ Future<void> main() async {
   final container = ProviderContainer();
   final config = container.read(appConfigProvider);
 
-  // E2E-only: seed deterministic local data before the app renders.
+  // E2E-only: seed deterministic local data before the app renders. Best-effort
+  // — a local-DB failure (e.g. Drift web wasm assets absent) must not block the
+  // UI, so DB-independent screens still boot.
   if (config.e2e) {
-    await seedE2EData(container.read(appDatabaseProvider), seed: config.e2eSeed);
+    try {
+      await seedE2EData(
+        container.read(appDatabaseProvider),
+        seed: config.e2eSeed,
+      );
+    } catch (_) {/* seeding is non-critical for the demo */}
   }
 
   runApp(
-    UncontrolledProviderScope(container: container, child: const AcslCampaignApp()),
+    UncontrolledProviderScope(
+        container: container, child: const AcslCampaignApp()),
   );
 }

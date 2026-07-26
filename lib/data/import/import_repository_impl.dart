@@ -4,6 +4,7 @@ import '../../core/network/dio_client.dart';
 import '../../core/result/result.dart';
 import '../../domain/common/status.dart';
 import '../../domain/import/import_job.dart';
+import '../../domain/import/import_repository.dart';
 
 class ImportRepositoryImpl implements ImportRepository {
   ImportRepositoryImpl(this._dio);

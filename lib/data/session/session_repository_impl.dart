@@ -10,7 +10,8 @@ class SessionRepositoryImpl implements SessionRepository {
   final Dio _dio;
 
   @override
-  Future<Result<List<CampaignSession>>> listForCampaign(String campaignId) async {
+  Future<Result<List<CampaignSession>>> listForCampaign(
+      String campaignId) async {
     try {
       final res = await _dio.get<Map<String, dynamic>>(
         '/campaigns/$campaignId/sessions',
@@ -52,8 +53,7 @@ class SessionRepositoryImpl implements SessionRepository {
         startAt: j['startAt'] == null
             ? null
             : DateTime.parse(j['startAt'] as String),
-        endAt:
-            j['endAt'] == null ? null : DateTime.parse(j['endAt'] as String),
+        endAt: j['endAt'] == null ? null : DateTime.parse(j['endAt'] as String),
         capacity: (j['capacity'] as int?) ?? 0,
         registeredCount: (j['registeredCount'] as int?) ?? 0,
         pendingSyncCount: (j['pendingSyncCount'] as int?) ?? 0,
