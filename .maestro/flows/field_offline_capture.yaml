@@ -1,0 +1,60 @@
+# P-05 Offline attendance: capture while offline -> queued -> survives restart
+# -> syncs on reconnect. The highest-value field flow. Android only (airplane).
+appId: com.acsl.campaign
+tags:
+  - field
+  - critical
+  - offline
+---
+- runFlow: ../subflows/launch_as_field_user.yaml
+
+# Go offline BEFORE capture.
+- setAirplaneMode: enabled
+
+- tapOn:
+    id: "dev_open_search"
+- tapOn:
+    id: "search_field"
+- inputText: "kar"
+- tapOn:
+    id: "search_result"
+    index: 0
+- tapOn:
+    id: "confirm_ack"
+- tapOn:
+    id: "confirm_continue"
+- tapOn:
+    id: "capture_accept"
+- tapOn:
+    id: "capture_ready"
+- tapOn:
+    id: "capture_shutter"
+- tapOn:
+    id: "capture_submit"
+- assertVisible: "Attendance captured and queued"
+- tapOn:
+    id: "capture_done"
+
+# Queue shows one pending item — capture succeeded, upload did not.
+- tapOn:
+    id: "dev_open_queue"
+- assertVisible: "1 pending"
+- assertVisible: "Pending sync"
+
+# Durability: kill and relaunch WITHOUT clearing state; item must persist.
+- stopApp
+- launchApp:
+    arguments:
+      E2E: true
+      LOCALE: en
+      ROLE: field_user
+- tapOn:
+    id: "dev_open_queue"
+- assertVisible: "Pending sync"
+
+# Reconnect -> engine auto-drains -> item moves to Match processing.
+- setAirplaneMode: disabled
+- extendedWaitUntil:
+    visible: "Match processing"
+    timeout: 20000
+- assertVisible: "All items synced"

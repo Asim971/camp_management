@@ -1,0 +1,22 @@
+# P-06 concurrency (§9.4): if another reviewer already decided, the server
+# returns 409 and the UI must surface it and reload — never silently overwrite.
+# Prereq: mock returns 409 for CASE_CONFLICT's decision endpoint.
+appId: com.acsl.campaign
+tags:
+  - crm
+---
+- runFlow: ../subflows/launch_as_crm.yaml
+- tapOn:
+    id: "dev_open_crm_case_conflict" # opens /verification/cases/CASE_CONFLICT
+- assertVisible: "Verification case"
+
+- tapOn:
+    id: "crm_outcome_approved"
+- tapOn:
+    id: "crm_reason"
+- inputText: "Face matches."
+- tapOn:
+    id: "crm_submit"
+
+# Concurrent-decision handling: informative message + reload, no overwrite.
+- assertVisible: "Another reviewer already decided. Reloaded."

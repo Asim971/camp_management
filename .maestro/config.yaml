@@ -1,0 +1,13 @@
+# Maestro workspace config. See TESTING_MAESTRO.md for the full plan.
+appId: com.acsl.campaign
+---
+# Execution order is by file; flows are independent and each clears state.
+flows:
+  - flows/campaign_list_smoke.yaml
+  - flows/carpenter_search_confirm.yaml
+  - flows/field_online_capture.yaml
+  - flows/field_capture_recapture.yaml
+  - flows/field_offline_capture.yaml
+  - flows/offline_queue_retry.yaml
+  - flows/crm_case_decision.yaml
+  - flows/crm_case_conflict.yaml

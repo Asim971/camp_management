@@ -1,0 +1,45 @@
+# M-04 recovery: a pending item can be retried, and Discard is guarded by a
+# confirmation dialog (destructive + controlled — §8.11).
+# Prereq: E2E seeds one pending sync item into the queue.
+appId: com.acsl.campaign
+tags:
+  - field
+  - offline
+---
+# Launch inline with SEED=queue so exactly one pending item exists.
+- clearState
+- launchApp:
+    arguments:
+      E2E: true
+      LOCALE: en
+      ROLE: field_user
+      SEED: queue
+- assertVisible:
+    id: "dev_launcher"
+- tapOn:
+    id: "dev_open_queue"
+- assertVisible: "Pending sync"
+
+# Manual retry.
+- tapOn:
+    id: "queue_item_menu"
+    index: 0
+- tapOn: "Retry"
+
+# Discard -> confirmation required; Cancel keeps the item.
+- tapOn:
+    id: "queue_item_menu"
+    index: 0
+- tapOn: "Discard…"
+- assertVisible: "Discard captured attendance?"
+- tapOn: "Cancel"
+- assertVisible: "Pending sync"
+
+# Discard -> confirm -> item removed.
+- tapOn:
+    id: "queue_item_menu"
+    index: 0
+- tapOn: "Discard…"
+- tapOn:
+    id: "queue_discard_confirm" # "Discard" in the dialog
+- assertVisible: "Everything is synced."

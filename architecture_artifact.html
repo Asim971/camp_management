@@ -1,0 +1,456 @@
+<title>Flutter Architecture — ACSL Carpenter Campaign Management</title>
+<style>
+  :root {
+    --ink: #1c2036;
+    --ink-soft: #4a5069;
+    --ink-faint: #737a94;
+    --navy: #2B3674;
+    --navy-soft: #4453a0;
+    --red: #E71E25;
+    --deep-red: #831D1D;
+    --surface: #F8F9FC;
+    --card: #FFFFFF;
+    --card-2: #FDFDFF;
+    --border: #D9DDE8;
+    --border-soft: #E7EAF2;
+    --success: #1F7A4D;
+    --warning: #B54708;
+    --error: #B42318;
+    --info: #175CD3;
+    --tint-red: #FFF2F3;
+    --tint-navy: #F4F5FB;
+    --shadow-1: 0 1px 2px rgba(43,54,116,.08);
+    --shadow-2: 0 4px 16px rgba(43,54,116,.10);
+    --mono: ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --maxw: 1080px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink: #e7e9f4;
+      --ink-soft: #b4b9d2;
+      --ink-faint: #868cab;
+      --navy: #9aa6e6;
+      --navy-soft: #7c8ad4;
+      --red: #ff5860;
+      --deep-red: #ff8a8f;
+      --surface: #0d1020;
+      --card: #161a2e;
+      --card-2: #1a1f36;
+      --border: #2b3152;
+      --border-soft: #232842;
+      --success: #4cc38a;
+      --warning: #f0a13c;
+      --error: #ff7066;
+      --info: #6ba5f0;
+      --tint-red: #2a1622;
+      --tint-navy: #1a2142;
+      --shadow-1: 0 1px 2px rgba(0,0,0,.4);
+      --shadow-2: 0 6px 20px rgba(0,0,0,.45);
+    }
+  }
+  :root[data-theme="light"] {
+    --ink: #1c2036; --ink-soft: #4a5069; --ink-faint: #737a94;
+    --navy: #2B3674; --navy-soft: #4453a0; --red: #E71E25; --deep-red: #831D1D;
+    --surface: #F8F9FC; --card: #FFFFFF; --card-2: #FDFDFF; --border: #D9DDE8; --border-soft: #E7EAF2;
+    --success: #1F7A4D; --warning: #B54708; --error: #B42318; --info: #175CD3;
+    --tint-red: #FFF2F3; --tint-navy: #F4F5FB;
+    --shadow-1: 0 1px 2px rgba(43,54,116,.08); --shadow-2: 0 4px 16px rgba(43,54,116,.10);
+  }
+  :root[data-theme="dark"] {
+    --ink: #e7e9f4; --ink-soft: #b4b9d2; --ink-faint: #868cab;
+    --navy: #9aa6e6; --navy-soft: #7c8ad4; --red: #ff5860; --deep-red: #ff8a8f;
+    --surface: #0d1020; --card: #161a2e; --card-2: #1a1f36; --border: #2b3152; --border-soft: #232842;
+    --success: #4cc38a; --warning: #f0a13c; --error: #ff7066; --info: #6ba5f0;
+    --tint-red: #2a1622; --tint-navy: #1a2142;
+    --shadow-1: 0 1px 2px rgba(0,0,0,.4); --shadow-2: 0 6px 20px rgba(0,0,0,.45);
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  .page {
+    background: var(--surface);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    padding: 0 20px 72px;
+  }
+  .wrap { max-width: var(--maxw); margin: 0 auto; }
+
+  /* ---- Header ---- */
+  header.masthead {
+    max-width: var(--maxw); margin: 0 auto; padding: 40px 0 28px;
+    border-bottom: 2px solid var(--navy);
+  }
+  .kicker {
+    font-family: var(--mono); font-size: 12px; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--red); font-weight: 600;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .kicker::before {
+    content: ""; width: 22px; height: 3px; background: var(--red); border-radius: 2px;
+  }
+  h1 {
+    font-size: clamp(28px, 4.4vw, 44px); line-height: 1.08; margin: 16px 0 10px;
+    color: var(--ink); letter-spacing: -0.02em; text-wrap: balance; font-weight: 800;
+  }
+  h1 .accent { color: var(--navy); }
+  .sub { font-size: 17px; color: var(--ink-soft); max-width: 60ch; margin: 0; }
+  .meta {
+    display: flex; flex-wrap: wrap; gap: 8px 10px; margin-top: 22px;
+    font-family: var(--mono); font-size: 12px;
+  }
+  .meta span {
+    background: var(--tint-navy); color: var(--navy); border: 1px solid var(--border-soft);
+    padding: 4px 10px; border-radius: 6px; font-weight: 600;
+  }
+  .meta span.status { background: var(--tint-red); color: var(--red); border-color: color-mix(in srgb, var(--red) 22%, transparent); }
+
+  /* ---- Sections ---- */
+  section { padding-top: 48px; }
+  .sec-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 20px; }
+  .sec-num {
+    font-family: var(--mono); font-size: 13px; font-weight: 700; color: var(--red);
+    border: 1.5px solid var(--border); border-radius: 6px; padding: 2px 8px; flex: none;
+  }
+  h2 { font-size: 23px; margin: 0; letter-spacing: -0.01em; color: var(--ink); font-weight: 750; }
+  .sec-head p { margin: 3px 0 0; color: var(--ink-faint); font-size: 14px; }
+
+  /* ---- Callout (key decision) ---- */
+  .decision {
+    background: linear-gradient(180deg, var(--card) 0%, var(--card-2) 100%);
+    border: 1px solid var(--border); border-left: 4px solid var(--red);
+    border-radius: 12px; padding: 24px 26px; box-shadow: var(--shadow-1);
+    margin-top: 28px;
+  }
+  .decision .lbl { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--red); font-weight: 700; }
+  .decision h3 { margin: 8px 0 8px; font-size: 20px; color: var(--ink); }
+  .decision p { margin: 0; color: var(--ink-soft); font-size: 15px; }
+
+  /* ---- Cards grid ---- */
+  .grid { display: grid; gap: 14px; }
+  .g2 { grid-template-columns: repeat(2, 1fr); }
+  .g3 { grid-template-columns: repeat(3, 1fr); }
+  .g4 { grid-template-columns: repeat(4, 1fr); }
+  @media (max-width: 860px) { .g3, .g4 { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 560px) { .g2, .g3, .g4 { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 18px 18px 16px; box-shadow: var(--shadow-1);
+  }
+  .card h4 { margin: 0 0 6px; font-size: 15px; color: var(--navy); font-weight: 700; }
+  .card p { margin: 0; font-size: 13.5px; color: var(--ink-soft); }
+  .card .tag { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); display: block; margin-bottom: 8px; letter-spacing: .04em; }
+
+  /* ---- Diagram: topology ---- */
+  .diagram {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 26px; box-shadow: var(--shadow-1); overflow-x: auto;
+  }
+  .topo { display: grid; grid-template-columns: 180px 1fr 180px; gap: 18px; align-items: center; min-width: 620px; }
+  .node {
+    border: 1px solid var(--border); border-radius: 10px; padding: 14px 14px;
+    background: var(--card-2); text-align: center;
+  }
+  .node .role { font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-faint); }
+  .node .name { font-weight: 700; font-size: 14px; color: var(--ink); margin-top: 3px; }
+  .node.client { border-left: 3px solid var(--navy); }
+  .core {
+    border: 1.5px solid var(--navy); border-radius: 12px; background: var(--tint-navy);
+    padding: 16px; text-align: center;
+  }
+  .core .name { font-weight: 800; color: var(--navy); font-size: 15px; }
+  .core .sub2 { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+  .core ul { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+  .core li { font-family: var(--mono); font-size: 11px; background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; color: var(--ink-soft); }
+  .flip { display: grid; gap: 12px; }
+
+  /* ---- Layered stack ---- */
+  .stack { display: flex; flex-direction: column; gap: 10px; }
+  .layer {
+    border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; background: var(--card);
+    display: grid; grid-template-columns: 132px 1fr; gap: 16px; align-items: center;
+  }
+  @media (max-width: 560px) { .layer { grid-template-columns: 1fr; gap: 6px; } }
+  .layer .lname { font-family: var(--mono); font-weight: 700; font-size: 13px; color: var(--navy); }
+  .layer .ldesc { font-size: 13px; color: var(--ink-soft); }
+  .layer.l-feat { border-left: 4px solid var(--red); }
+  .layer.l-dom { border-left: 4px solid var(--navy); }
+  .layer.l-data { border-left: 4px solid var(--info); }
+  .layer.l-core { border-left: 4px solid var(--ink-faint); }
+  .chiprow { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+  .chip { font-family: var(--mono); font-size: 11px; background: var(--tint-navy); color: var(--navy); border-radius: 5px; padding: 2px 7px; }
+
+  /* ---- Pipeline ---- */
+  .pipe { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; }
+  .step {
+    flex: 1 1 130px; border: 1px solid var(--border); border-radius: 10px; padding: 12px;
+    background: var(--card); position: relative;
+  }
+  .step .n { font-family: var(--mono); font-size: 11px; color: var(--red); font-weight: 700; }
+  .step .t { font-size: 13px; font-weight: 650; color: var(--ink); margin-top: 3px; }
+  .step .d { font-size: 12px; color: var(--ink-faint); margin-top: 3px; }
+
+  /* ---- Tables ---- */
+  .tablewrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-1); }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 560px; background: var(--card); }
+  thead th {
+    background: var(--tint-navy); color: var(--navy); text-align: left; font-weight: 700;
+    padding: 11px 14px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em;
+    position: sticky; top: 0; border-bottom: 1px solid var(--border);
+  }
+  tbody td { padding: 11px 14px; border-bottom: 1px solid var(--border-soft); color: var(--ink-soft); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody td:first-child { color: var(--ink); font-weight: 600; }
+  td .mono { font-family: var(--mono); font-size: 12px; color: var(--navy); }
+
+  .sev { font-family: var(--mono); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; white-space: nowrap; }
+  .sev.high { background: color-mix(in srgb, var(--error) 14%, transparent); color: var(--error); }
+  .sev.med { background: color-mix(in srgb, var(--warning) 16%, transparent); color: var(--warning); }
+
+  /* ---- Timeline ---- */
+  .timeline { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+  @media (max-width: 860px) { .timeline { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 480px) { .timeline { grid-template-columns: 1fr; } }
+  .phase { border: 1px solid var(--border); border-radius: 10px; padding: 14px; background: var(--card); border-top: 3px solid var(--navy); }
+  .phase.last { border-top-color: var(--red); }
+  .phase .p { font-family: var(--mono); font-size: 11px; color: var(--red); font-weight: 700; }
+  .phase h4 { margin: 5px 0 6px; font-size: 14px; color: var(--ink); }
+  .phase p { margin: 0; font-size: 12.5px; color: var(--ink-soft); }
+
+  /* ---- Principles list ---- */
+  .principles { display: grid; gap: 10px; }
+  .principle { display: grid; grid-template-columns: 26px 1fr; gap: 12px; align-items: start; }
+  .principle .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--red); margin-top: 7px; margin-left: 8px; }
+  .principle p { margin: 0; font-size: 14px; color: var(--ink-soft); }
+  .principle strong { color: var(--ink); }
+
+  footer.foot { max-width: var(--maxw); margin: 56px auto 0; padding-top: 22px; border-top: 1px solid var(--border); font-size: 12.5px; color: var(--ink-faint); font-family: var(--mono); }
+
+  .arrow { text-align: center; color: var(--ink-faint); font-size: 18px; }
+</style>
+
+<div class="page">
+  <header class="masthead">
+    <div class="kicker">BMD Sales Ecosystem · Architecture Plan</div>
+    <h1>Carpenter Campaign Management &amp; Attendance Verification <span class="accent">— Flutter Architecture</span></h1>
+    <p class="sub">A single Flutter codebase spanning the mobile field app, web campaign administration, CRM verification console, and management analytics — extending the existing Sales Ecosystem shell.</p>
+    <div class="meta">
+      <span class="status">Status · Proposed</span>
+      <span>2026-07-26</span>
+      <span>Owner · Asim Ibne Ilyus</span>
+      <span>Basis · PRD Draft + UI/UX Guideline v1.0</span>
+    </div>
+  </header>
+
+  <div class="wrap">
+
+    <!-- KEY DECISION -->
+    <section id="decision" style="padding-top: 36px;">
+      <div class="decision">
+        <div class="lbl">Key architecture decision</div>
+        <h3>One Flutter codebase for all four surfaces</h3>
+        <p>Flutter targets Android/iOS for offline-first field capture <em>and</em> Flutter Web for the admin, CRM, and analytics consoles. This maximizes cross-surface consistency — the same status vocabulary, validation, and design tokens everywhere, a non-negotiable requirement of the guideline. The accepted trade-off is Flutter Web's accessibility and dense-table effort, which are mitigated deliberately (§6) and treated as a release gate, not polish.</p>
+      </div>
+    </section>
+
+    <!-- TOPOLOGY -->
+    <section id="topology">
+      <div class="sec-head">
+        <span class="sec-num">01</span>
+        <div><h2>System Topology</h2><p>Thin, well-typed clients over an authoritative campaign service. All source-of-truth, verification, and attribution rules live server-side.</p></div>
+      </div>
+      <div class="diagram">
+        <div class="topo">
+          <div class="flip">
+            <div class="node client"><div class="role">Android / iOS</div><div class="name">Field Attendance</div></div>
+            <div class="node client"><div class="role">Browser</div><div class="name">Campaign Admin</div></div>
+            <div class="node client"><div class="role">Browser</div><div class="name">CRM Console</div></div>
+            <div class="node client"><div class="role">Browser</div><div class="name">Analytics</div></div>
+          </div>
+          <div>
+            <div class="arrow">→ &nbsp; HTTPS / REST · SSE &nbsp; →</div>
+            <div class="core">
+              <div class="name">Campaign Management Service</div>
+              <div class="sub2">BMD Sales Ecosystem microservice</div>
+              <ul>
+                <li>Reference / Hybrid DB</li>
+                <li>Media · signed URLs</li>
+                <li>Verification adapter</li>
+                <li>Import jobs</li>
+                <li>Audit</li>
+                <li>Auth / RBAC</li>
+              </ul>
+            </div>
+          </div>
+          <div class="flip">
+            <div class="node"><div class="role">Integration</div><div class="name">Sales Eco APIs</div></div>
+            <div class="node"><div class="role">Phase 2 · adapter</div><div class="name">Face / PAD Provider</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="grid g3" style="margin-top:14px;">
+        <div class="card"><span class="tag">RULE</span><h4>Reference / hybrid DB</h4><p>Read and link Sales Eco master data; never write core records or create a local shadow master.</p></div>
+        <div class="card"><span class="tag">RULE</span><h4>One order, one count</h4><p>Canonical verified order counting is server-enforced; clients only render contribution credits as secondary.</p></div>
+        <div class="card"><span class="tag">RULE</span><h4>Human-in-the-loop</h4><p>Machine result is advisory and a separate object from the CRM decision. AI slots in behind the existing adapter.</p></div>
+      </div>
+    </section>
+
+    <!-- CLIENT ARCHITECTURE -->
+    <section id="layers">
+      <div class="sec-head">
+        <span class="sec-num">02</span>
+        <div><h2>Client Architecture</h2><p>Layered clean-architecture-lite, organized feature-first. Domain is pure Dart with zero Flutter/IO imports — the seam that keeps any future web-native fallback contained.</p></div>
+      </div>
+      <div class="stack">
+        <div class="layer l-feat">
+          <div class="lname">features/</div>
+          <div><div class="ldesc">One module per screen family from the guideline inventory (W-01…AD-01).</div>
+            <div class="chiprow"><span class="chip">campaign_wizard</span><span class="chip">registration</span><span class="chip">bulk_import</span><span class="chip">camera_capture</span><span class="chip">offline_queue</span><span class="chip">crm_case</span><span class="chip">carpenter_360</span><span class="chip">analytics</span></div>
+          </div>
+        </div>
+        <div class="layer l-dom">
+          <div class="lname">domain/</div>
+          <div><div class="ldesc">Pure entities, value objects, typed status enums, repository interfaces, RBAC logic. Fully unit-testable.</div></div>
+        </div>
+        <div class="layer l-data">
+          <div class="lname">data/</div>
+          <div><div class="ldesc">Repository implementations, DTOs + mappers, remote &amp; local data sources. Isolates API shape from domain.</div></div>
+        </div>
+        <div class="layer l-core">
+          <div class="lname">core/</div>
+          <div><div class="ldesc">Cross-cutting services shared by all features.</div>
+            <div class="chiprow"><span class="chip">network</span><span class="chip">sync</span><span class="chip">media</span><span class="chip">auth/rbac</span><span class="chip">storage · drift</span><span class="chip">design_system</span><span class="chip">localization</span><span class="chip">audit</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="grid g4" style="margin-top:14px;">
+        <div class="card"><span class="tag">STATE</span><h4>Riverpod v2</h4><p>Compile-safe DI, AsyncValue for the mandated loading/partial/delayed/error/empty states.</p></div>
+        <div class="card"><span class="tag">ROUTING</span><h4>GoRouter</h4><p>Role + org/territory scope guards before a route builds. No PII or media tokens in URLs.</p></div>
+        <div class="card"><span class="tag">MODELS</span><h4>freezed</h4><p>Immutable entities and DTOs; typed status vocabulary shared across every surface.</p></div>
+        <div class="card"><span class="tag">THEME</span><h4>BMD tokens → M3</h4><p>Color/space/radius tokens drive ThemeData; one filled primary action enforced per screen.</p></div>
+      </div>
+    </section>
+
+    <!-- OFFLINE PIPELINE -->
+    <section id="offline">
+      <div class="sec-head">
+        <span class="sec-num">03</span>
+        <div><h2>Offline-First Capture</h2><p>The highest-risk subsystem — and where Flutter earns its place. Capture success and upload success are distinct, separately shown states.</p></div>
+      </div>
+      <div class="diagram">
+        <div class="pipe">
+          <div class="step"><div class="n">01</div><div class="t">Camera-only capture</div><div class="d">Gallery disabled; purpose notice first</div></div>
+          <div class="step"><div class="n">02</div><div class="t">Client quality check</div><div class="d">Face count · blur · light · orientation</div></div>
+          <div class="step"><div class="n">03</div><div class="t">Encrypt + persist</div><div class="d">AES, Keystore key; Drift + idempotency key</div></div>
+          <div class="step"><div class="n">04</div><div class="t">Durable queue</div><div class="d">Survives restart; retry / backoff</div></div>
+          <div class="step"><div class="n">05</div><div class="t">Pre-signed upload</div><div class="d">Short-lived URL; progress</div></div>
+          <div class="step"><div class="n">06</div><div class="t">Server verification</div><div class="d">Quality / PAD / 1:1 → CRM review</div></div>
+        </div>
+      </div>
+      <div class="grid g3" style="margin-top:14px;">
+        <div class="card"><span class="tag">GUARANTEE</span><h4>Capture ≠ upload</h4><p>The UI never prompts recapture merely because sync is delayed.</p></div>
+        <div class="card"><span class="tag">GUARANTEE</span><h4>Idempotent</h4><p>Client keys dedup replays across restart, retry, and double-tap.</p></div>
+        <div class="card"><span class="tag">GUARANTEE</span><h4>No shadow master</h4><p>Missing profile → Sales Eco request + "Pending profile sync"; never a local authoritative record.</p></div>
+      </div>
+    </section>
+
+    <!-- WEB STRATEGY / SECURITY principles -->
+    <section id="web">
+      <div class="sec-head">
+        <span class="sec-num">04</span>
+        <div><h2>Web Strategy &amp; Sensitive-Data Handling</h2><p>Mitigating the accepted Flutter-Web trade-offs, and the client's share of privacy enforcement.</p></div>
+      </div>
+      <div class="grid g2">
+        <div class="card"><span class="tag">WEB · A11Y</span><h4>WCAG 2.2 AA as a release gate</h4><p>Semantics wrappers on all controls, keyboard focus + shortcuts for CRM, contrast enforced by tokens, screen-reader audits every sprint.</p></div>
+        <div class="card"><span class="tag">WEB · TABLES</span><h4>One virtualized BmdDataTable</h4><p>Sticky header + identity column, 44–48px rows, safe bulk-select. Reused by list, import, CRM queue, 360, analytics.</p></div>
+        <div class="card"><span class="tag">PRIVACY</span><h4>Sensitive media</h4><p>Signed short-lived URLs, blurred thumbnails until authorized open, download off by default, every view audited.</p></div>
+        <div class="card"><span class="tag">PRIVACY</span><h4>NID &amp; scores</h4><p>NID masked to suffix, reveal permission-gated + audited. Field users see no match score; CRM sees band + reasons only.</p></div>
+      </div>
+    </section>
+
+    <!-- PHASING -->
+    <section id="phasing">
+      <div class="sec-head">
+        <span class="sec-num">05</span>
+        <div><h2>Delivery Phasing</h2><p>Aligned to the PRD launch plan and the design sprint cadence.</p></div>
+      </div>
+      <div class="timeline">
+        <div class="phase"><div class="p">P0</div><h4>Foundation</h4><p>Tokens→theme, core services, design-system gallery, RBAC router, sync scaffold, CI.</p></div>
+        <div class="phase"><div class="p">P1</div><h4>Campaign Admin</h4><p>Wizard, list, approval, detail, registration, bulk import.</p></div>
+        <div class="phase"><div class="p">P2</div><h4>Field Capture</h4><p>Readiness, search, camera + quality, offline queue &amp; sync.</p></div>
+        <div class="phase"><div class="p">P3</div><h4>CRM + Analytics</h4><p>Queue, case, Carpenter 360, dashboard, ROI. A11y gate.</p></div>
+        <div class="phase"><div class="p">P4</div><h4>Hardening</h4><p>Config/audit, accessibility, error states, pilot fixes.</p></div>
+        <div class="phase last"><div class="p">LATER</div><h4>AI Face-Match</h4><p>Slots behind the existing verification adapter — no client rearchitecture.</p></div>
+      </div>
+    </section>
+
+    <!-- PACKAGES -->
+    <section id="packages">
+      <div class="sec-head">
+        <span class="sec-num">06</span>
+        <div><h2>Core Package Set</h2><p>Vet each for null-safety and web support before version lock.</p></div>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Concern</th><th>Package(s)</th><th>Role</th></tr></thead>
+          <tbody>
+            <tr><td>State / DI</td><td><span class="mono">flutter_riverpod · riverpod_generator</span></td><td>App state, DI, async lifecycle</td></tr>
+            <tr><td>Routing</td><td><span class="mono">go_router</span></td><td>Declarative routes + RBAC guards</td></tr>
+            <tr><td>Models</td><td><span class="mono">freezed · json_serializable</span></td><td>Immutable entities &amp; DTO mapping</td></tr>
+            <tr><td>Network</td><td><span class="mono">dio · retry</span></td><td>Interceptors, refresh, error mapping</td></tr>
+            <tr><td>Local DB</td><td><span class="mono">drift · sqlite3_flutter_libs</span></td><td>Offline queue &amp; cached data</td></tr>
+            <tr><td>Camera / media</td><td><span class="mono">camera · google_mlkit_face_detection</span></td><td>Capture + on-device quality hints only</td></tr>
+            <tr><td>Offline / bg</td><td><span class="mono">connectivity_plus · workmanager</span></td><td>Sync triggers, background upload</td></tr>
+            <tr><td>Security</td><td><span class="mono">flutter_secure_storage · cryptography</span></td><td>Token/key store, at-rest encryption</td></tr>
+            <tr><td>L10n / charts</td><td><span class="mono">flutter_localizations · intl · fl_chart</span></td><td>bn/en, analytics visuals</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- RISKS -->
+    <section id="risks">
+      <div class="sec-head">
+        <span class="sec-num">07</span>
+        <div><h2>Risks &amp; Mitigations</h2><p>The watch-items most likely to force a decision revisit.</p></div>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Risk</th><th>Sev</th><th>Mitigation</th></tr></thead>
+          <tbody>
+            <tr><td>Flutter Web fails WCAG 2.2 AA on CanvasKit</td><td><span class="sev high">HIGH</span></td><td>A11y gate from P0; contained fallback to web-native CRM/admin — domain/data packages reused.</td></tr>
+            <tr><td>Offline sync data loss / duplicates</td><td><span class="sev high">HIGH</span></td><td>Idempotency keys, durable Drift queue, restart integration tests, capture≠upload UX.</td></tr>
+            <tr><td>Sales Eco API readiness unknown (PRD R3)</td><td><span class="sev high">HIGH</span></td><td>Contract-first with mock server; data layer isolates API shape; discovery before timeline lock.</td></tr>
+            <tr><td>Sensitive media leakage</td><td><span class="sev high">HIGH</span></td><td>Signed URLs, no URL PII, audit-on-view, encryption, download off by default.</td></tr>
+            <tr><td>Dense-table ergonomics on web</td><td><span class="sev med">MED</span></td><td>Build the single virtualized BmdDataTable early in P0.</td></tr>
+            <tr><td>Consistency drift across surfaces</td><td><span class="sev med">MED</span></td><td>Shared design system + typed status vocabulary + golden tests.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ACTION ITEMS -->
+    <section id="actions">
+      <div class="sec-head">
+        <span class="sec-num">08</span>
+        <div><h2>Immediate Action Items</h2><p>What unblocks the P0 foundation.</p></div>
+      </div>
+      <div class="principles">
+        <div class="principle"><div class="dot"></div><p><strong>Confirm the Sales Eco carpenter-master API</strong> contract &amp; availability — blocks registration and Carpenter 360.</p></div>
+        <div class="principle"><div class="dot"></div><p><strong>Run a CanvasKit + accessibility spike</strong> with a screen-reader audit on one dense screen before committing the web approach.</p></div>
+        <div class="principle"><div class="dot"></div><p><strong>Define server contracts</strong> for idempotency, signed URLs, and audit — the client depends on them.</p></div>
+        <div class="principle"><div class="dot"></div><p><strong>Build BmdDataTable + typed StatusChip</strong> first; they are reused across every surface.</p></div>
+        <div class="principle"><div class="dot"></div><p><strong>Stand up the offline-capture test harness</strong> before P2 feature work begins.</p></div>
+        <div class="principle"><div class="dot"></div><p><strong>Lock the bn/en notice-versioning model</strong> with Security &amp; Legal.</p></div>
+      </div>
+    </section>
+
+    <footer class="foot">
+      ACSL Carpenter Campaign Management · Flutter Architecture Plan (Proposed) · Companion to ARCHITECTURE_Flutter.md · Recalibrate phasing against engineering sizing.
+    </footer>
+
+  </div>
+</div>

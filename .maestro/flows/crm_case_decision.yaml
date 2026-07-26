@@ -1,0 +1,32 @@
+# C-02: machine recommendation is shown as a separate advisory block, the
+# reason is mandatory, and a valid decision is recorded (part of P-06).
+# Prereq: mock /verification/cases/CASE_E2E + fixture images.
+appId: com.acsl.campaign
+tags:
+  - crm
+  - critical
+---
+- runFlow: ../subflows/launch_as_crm.yaml
+- tapOn:
+    id: "dev_open_crm_case" # opens /verification/cases/CASE_E2E
+- assertVisible: "Verification case"
+
+# Evidence + the clearly-separated advisory block are both present.
+- assertVisible: "Evidence"
+- assertVisible: "Machine recommendation (advisory)"
+
+# Reason is mandatory: Submit stays disabled until an outcome + reason are set.
+- tapOn:
+    id: "crm_outcome_approved" # radio "Approve"
+- assertVisible:
+    id: "crm_submit"
+    enabled: false
+- tapOn:
+    id: "crm_reason"
+- inputText: "Face matches the verified profile photo."
+- assertVisible:
+    id: "crm_submit"
+    enabled: true
+- tapOn:
+    id: "crm_submit"
+- assertVisible: "Decision recorded"

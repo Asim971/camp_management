@@ -1,0 +1,169 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../core/auth/rbac.dart';
+import '../../core/design_system/placeholder_screen.dart';
+import '../../features/camera_capture/presentation/capture_flow_screen.dart';
+import '../../features/bulk_import/presentation/bulk_import_screen.dart';
+import '../../features/campaign_approval/presentation/campaign_approval_screen.dart';
+import '../../features/campaign_detail/presentation/campaign_detail_screen.dart';
+import '../../features/campaign_list/presentation/campaign_list_screen.dart';
+import '../../features/campaign_wizard/presentation/campaign_wizard_screen.dart';
+import '../../features/carpenter_search/presentation/carpenter_search_screen.dart';
+import '../../features/crm_case/presentation/crm_case_screen.dart';
+import '../../features/dev/presentation/dev_launcher_screen.dart';
+import '../../features/offline_queue/presentation/offline_queue_screen.dart';
+import '../../features/registration/presentation/registration_workspace_screen.dart';
+import '../di/providers.dart';
+import 'route_guards.dart';
+
+/// App router. Redirect guards enforce auth + RBAC scope before a route builds
+/// (§7). Deep-linkable web URLs, but NEVER PII/media tokens in the path.
+final routerProvider = Provider<GoRouter>((ref) {
+  const guards = RouteGuards();
+  final config = ref.read(appConfigProvider);
+
+  return GoRouter(
+    initialLocation: config.e2e ? '/dev' : '/',
+    redirect: (context, state) {
+      final session = ref.read(authControllerProvider);
+      final required = _requiredPermission(state.matchedLocation);
+      return guards.evaluate(
+        session: session,
+        location: state.matchedLocation,
+        required: required,
+      );
+    },
+    // Rebuild redirects when auth changes.
+    refreshListenable: _AuthListenable(ref),
+    routes: [
+      GoRoute(
+        path: '/login',
+        builder: (_, __) => const PlaceholderScreen(
+          title: 'Sign in',
+          screenId: 'AUTH',
+        ),
+      ),
+      GoRoute(
+        path: '/forbidden',
+        builder: (_, __) => const PlaceholderScreen(
+          title: 'Access denied',
+          screenId: 'RBAC',
+        ),
+      ),
+      // Test-only deep-link launcher (only reachable in E2E builds).
+      GoRoute(path: '/dev', builder: (_, __) => const DevLauncherScreen()),
+      GoRoute(
+        path: '/',
+        builder: (_, __) => const PlaceholderScreen(
+          title: 'Campaign Dashboard',
+          screenId: 'W-01',
+          prdRefs: ['CM-FR-080..087'],
+        ),
+      ),
+      GoRoute(
+        path: '/campaigns',
+        builder: (_, __) => const CampaignListScreen(),
+        routes: [
+          // Static 'new' must precede the ':id' param route.
+          GoRoute(
+            path: 'new',
+            builder: (_, __) => const CampaignWizardScreen(),
+          ),
+          GoRoute(
+            path: ':id',
+            builder: (_, state) => CampaignDetailScreen(
+              campaignId: state.pathParameters['id']!,
+            ),
+            routes: [
+              GoRoute(
+                path: 'approve',
+                builder: (_, state) => CampaignApprovalScreen(
+                  campaignId: state.pathParameters['id']!,
+                ),
+              ),
+              GoRoute(
+                path: 'register',
+                builder: (_, state) => RegistrationWorkspaceScreen(
+                  campaignId: state.pathParameters['id']!,
+                ),
+              ),
+              GoRoute(
+                path: 'import',
+                builder: (_, state) => BulkImportScreen(
+                  campaignId: state.pathParameters['id']!,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+      GoRoute(
+        path: '/verification',
+        builder: (_, __) => const PlaceholderScreen(
+          title: 'Verification Queue',
+          screenId: 'C-01',
+          prdRefs: ['CM-FR-060, 067'],
+        ),
+        routes: [
+          GoRoute(
+            path: 'cases/:id',
+            builder: (_, state) =>
+                CrmCaseScreen(attendanceId: state.pathParameters['id']!),
+          ),
+        ],
+      ),
+      // Mobile field: search → capture, plus the offline queue monitor.
+      GoRoute(
+        path: '/search/:sessionId',
+        builder: (_, state) =>
+            CarpenterSearchScreen(sessionId: state.pathParameters['sessionId']!),
+      ),
+      GoRoute(
+        path: '/capture/:sessionId/:carpenterId',
+        builder: (_, state) => CaptureFlowScreen(
+          sessionId: state.pathParameters['sessionId']!,
+          carpenterId: state.pathParameters['carpenterId']!,
+        ),
+      ),
+      GoRoute(
+        path: '/queue',
+        builder: (_, __) => const OfflineQueueScreen(),
+      ),
+      GoRoute(
+        path: '/analytics',
+        builder: (_, __) => const PlaceholderScreen(
+          title: 'Campaign Analytics',
+          screenId: 'A-02',
+          prdRefs: ['CM-FR-080..087'],
+        ),
+      ),
+    ],
+  );
+});
+
+/// Maps a location to the permission it demands (extend as features land).
+Permission? _requiredPermission(String location) {
+  if (location.startsWith('/campaigns/new')) return Permission.campaignCreate;
+  if (location.startsWith('/campaigns/') && location.endsWith('/approve')) {
+    return Permission.campaignApprove;
+  }
+  if (location.endsWith('/import')) return Permission.bulkImport;
+  if (location.endsWith('/register')) return Permission.campaignCreate;
+  if (location.startsWith('/verification')) return Permission.verificationDecide;
+  if (location.startsWith('/capture') ||
+      location.startsWith('/search') ||
+      location.startsWith('/queue')) {
+    return Permission.attendanceCapture;
+  }
+  if (location.startsWith('/analytics')) return Permission.export;
+  return null;
+}
+
+/// Bridges Riverpod auth state to GoRouter's Listenable refresh.
+class _AuthListenable extends ChangeNotifier {
+  _AuthListenable(Ref ref) {
+    ref.listen(authControllerProvider, (_, __) => notifyListeners());
+  }
+}

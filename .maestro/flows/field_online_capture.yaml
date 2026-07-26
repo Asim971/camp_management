@@ -1,0 +1,48 @@
+# P-04 Online attendance: search -> confirm -> capture -> quality pass -> queued.
+# Prereqs: E2E build (fake camera + passing quality), seeded roster, mock upload.
+appId: com.acsl.campaign
+tags:
+  - field
+  - critical
+---
+- runFlow: ../subflows/launch_as_field_user.yaml
+
+- tapOn:
+    id: "dev_open_search" # opens /search/SESSION_E2E
+- assertVisible:
+    id: "search_field" # fallback text: "Name, ID or phone suffix"
+- tapOn:
+    id: "search_field"
+- inputText: "kar"
+- assertVisible:
+    id: "search_result"
+
+# Select first match and clear the mandatory second identity cue.
+- tapOn:
+    id: "search_result"
+    index: 0
+- assertVisible:
+    id: "confirm_continue"
+- tapOn:
+    id: "confirm_ack" # "I confirmed this is the correct carpenter"
+- tapOn:
+    id: "confirm_continue"
+
+# Purpose notice -> positioning -> live camera.
+- assertVisible: "Attendance photo and identity verification"
+- tapOn:
+    id: "capture_accept" # "Accept and continue"
+- tapOn:
+    id: "capture_ready" # "I'm ready"
+- assertVisible:
+    id: "capture_shutter"
+- tapOn:
+    id: "capture_shutter"
+
+# Quality passes (E2E PassthroughQualityChecker) -> submit -> queued.
+- assertVisible: "Capture looks good"
+- tapOn:
+    id: "capture_submit"
+- assertVisible: "Attendance captured and queued"
+- tapOn:
+    id: "capture_done"
