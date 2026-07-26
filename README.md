@@ -6,10 +6,11 @@ Flutter application for campaign lifecycle management and carpenter attendance v
 
 ## Quick start
 
-> Requires Flutter ≥ 3.22 (Dart ≥ 3.4). This repo was scaffolded without a local Flutter SDK; run `flutter create .` once to (re)generate the platform folders (`android/`, `web/`, …) — it will not overwrite `lib/`.
+> Verified on **Flutter 3.44.8 / Dart 3.12.2** (min Flutter ≥ 3.22). The `web/`
+> runner is committed; run `flutter create . --platforms=android` if you also
+> need the Android runner (it won't overwrite `lib/`).
 
 ```bash
-flutter create . --platforms=android,web    # generate platform runners
 flutter pub get
 dart run build_runner build --delete-conflicting-outputs   # freezed / json / drift / riverpod
 flutter gen-l10n                              # generate AppL10n from lib/l10n/*.arb
@@ -18,6 +19,10 @@ flutter run -d chrome \
   --dart-define=API_BASE_URL=https://dev.api.example/campaign \
   --dart-define=MEDIA_HOST=https://dev.media.example
 ```
+
+> **Note:** production auth isn't wired yet, so a plain `flutter run` lands on the
+> login placeholder. For a working demo use **E2E mode + the mock server** — see
+> ["Run it end-to-end"](#run-it-end-to-end-with-the-mock-backend) below.
 
 Codegen must run before the first build: `freezed`/`json_serializable` (models), `drift_dev` (offline DB), `riverpod_generator` (if you adopt annotated providers), and `gen-l10n` (localization).
 
@@ -64,7 +69,46 @@ all backed by the mock. See [`tool/mock_server/README.md`](tool/mock_server/READ
 
 ## Status
 
-P0 foundation is scaffolded (theme, tokens, status vocabulary, core service seams, RBAC routing, DI, `campaign_list` reference feature, l10n, a domain test). Feature modules are tracked in [`lib/features/README.md`](lib/features/README.md) and [`TASK_BREAKDOWN.md`](TASK_BREAKDOWN.md).
+**Verified:** `flutter analyze` clean of errors · `flutter test` 15/15 pass (incl. the
+offline sync-engine harness) · `flutter build web` succeeds · runs end-to-end against
+the mock server (campaign list/detail render live data, RBAC guard and responsive
+shell confirmed in-browser).
 
-Several tasks are blocked on server contracts (🔒 in the task breakdown): Sales Eco carpenter-master API, auth/RBAC service, media signed-URL/encryption, and server idempotency/audit. Resolve these before their dependent features.
-# camp_management
+### Implemented
+
+- **Foundation (P0):** BMD tokens → Material 3 theme, typed status vocabulary +
+  `StatusChip`, `BmdButton`, virtualized `BmdDataTable`, responsive adaptive shell,
+  `Result`/`Failure`, Dio client + auth interceptor, Drift offline DB, RBAC + guarded
+  GoRouter, Riverpod DI, en/bn localization.
+- **Offline sync engine:** durable Drift queue, idempotency keys, exponential backoff,
+  platform-isolated evidence store — with a deterministic test harness.
+- **Field (mobile):** carpenter search (offline-first), 5-step camera capture, offline queue.
+- **CRM:** verification case (C-02) — 3-zone, machine result separate, optimistic locking.
+- **Campaign admin:** list (W-02), create wizard (W-03), approval + SoD gate (W-04),
+  detail + session ops (W-05), registration workspace (W-06), bulk import (W-07).
+- **Test/demo infra:** E2E build mode (fake auth, `/dev` launcher, fake camera, seeder),
+  Maestro flows (`.maestro/`), Dart `shelf` mock server (`tool/mock_server/`).
+
+Per-module status: [`lib/features/README.md`](lib/features/README.md). Full task plan:
+[`TASK_BREAKDOWN.md`](TASK_BREAKDOWN.md). E2E plan: [`TESTING_MAESTRO.md`](TESTING_MAESTRO.md).
+
+### Not yet built
+
+| Screen | ID | Notes |
+|--------|----|-------|
+| Campaign dashboard | W-01 | placeholder (mock endpoints ready) |
+| CRM verification queue | C-01 | placeholder (feeds the built case screen) |
+| Campaign analytics & ROI | A-02 | placeholder |
+| Session readiness | M-01 | field pre-flight + roster cache warm |
+| Carpenter 360 / Integrity / Config | A-01 / A-03 / AD-01 | later phases |
+
+### Known gaps & blockers
+
+- **Backend contracts (🔒):** Sales Eco carpenter-master API, auth/RBAC service, media
+  signed-URL/encryption, server idempotency/audit. Repositories call placeholder
+  endpoints; the mock server stands in until these land.
+- **Drift-on-web assets:** offline-queue/cached-search on the **web** target need
+  `sqlite3.wasm` + the drift worker dropped into `web/` (mobile is unaffected).
+- **ML Kit quality:** capture uses a passthrough/E2E checker; the on-device face-quality
+  impl (T-2.2.2) is unbuilt.
+- **Android/iOS:** needs a JDK + Android SDK (not required for web or `flutter test`).

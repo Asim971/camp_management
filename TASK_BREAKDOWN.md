@@ -6,7 +6,15 @@
 
 **Legend:** 🔒 = blocked by an external dependency (API/infra/legal). ⭐ = reusable across surfaces (build once, early). ✅ = scaffolded in the repo.
 
-> **Scaffolded so far (P0 + two critical-path items):** project config, BMD tokens→theme, typed status vocabulary + `StatusChip`, `BmdButton`, responsive/adaptive shell, `Result`/`Failure`, Dio client + auth interceptor, Drift offline DB, RBAC + guarded GoRouter, Riverpod DI, en/bn l10n, and the `campaign_list` reference feature. Plus the two long-lead items called out below: **`BmdDataTable`** (T-0.2.7) and the **offline `SyncEngine`** with backoff + platform-isolated evidence store + a deterministic test harness (T-2.1.1–5). Remaining tasks below are unbuilt.
+> **Implemented so far** (verified: analyze clean, `flutter test` 15/15, `flutter build web` OK, runs end-to-end vs the mock server):
+> - **P0 foundation** — config, BMD tokens→theme, typed status vocabulary + `StatusChip`, `BmdButton`, virtualized `BmdDataTable`, responsive adaptive shell, `Result`/`Failure`, Dio client + auth interceptor, Drift offline DB, RBAC + guarded GoRouter, Riverpod DI, en/bn l10n.
+> - **Offline `SyncEngine`** (T-2.1.1–5) — backoff + platform-isolated evidence store + deterministic test harness.
+> - **Field (P2)** — carpenter search (M-02), camera capture (M-03), offline queue (M-04).
+> - **CRM (P3)** — verification case (C-02).
+> - **Campaign admin (P1)** — list (W-02), wizard (W-03), approval (W-04), detail+sessions (W-05), registration (W-06), bulk import (W-07).
+> - **Test/demo infra** — E2E build mode, Maestro flows, and a Dart `shelf` mock server (`tool/mock_server/`).
+>
+> **Not yet built:** W-01 dashboard, C-01 CRM queue, A-02 analytics, M-01 session readiness, A-01/A-03/AD-01. See per-module status in [`lib/features/README.md`](lib/features/README.md).
 
 ---
 
