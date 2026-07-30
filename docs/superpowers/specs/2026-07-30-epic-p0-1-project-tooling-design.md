@@ -79,7 +79,7 @@ One `env` flavor dimension. `prod` keeps the bare ID so store identity is never 
 
 ### 4.3 Consequence: Maestro appId
 
-All 9 files under `.maestro/` hardcode `appId: com.acsl.campaign`, but CI installs the **dev** flavor. Left alone, every flow would target an app that is not on the emulator.
+All **11** files under `.maestro/` hardcode `appId: com.acsl.campaign` (`config.yaml`, 2 subflows, 8 flows), but CI installs the **dev** flavor. Left alone, every flow would target an app that is not on the emulator.
 
 Resolution: interpolate — `appId: ${APP_ID}` with `maestro test --env APP_ID=com.acsl.campaign.dev`.
 
@@ -169,7 +169,7 @@ Expected wall clock ~8–10 min.
 
 ### 6.3 Flow selection
 
-Selection is by **tag**, not filename, so adding a flow does not require editing YAML in two places. Flows already carry tags (`field`, `critical`, `offline` at `field_offline_capture.yaml:4-7`); the plan makes tagging consistent across all 9 and drives CI from `--include-tags`.
+Selection is by **tag**, not filename, so adding a flow does not require editing YAML in two places. Flows already carry tags (`field`, `critical`, `offline` at `field_offline_capture.yaml:4-7`), but the existing tags cannot express the policy: `critical` is on `field_online_capture`, `crm_case_decision` **and** `field_offline_capture`, so `--include-tags critical` would drag the nightly-only offline flow into the PR path. The plan therefore adds two selector tags — `pr-smoke` (exactly 2 flows) and `android` (the 7 non-web flows) — and drives CI from those.
 
 Policy, matching `TESTING_MAESTRO.md:157`:
 
