@@ -1,5 +1,7 @@
 # Task Breakdown — ACSL Carpenter Campaign Management (Flutter)
 
+> **Current execution backlog:** Use [`docs/ways-of-work/plan/PRIORITIZED_TASK_BREAKDOWN.md`](docs/ways-of-work/plan/PRIORITIZED_TASK_BREAKDOWN.md) for the priority-ordered remaining work derived from all 32 feature PRDs. This file remains the scaffold/phase history and original task map.
+
 **Companion to:** [`ARCHITECTURE_Flutter.md`](ARCHITECTURE_Flutter.md)
 **Basis:** PRD (Draft) + UI/UX Guideline v1.0
 **Convention:** `T-<phase>.<epic>.<seq>`. Each task lists → PRD FR / design screen ID, dependencies, and a done-when line. Estimates are relative points (S=1, M=3, L=5, XL=8) for planning only; recalibrate after engineering sizing.
