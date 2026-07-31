@@ -147,8 +147,11 @@ void main() {
     await engine.drain();
     var row = await (db.select(db.syncTasks)..where((t) => t.id.equals('t7')))
         .getSingle();
-    expect(row.retryCount, 1,
-        reason: 'should not retry before backoff elapses');
+    expect(
+      row.retryCount,
+      1,
+      reason: 'should not retry before backoff elapses',
+    );
 
     // Advance the clock past the backoff window and drain again → succeeds.
     clock = clock.add(const Duration(seconds: 10));
