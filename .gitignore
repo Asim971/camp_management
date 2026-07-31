@@ -21,6 +21,9 @@ lib/l10n/generated/
 # Claude Code local settings (per-user permissions)
 .claude/settings.local.json
 
+# Subagent-driven-development scratch (ledger, briefs, review packages)
+.superpowers/
+
 # OS
 .DS_Store
 Thumbs.db
