@@ -1,0 +1,270 @@
+    <div class="ds-note ds-note--rule">
+      <div class="ds-note__body"><b>Explainable signals, never a composite score.</b> Every card on this page names a raw,
+        checkable fact — this photo hash appeared twice, these 14 captures came from one device in four minutes. A single blended
+        “fraud score” would be unexplainable to the person accused, unauditable by security, and indefensible in a dispute.</div>
+    </div>
+
+    <section class="ds-block">
+      <div class="ds-plate">
+        <div class="ds-plate__chrome">
+          <span class="ds-plate__dot"></span><span class="ds-plate__dot"></span><span class="ds-plate__dot"></span>
+          <span class="ds-plate__url">sales.bmd.internal/operations/integrity</span>
+        </div>
+        <div class="ds-plate__body">
+          <div class="shell" data-nav="operations">
+<!--@include partials/drawer-web.html-->
+            <div class="col" style="gap: 0; min-width: 0">
+              <header class="appbar">
+                <button class="icon-btn" title="Collapse navigation">☰</button>
+                <div class="crumb"><span>Operations</span><span class="crumb__sep">/</span><b>Integrity and operations</b></div>
+                <div class="row gap-2" style="margin-left: auto">
+                  <span class="context-pill is-locked">🔒 CRM Supervisor · all territories</span>
+                  <span class="thumb" title="Sabrina Haque">SH</span>
+                </div>
+              </header>
+
+              <div class="content">
+                <div class="page-head">
+                  <div class="page-head__text">
+                    <div class="page-head__title">
+                      <h2 class="t-page">Integrity and operations</h2>
+                      <span class="chip chip--warning chip--lg"><span class="chip__dot">⚠</span>11 open</span>
+                    </div>
+                    <p class="t-body">Explainable signals and service health. Last evaluated 09:40.</p>
+                  </div>
+                  <div class="page-head__actions">
+                    <button class="btn btn--outlined">Export controlled evidence</button>
+                    <button class="btn btn--primary">Assign investigations</button>
+                  </div>
+                </div>
+
+                <div class="section">
+                  <div class="section__head"><h3 class="t-section">Integrity signals</h3></div>
+                  <div class="grid g-4">
+                    <div class="card exc exc--error">
+                      <span class="t-micro">Reused photo hash</span>
+                      <span class="exc__count num-hero">3</span>
+                      <span class="t-caption">Identical image bytes across 2 sessions</span>
+                      <a class="t-caption" href="#">Investigate →</a>
+                    </div>
+                    <div class="card exc exc--error">
+                      <span class="t-micro">Duplicate attendance</span>
+                      <span class="exc__count num-hero">2</span>
+                      <span class="t-caption">Same carpenter, same session, 2 records</span>
+                      <a class="t-caption" href="#">Investigate →</a>
+                    </div>
+                    <div class="card exc exc--warning">
+                      <span class="t-micro">Device burst</span>
+                      <span class="exc__count num-hero">1</span>
+                      <span class="t-caption">14 captures in 4 min from BMD-A44</span>
+                      <a class="t-caption" href="#">Investigate →</a>
+                    </div>
+                    <div class="card exc exc--warning">
+                      <span class="t-micro">Geofence exception</span>
+                      <span class="exc__count num-hero">9</span>
+                      <span class="t-caption">Captured 240–900 m outside the venue</span>
+                      <a class="t-caption" href="#">Review →</a>
+                    </div>
+                    <div class="card exc exc--warning">
+                      <span class="t-micro">Quality / PAD failure</span>
+                      <span class="exc__count num-hero">28</span>
+                      <span class="t-caption">Routed to manual review</span>
+                      <a class="t-caption" href="#">Review →</a>
+                    </div>
+                    <div class="card exc exc--info">
+                      <span class="t-micro">Manual override</span>
+                      <span class="exc__count num-hero">47</span>
+                      <span class="t-caption">Decision differed from the advisory</span>
+                      <a class="t-caption" href="#">Quality audit →</a>
+                    </div>
+                    <div class="card exc exc--info">
+                      <span class="t-micro">Sensitive access</span>
+                      <span class="exc__count num-hero">204</span>
+                      <span class="t-caption">Evidence and NID reveals today</span>
+                      <a class="t-caption" href="#">Access log →</a>
+                    </div>
+                    <div class="card exc exc--warning">
+                      <span class="t-micro">Manual route used</span>
+                      <span class="exc__count num-hero">16</span>
+                      <span class="t-caption">Participant declined, or no camera</span>
+                      <a class="t-caption" href="#">Review →</a>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="section">
+                  <div class="section__head">
+                    <h3 class="t-section">Open investigations</h3>
+                    <span class="t-caption">Each row states the observed fact, not a conclusion</span>
+                  </div>
+                  <div class="table-wrap">
+                    <table class="tbl">
+                      <thead>
+                        <tr><th>Case</th><th>Signal</th><th>What was observed</th><th>Scope</th>
+                          <th class="c-num">Age</th><th>State</th><th>Owner</th></tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td class="c-id">INT-3301</td>
+                          <td><span class="chip chip--error"><span class="chip__dot">⧉</span>Reused photo hash</span></td>
+                          <td>The same image bytes were submitted for CRP-49907 at Bogura S1 and for CRP-50188 at Bogura S1,
+                            6 minutes apart, from device BMD-A44.</td>
+                          <td>Skill Camp — Bogura</td>
+                          <td class="c-num">7h 40m</td>
+                          <td><span class="chip chip--info"><span class="chip__dot">◍</span>Under review</span></td>
+                          <td>S. Haque</td>
+                        </tr>
+                        <tr>
+                          <td class="c-id">INT-3298</td>
+                          <td><span class="chip chip--warning"><span class="chip__dot">⌖</span>Geofence exception</span></td>
+                          <td>9 captures recorded 240–900 m outside the Ashulia Bazar Centre boundary, all between 11:02 and 11:40,
+                            by one field user.</td>
+                          <td>Rod Clinic — Savar · S3</td>
+                          <td class="c-num">1d 03h</td>
+                          <td><span class="chip chip--info"><span class="chip__dot">◍</span>Under review</span></td>
+                          <td>Unassigned</td>
+                        </tr>
+                        <tr>
+                          <td class="c-id">INT-3290</td>
+                          <td><span class="chip chip--warning"><span class="chip__dot">⚡</span>Device burst</span></td>
+                          <td>14 captures from BMD-A44 within 4 minutes. The session's median interval is 96 seconds.</td>
+                          <td>Skill Camp — Bogura</td>
+                          <td class="c-num">2d 01h</td>
+                          <td><span class="chip chip--success"><span class="chip__dot">✓</span>False positive</span></td>
+                          <td>S. Haque</td>
+                        </tr>
+                        <tr>
+                          <td class="c-id">INT-3287</td>
+                          <td><span class="chip chip--error"><span class="chip__dot">⧉</span>Duplicate attendance</span></td>
+                          <td>Two approved attendance records exist for CRP-48812 in Rod Clinic — Savar S2, created 10:04 and 10:22
+                            from different devices.</td>
+                          <td>Rod Clinic — Savar · S2</td>
+                          <td class="c-num">2d 06h</td>
+                          <td><span class="chip chip--success"><span class="chip__dot">✓</span>Resolved</span></td>
+                          <td>S. Haque</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <div class="ds-note" style="margin-top: var(--space-4)">
+                    <div class="ds-note__body">INT-3290 was closed as a false positive: the field user was clearing a queue of
+                      participants who had already been photographed on a second device. Closing it as a false positive is a
+                      first-class outcome, and it feeds back into the burst threshold review.</div>
+                  </div>
+                </div>
+
+                <div class="section">
+                  <div class="section__head"><h3 class="t-section">Service and reconciliation health</h3></div>
+                  <div class="grid g-2">
+                    <div class="card">
+                      <div class="card__body gap-3">
+                        <span class="t-card">Integrations</span>
+                        <div class="list">
+                          <div class="list__item" style="padding: var(--space-3) 0">
+                            <div class="grow col gap-1"><span class="t-strong">Sales Eco carpenter master</span>
+                              <span class="t-caption">Last successful sync 06:10 · 12,884 profiles</span></div>
+                            <span class="chip chip--success"><span class="chip__dot">✓</span>Healthy</span>
+                          </div>
+                          <div class="list__item" style="padding: var(--space-3) 0">
+                            <div class="grow col gap-1"><span class="t-strong">Order facts feed</span>
+                              <span class="t-caption">41 minutes behind · retrying</span></div>
+                            <span class="chip chip--warning"><span class="chip__dot">◷</span>Degraded</span>
+                          </div>
+                          <div class="list__item" style="padding: var(--space-3) 0">
+                            <div class="grow col gap-1"><span class="t-strong">Face verification service</span>
+                              <span class="t-caption">Median 1.4 s · 0 failures in the last hour</span></div>
+                            <span class="chip chip--success"><span class="chip__dot">✓</span>Healthy</span>
+                          </div>
+                          <div class="list__item" style="padding: var(--space-3) 0">
+                            <div class="grow col gap-1"><span class="t-strong">Media store</span>
+                              <span class="t-caption">3 signed-URL rejections in the last hour</span></div>
+                            <span class="chip chip--warning"><span class="chip__dot">◷</span>Degraded</span>
+                          </div>
+                        </div>
+                        <button class="btn btn--outlined" style="align-self: flex-start">Retry order feed</button>
+                      </div>
+                    </div>
+
+                    <div class="card">
+                      <div class="card__body gap-3">
+                        <span class="t-card">Sync backlog and reconciliation</span>
+                        <div class="grid g-2" style="gap: var(--space-4)">
+                          <div class="kpi" style="padding: 0">
+                            <span class="t-micro">Captures awaiting upload</span>
+                            <span class="kpi__value num-hero" style="font-size: 28px; line-height: 34px">41</span>
+                            <span class="kpi__denom">7 devices · oldest 4h 12m</span>
+                          </div>
+                          <div class="kpi" style="padding: 0">
+                            <span class="t-micro">Upload failures needing help</span>
+                            <span class="kpi__value num-hero" style="font-size: 28px; line-height: 34px">3</span>
+                            <span class="kpi__denom">expired signed URLs</span>
+                          </div>
+                          <div class="kpi" style="padding: 0">
+                            <span class="t-micro">Profile requests pending</span>
+                            <span class="kpi__value num-hero" style="font-size: 28px; line-height: 34px">17</span>
+                            <span class="kpi__denom">oldest 2d 04h</span>
+                          </div>
+                          <div class="kpi" style="padding: 0">
+                            <span class="t-micro">Orders with no canonical ID</span>
+                            <span class="kpi__value num-hero" style="font-size: 28px; line-height: 34px">2</span>
+                            <span class="kpi__denom">excluded from every total</span>
+                          </div>
+                        </div>
+                        <span class="footnote">A capture awaiting upload is not a lost capture. Only the 3 expired signed URLs need
+                          human intervention.</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="section">
+                  <div class="section__head">
+                    <h3 class="t-section">Sensitive access log</h3>
+                    <span class="t-caption">Who looked at what, and under which case</span>
+                  </div>
+                  <div class="table-wrap">
+                    <table class="tbl">
+                      <thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Subject</th><th>Under case</th><th>Correlation ID</th></tr></thead>
+                      <tbody>
+                        <tr><td class="c-num">09:38</td><td>S. Ahmed · CRM Verifier</td><td>Opened attendance evidence</td>
+                          <td class="c-id">CRP-47201</td><td class="c-id">VC-2026-88410</td><td class="c-id">corr-7f19a2</td></tr>
+                        <tr><td class="c-num">09:36</td><td>S. Ahmed · CRM Verifier</td><td>Revealed phone suffix</td>
+                          <td class="c-id">CRP-47201</td><td class="c-id">VC-2026-88410</td><td class="c-id">corr-7f19a2</td></tr>
+                        <tr><td class="c-num">09:21</td><td>S. Haque · CRM Supervisor</td><td>Exported controlled evidence</td>
+                          <td class="c-id">2 records</td><td class="c-id">INT-3301</td><td class="c-id">corr-7e04b8</td></tr>
+                        <tr><td class="c-num">08:54</td><td>R. Islam · Support</td><td>Viewed raw vendor payload</td>
+                          <td class="c-id">CRP-49907</td><td class="c-id">SYN-8812</td><td class="c-id">corr-7db110</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head"><h2 class="ds-block__title">Specification</h2></div>
+      <table class="ds-spec">
+        <thead><tr><th>Dimension</th><th>Specification</th></tr></thead>
+        <tbody>
+          <tr><td>Primary users</td><td>CRM Supervisor, Security, Support, Auditor</td></tr>
+          <tr><td>Signals</td><td>Reused photo or hash · duplicate attendance · device burst · geofence exception · quality and PAD failure · manual override · sync backlog · profile and order reconciliation gap · sensitive access</td></tr>
+          <tr><td>Mobile</td><td>Monitoring only. No sensitive image review on a phone.</td></tr>
+          <tr><td>Primary actions</td><td>Open case · assign investigation · retry integration · acknowledge alert · export controlled evidence</td></tr>
+          <tr><td>Required states</td><td>Open · under review · resolved · false positive · service degraded · backlog</td></tr>
+        </tbody>
+      </table>
+      <div class="ds-note ds-note--privacy">
+        <div class="ds-note__body"><b>“False positive” is a first-class outcome.</b> Giving investigators an honest way to close a
+          signal as wrong is what keeps thresholds tunable and stops the queue filling with noise people learn to ignore. A system
+          that only permits “confirmed” or “open” will quietly train its users to leave everything open.</div>
+      </div>
+      <div class="ds-note">
+        <div class="ds-note__body"><b>The access log is on the same page as the signals.</b> The people investigating others are
+          themselves visible here — including the supervisor's own evidence export. Oversight that exempts the overseers is not
+          oversight.</div>
+      </div>
+    </section>

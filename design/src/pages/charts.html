@@ -1,0 +1,355 @@
+    <div class="ds-note ds-note--rule">
+      <div class="ds-note__body"><b>Colour is assigned by the job it does.</b> Identity takes the categorical slots in fixed
+        order. A sequence — funnel stages, match bands — takes the one-hue ordinal ramp so the reader sees the order in the
+        colour. A series that <i>means</i> good or bad wears the status tokens. Nothing in this system is coloured by its rank,
+        because that spends the identity channel re-encoding what bar length already shows.</div>
+    </div>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Where is the funnel leaking?</h2>
+        <span class="ds-block__note">Ordinal ramp · count and rate always both shown</span>
+      </div>
+      <div class="card">
+        <div class="card__body gap-4">
+          <div class="chart__head">
+            <div class="col gap-1">
+              <span class="t-card">Conversion funnel</span>
+              <span class="chart__meta">Mistri Meet — Savar Cluster · sessions 1–3 · click any stage to open the underlying list</span>
+            </div>
+            <div class="viewswitch"><button class="is-on">Chart</button><button>Table</button></div>
+          </div>
+          <div class="funnel">
+            <div class="fstage">
+              <span class="fstage__label">Target audience</span>
+              <div class="fstage__track"><div class="fstage__bar" style="width: 100%; background: var(--funnel-1)"></div></div>
+              <span class="fstage__rate"><b class="fstage__val">1,200</b> · baseline</span>
+            </div>
+            <div class="fstage">
+              <span class="fstage__label">Registered</span>
+              <div class="fstage__track"><div class="fstage__bar" style="width: 98.7%; background: var(--funnel-2)"></div></div>
+              <span class="fstage__rate"><b class="fstage__val">1,184</b> · 98.7% of target</span>
+            </div>
+            <div class="fstage">
+              <span class="fstage__label">Attendance captured</span>
+              <div class="fstage__track"><div class="fstage__bar" style="width: 95.7%; background: var(--funnel-3)"></div></div>
+              <span class="fstage__rate"><b class="fstage__val">1,148</b> · 97.0% of registered</span>
+            </div>
+            <div class="fstage">
+              <span class="fstage__label">Verified attendance</span>
+              <div class="fstage__track"><div class="fstage__bar" style="width: 92.3%; background: var(--funnel-4)"></div></div>
+              <span class="fstage__rate"><b class="fstage__val">1,107</b> · 96.4% of captured</span>
+            </div>
+          </div>
+          <div class="row gap-4 wrap" style="padding-top: var(--space-2)">
+            <span class="t-micro">Leakage</span>
+            <span class="chip chip--warning"><span class="chip__dot">⇡</span>Pending sync 41</span>
+            <span class="chip chip--info"><span class="chip__dot">◍</span>CRM review 28</span>
+            <span class="chip chip--error"><span class="chip__dot">✕</span>Rejected 13</span>
+            <span class="chip chip--neutral"><span class="chip__dot">○</span>No-show 36</span>
+          </div>
+          <span class="footnote">Verified attendance counts distinct carpenters with a CRM-approved record inside the session
+            window. Source: attendance + verification facts · refreshed 09:42. Every stage total reconciles to a list you can
+            open — the leakage chips sum to the gap between captured and verified.</span>
+        </div>
+      </div>
+      <div class="ds-note">
+        <div class="ds-note__body">The rate is expressed against the <i>previous</i> stage, not against the target, because
+          “96.4% of captured” is the number that tells an operator where the loss actually is. The percentage of target is shown
+          too, so neither reading has to be calculated by the reader.</div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">How is performance changing?</h2>
+        <span class="ds-block__note">Explicit date grain · gaps never interpolated silently</span>
+      </div>
+      <div class="card">
+        <div class="card__body gap-4">
+          <div class="chart__head">
+            <div class="col gap-1">
+              <span class="t-card">Verified attendance and open review, by day</span>
+              <span class="chart__meta">Daily · 27 Jul – 05 Aug 2026 · Asia/Dhaka · source: verification facts · refreshed 09:42</span>
+            </div>
+            <div class="viewswitch"><button class="is-on">Chart</button><button>Table</button></div>
+          </div>
+
+          <svg class="plot" viewBox="0 0 760 250" role="img" aria-labelledby="trend-title trend-desc">
+            <title id="trend-title">Verified attendance and cases in review, daily, 27 July to 5 August 2026</title>
+            <desc id="trend-desc">Verified attendance rises from 96 to 168 per day. Cases in review peak at 66 on 30 July.
+              No data was recorded on 2 August because of a feed outage.</desc>
+
+            <!-- gridlines, recessive -->
+            <line class="grid-line" x1="56" y1="24" x2="660" y2="24"></line>
+            <line class="grid-line" x1="56" y1="71.5" x2="660" y2="71.5"></line>
+            <line class="grid-line" x1="56" y1="119" x2="660" y2="119"></line>
+            <line class="grid-line" x1="56" y1="166.5" x2="660" y2="166.5"></line>
+            <line class="axis-line" x1="56" y1="214" x2="660" y2="214"></line>
+
+            <text class="tick" x="48" y="28" text-anchor="end">200</text>
+            <text class="tick" x="48" y="75.5" text-anchor="end">150</text>
+            <text class="tick" x="48" y="123" text-anchor="end">100</text>
+            <text class="tick" x="48" y="170.5" text-anchor="end">50</text>
+            <text class="tick" x="48" y="218" text-anchor="end">0</text>
+
+            <text class="tick" x="56" y="232" text-anchor="middle">27 Jul</text>
+            <text class="tick" x="190.2" y="232" text-anchor="middle">29 Jul</text>
+            <text class="tick" x="324.4" y="232" text-anchor="middle">31 Jul</text>
+            <text class="tick" x="458.7" y="232" text-anchor="middle">02 Aug</text>
+            <text class="tick" x="592.9" y="232" text-anchor="middle">04 Aug</text>
+
+            <!-- in review: navy, slot 2 -->
+            <path class="series-line" stroke="var(--series-2)"
+              d="M56,193.1 L123.1,187.4 L190.2,175.05 L257.3,151.3 L324.4,177.9 L391.6,186.45 L458.7,172.2 L525.8,184.55 L592.9,191.2 L660,188.35"></path>
+
+            <!-- verified: brand red, the principal series. The 02 Aug gap is drawn
+                 dashed and called out, never bridged as if it were measured. -->
+            <path class="series-line" stroke="var(--series-1)"
+              d="M56,122.8 L123.1,101.9 L190.2,88.6 L257.3,99.05 L324.4,76.25 L391.6,63.9"></path>
+            <path class="series-line gap-line" stroke="var(--series-1)" d="M391.6,63.9 L525.8,60.1"></path>
+            <path class="series-line" stroke="var(--series-1)"
+              d="M525.8,60.1 L592.9,48.7 L660,54.4"></path>
+
+            <!-- markers, 8px with a 2px surface ring so overlaps stay readable -->
+            <circle class="series-dot" cx="56" cy="122.8" fill="var(--series-1)"></circle>
+            <circle class="series-dot" cx="123.1" cy="101.9" fill="var(--series-1)"></circle>
+            <circle class="series-dot" cx="190.2" cy="88.6" fill="var(--series-1)"></circle>
+            <circle class="series-dot" cx="257.3" cy="99.05" fill="var(--series-1)"></circle>
+            <circle class="series-dot" cx="324.4" cy="76.25" fill="var(--series-1)"></circle>
+            <circle class="series-dot" cx="391.6" cy="63.9" fill="var(--series-1)"></circle>
+            <circle class="series-dot" cx="525.8" cy="60.1" fill="var(--series-1)"></circle>
+            <circle class="series-dot" cx="592.9" cy="48.7" fill="var(--series-1)"></circle>
+            <circle class="series-dot" cx="660" cy="54.4" fill="var(--series-1)"></circle>
+
+            <circle class="series-dot" cx="56" cy="193.1" fill="var(--series-2)"></circle>
+            <circle class="series-dot" cx="123.1" cy="187.4" fill="var(--series-2)"></circle>
+            <circle class="series-dot" cx="190.2" cy="175.05" fill="var(--series-2)"></circle>
+            <circle class="series-dot" cx="257.3" cy="151.3" fill="var(--series-2)"></circle>
+            <circle class="series-dot" cx="324.4" cy="177.9" fill="var(--series-2)"></circle>
+            <circle class="series-dot" cx="391.6" cy="186.45" fill="var(--series-2)"></circle>
+            <circle class="series-dot" cx="458.7" cy="172.2" fill="var(--series-2)"></circle>
+            <circle class="series-dot" cx="525.8" cy="184.55" fill="var(--series-2)"></circle>
+            <circle class="series-dot" cx="592.9" cy="191.2" fill="var(--series-2)"></circle>
+            <circle class="series-dot" cx="660" cy="188.35" fill="var(--series-2)"></circle>
+
+            <!-- the 02 Aug outage, named on the plot -->
+            <line class="grid-line" x1="458.7" y1="24" x2="458.7" y2="214" stroke-dasharray="2 3"></line>
+            <text class="tick" x="458.7" y="18" text-anchor="middle">no data</text>
+
+            <!-- direct labels instead of relying on the legend alone -->
+            <text class="dlabel" x="668" y="58.4" fill="var(--chart-ink)">Verified 168</text>
+            <text class="dlabel" x="668" y="192.35" fill="var(--chart-ink)">In review 27</text>
+          </svg>
+
+          <div class="legend">
+            <span class="legend__item"><span class="legend__swatch" style="background: var(--series-1)"></span>Verified attendance</span>
+            <span class="legend__item"><span class="legend__swatch" style="background: var(--series-2)"></span>Cases in review</span>
+            <span class="legend__item"><span class="legend__swatch" style="background: var(--border-strong)"></span>Dashed — no data recorded</span>
+          </div>
+          <span class="footnote">2 August is missing because the verification feed was down from 00:04 to 23:58. The line is
+            dashed across the gap and the day is marked on the plot; it is never joined as though it had been measured, and the
+            daily average excludes it.</span>
+        </div>
+      </div>
+      <div class="ds-note ds-note--a11y">
+        <div class="ds-note__body"><b>Hover is part of the chart, not an enhancement.</b> A crosshair follows the pointer and a
+          tooltip reports every series at that date with its own swatch. Hit targets are wider than the marks. Keyboard users
+          move point to point with the arrow keys, and the table view carries the same numbers for anyone who wants them all at
+          once.</div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Which territories lead?</h2>
+        <span class="ds-block__note">One hue · sorted descending · minimum-sample warning</span>
+      </div>
+      <div class="card">
+        <div class="card__body gap-4">
+          <div class="chart__head">
+            <div class="col gap-1">
+              <span class="t-card">Verified attendance by territory</span>
+              <span class="chart__meta">All active campaigns · denominator is registrations in that territory</span>
+            </div>
+            <div class="viewswitch"><button class="is-on">Chart</button><button>Table</button></div>
+          </div>
+          <div class="ranked">
+            <div class="rbar">
+              <span class="rbar__label">Savar</span>
+              <div class="rbar__track"><div class="rbar__fill" style="width: 100%"></div></div>
+              <span class="rbar__val">411</span>
+            </div>
+            <div class="rbar">
+              <span class="rbar__label">Gazipur</span>
+              <div class="rbar__track"><div class="rbar__fill" style="width: 94.4%"></div></div>
+              <span class="rbar__val">388</span>
+            </div>
+            <div class="rbar">
+              <span class="rbar__label">Narayanganj</span>
+              <div class="rbar__track"><div class="rbar__fill" style="width: 73.2%"></div></div>
+              <span class="rbar__val">301</span>
+            </div>
+            <div class="rbar">
+              <span class="rbar__label">Cumilla</span>
+              <div class="rbar__track"><div class="rbar__fill" style="width: 65.2%"></div></div>
+              <span class="rbar__val">268</span>
+            </div>
+            <div class="rbar">
+              <span class="rbar__label">Bogura</span>
+              <div class="rbar__track"><div class="rbar__fill" style="width: 23.4%"></div></div>
+              <span class="rbar__val">96</span>
+            </div>
+            <div class="rbar">
+              <span class="rbar__label"></span>
+              <span class="rbar__note">⚠ Bogura has one session and 104 registrations — too small to rank against the others.</span>
+              <span></span>
+            </div>
+          </div>
+          <span class="footnote">Territories are nominal categories, so every bar takes the same hue — length already carries the
+            value. Colouring each territory differently would imply the colours mean something.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">What is the verification mix?</h2>
+        <span class="ds-block__note">Machine recommendation and human decision stay separate series</span>
+      </div>
+      <div class="card">
+        <div class="card__body gap-4">
+          <div class="chart__head">
+            <div class="col gap-1">
+              <span class="t-card">Recommendation versus decision</span>
+              <span class="chart__meta">1,148 captured records · 100% stacked · the two bars are deliberately not combined</span>
+            </div>
+            <div class="viewswitch"><button class="is-on">Chart</button><button>Table</button></div>
+          </div>
+
+          <div class="col gap-4">
+            <div class="col gap-2">
+              <span class="t-micro">Machine recommendation — advisory</span>
+              <div class="stackrow">
+                <span class="rbar__label">Match band</span>
+                <div class="stack">
+                  <div class="stack__seg" style="width: 62%; background: var(--funnel-5)">High 62%</div>
+                  <div class="stack__seg" style="width: 21%; background: var(--funnel-4)">21%</div>
+                  <div class="stack__seg" style="width: 12%; background: var(--funnel-3)">12%</div>
+                  <div class="stack__seg" style="width: 5%; background: var(--semantic-warning)"></div>
+                </div>
+              </div>
+              <div class="legend">
+                <span class="legend__item"><span class="legend__swatch" style="background: var(--funnel-5)"></span>High</span>
+                <span class="legend__item"><span class="legend__swatch" style="background: var(--funnel-4)"></span>Medium</span>
+                <span class="legend__item"><span class="legend__swatch" style="background: var(--funnel-3)"></span>Low</span>
+                <span class="legend__item"><span class="legend__swatch" style="background: var(--semantic-warning)"></span>⃠ No reference · 5%</span>
+              </div>
+            </div>
+
+            <div class="col gap-2">
+              <span class="t-micro">CRM decision — final</span>
+              <div class="stackrow">
+                <span class="rbar__label">Outcome</span>
+                <div class="stack">
+                  <div class="stack__seg" style="width: 88%; background: var(--semantic-success)">Approved 88%</div>
+                  <div class="stack__seg" style="width: 6%; background: var(--semantic-error)">6%</div>
+                  <div class="stack__seg" style="width: 4%; background: var(--semantic-warning)"></div>
+                  <div class="stack__seg" style="width: 2%; background: var(--semantic-info)"></div>
+                </div>
+              </div>
+              <div class="legend">
+                <span class="legend__item"><span class="legend__swatch" style="background: var(--semantic-success)"></span>✓ Approved 88%</span>
+                <span class="legend__item"><span class="legend__swatch" style="background: var(--semantic-error)"></span>✕ Rejected 6%</span>
+                <span class="legend__item"><span class="legend__swatch" style="background: var(--semantic-warning)"></span>↩ Returned 4%</span>
+                <span class="legend__item"><span class="legend__swatch" style="background: var(--semantic-info)"></span>◍ Still in review 2%</span>
+              </div>
+            </div>
+          </div>
+
+          <span class="footnote">Bands are a sequence, so they take the ordinal navy ramp. Outcomes mean good or bad, so they wear
+            the reserved status tokens with an icon and a label. 47 records recommended “Low” were still approved by a reviewer —
+            that divergence is the point of keeping the two bars apart, and it is a quality-audit signal, not an error.</span>
+        </div>
+      </div>
+      <div class="ds-do-dont">
+        <div class="ds-dd ds-dd--dont">
+          <div class="ds-dd__head">Don't — one bar</div>
+          <div class="ds-dd__body">
+            <span class="t-body">Merging recommendation and decision into a single stacked bar makes the machine look like it
+              decided 88% of cases. It did not decide any of them.</span>
+          </div>
+        </div>
+        <div class="ds-dd ds-dd--dont">
+          <div class="ds-dd__head">Don't — two y-axes</div>
+          <div class="ds-dd__body">
+            <span class="t-body">Never plot verified attendance and order quantity against two different scales on one chart.
+              Any correlation the reader sees is an artefact of where the axes were anchored. Two charts, or index both to a
+              common base.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Stat tiles</h2>
+        <span class="ds-block__note">Sometimes the right answer is not a chart</span>
+      </div>
+      <div class="grid g-4">
+        <div class="card"><div class="kpi">
+          <span class="kpi__label"><span class="t-micro">Median time to decision</span>
+            <span class="kpi__info" title="Median elapsed time from case creation to a final CRM decision, over the last 7 days.">i</span></span>
+          <span class="kpi__value num-hero">2h 41m</span>
+          <span class="kpi__denom">SLA is 8h · 96% within SLA</span>
+          <div class="kpi__foot"><span class="delta delta--up">▼ 38m</span><span>vs last week</span></div>
+        </div></div>
+        <div class="card"><div class="kpi">
+          <span class="kpi__label"><span class="t-micro">Cases per reviewer, per day</span>
+            <span class="kpi__info" title="Decided cases divided by active reviewers, last 7 days.">i</span></span>
+          <span class="kpi__value num-hero">63</span>
+          <span class="kpi__denom">4 active reviewers</span>
+          <div class="kpi__foot">
+            <svg class="spark" viewBox="0 0 72 20" aria-hidden="true">
+              <path d="M2,14 L12,11 L22,13 L32,7 L42,9 L52,5 L62,6 L70,3"></path>
+            </svg>
+            <span>7-day trend</span>
+          </div>
+        </div></div>
+        <div class="card"><div class="kpi">
+          <span class="kpi__label"><span class="t-micro">Override rate</span>
+            <span class="kpi__info" title="Decisions that contradict the machine recommendation, as a share of all decisions. Not an error rate.">i</span></span>
+          <span class="kpi__value num-hero">4.1%</span>
+          <span class="kpi__denom">47 of 1,148 decisions</span>
+          <div class="kpi__foot"><span>Sampled for quality audit</span></div>
+        </div></div>
+        <div class="card"><div class="kpi">
+          <span class="kpi__label"><span class="t-micro">Campaign-linked pieces</span>
+            <span class="kpi__info" title="Canonical pieces on orders from verified attendees within the 30-day attribution window. Counted once per canonical order ID.">i</span></span>
+          <span class="kpi__value num-hero">18,402</span>
+          <span class="kpi__denom">pieces · 412 distinct orders</span>
+          <div class="kpi__foot"><span>MT/RFT are secondary views</span></div>
+        </div></div>
+      </div>
+      <div class="ds-note">
+        <div class="ds-note__body">A single number with a comparison and a definition beats a two-point line chart. The sparkline
+          appears only where the shape of the trend adds something the number cannot — and it never carries an axis, because at
+          72px wide it could not be read honestly.</div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head"><h2 class="ds-block__title">Form selection</h2></div>
+      <table class="ds-spec">
+        <thead><tr><th>Question</th><th>Form</th><th>Rules</th></tr></thead>
+        <tbody>
+          <tr><td>Where is the funnel leaking?</td><td>Horizontal funnel</td><td>Ordinal ramp; count and rate; every stage clicks through to its list</td></tr>
+          <tr><td>How is performance changing?</td><td>Line by day or week</td><td>Explicit grain, source and refresh; gaps dashed and named</td></tr>
+          <tr><td>Which campaigns or territories lead?</td><td>Ranked bars</td><td>One hue, descending, denominator visible, minimum-sample warning</td></tr>
+          <tr><td>What is the verification mix?</td><td>100% stacked</td><td>Recommendation and decision are separate bars, never one</td></tr>
+          <tr><td>What products were ordered?</td><td>Bars or treemap</td><td>Canonical pieces; MT/RFT only as a secondary view, never a second axis</td></tr>
+          <tr><td>Where are the integrity risks?</td><td>Exception cards and a table</td><td>Explainable signals only. No composite fraud score</td></tr>
+          <tr><td>What is one headline number?</td><td>Stat tile</td><td>Value, denominator, definition, comparison. Not a chart</td></tr>
+        </tbody>
+      </table>
+    </section>

@@ -2,7 +2,7 @@
 
 Flutter application for campaign lifecycle management and carpenter attendance verification — a native extension of the **BMD Sales Ecosystem**. One codebase targets the mobile field app (Android/iOS), the web campaign admin, the CRM verification console, and management analytics.
 
-> **Design & requirements:** [`ARCHITECTURE_Flutter.md`](ARCHITECTURE_Flutter.md) · [`TASK_BREAKDOWN.md`](TASK_BREAKDOWN.md) · [`Campaign_Management_Carpenter_Attendance_Verification_PRD.md`](Campaign_Management_Carpenter_Attendance_Verification_PRD.md) · [`ACSL_Carpenter_Campaign_Management_UI_UX_Design_Guideline_v1_0.md`](ACSL_Carpenter_Campaign_Management_UI_UX_Design_Guideline_v1_0.md)
+> **Design & requirements:** [`design/`](design/README.md) (the built design system — foundations, components and all 17 screens) · [`ARCHITECTURE_Flutter.md`](ARCHITECTURE_Flutter.md) · [`TASK_BREAKDOWN.md`](TASK_BREAKDOWN.md) · [`Campaign_Management_Carpenter_Attendance_Verification_PRD.md`](Campaign_Management_Carpenter_Attendance_Verification_PRD.md) · [`ACSL_Carpenter_Campaign_Management_UI_UX_Design_Guideline_v1_0.md`](ACSL_Carpenter_Campaign_Management_UI_UX_Design_Guideline_v1_0.md)
 
 ## Quick start
 
@@ -69,17 +69,26 @@ all backed by the mock. See [`tool/mock_server/README.md`](tool/mock_server/READ
 
 ## Status
 
-**Verified:** `flutter analyze` clean of errors · `flutter test` 15/15 pass (incl. the
-offline sync-engine harness) · `flutter build web` succeeds · runs end-to-end against
-the mock server (campaign list/detail render live data, RBAC guard and responsive
-shell confirmed in-browser).
+**Verified:** `flutter analyze` clean of errors and warnings · `flutter test` 30/30 pass
+(incl. the offline sync-engine harness and the design-system rule tests) ·
+`flutter build web` succeeds · runs end-to-end against the mock server (campaign
+list/detail render live data, RBAC guard and responsive shell confirmed in-browser).
 
 ### Implemented
 
-- **Foundation (P0):** BMD tokens → Material 3 theme, typed status vocabulary +
-  `StatusChip`, `BmdButton`, virtualized `BmdDataTable`, responsive adaptive shell,
-  `Result`/`Failure`, Dio client + auth interceptor, Drift offline DB, RBAC + guarded
-  GoRouter, Riverpod DI, en/bn localization.
+- **Design system:** [`design/`](design/README.md) — 33 self-contained specimens
+  covering foundations, components and the full §7 screen inventory, with a build
+  that self-checks its own output. The data-series palette and funnel ramp were
+  derived by enumeration and machine-checked for CVD and contrast in both light and
+  dark against BMD's own surfaces ([`design/PALETTE.md`](design/PALETTE.md)).
+- **Foundation (P0):** BMD tokens → Material 3 theme with a `BmdTokens` theme
+  extension (semantic quartet, chip tints, validated series palette, funnel ramp;
+  light + dark), typed status vocabulary + `StatusChip` covering all five status
+  families, the `LineageRail` chain-of-custody component, `KpiCard`/`ExceptionCard`,
+  `BmdBanner`/`OfflineBar`/`BmdState`/`BmdSkeleton`, `BmdButton`, virtualized
+  `BmdDataTable`, responsive adaptive shell, `Result`/`Failure`, Dio client + auth
+  interceptor, Drift offline DB, RBAC + guarded GoRouter, Riverpod DI, en/bn
+  localization.
 - **Offline sync engine:** durable Drift queue, idempotency keys, exponential backoff,
   platform-isolated evidence store — with a deterministic test harness.
 - **Field (mobile):** carpenter search (offline-first), 5-step camera capture, offline queue.

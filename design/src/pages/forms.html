@@ -1,0 +1,213 @@
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Text fields</h2>
+        <span class="ds-block__note">Outlined · persistent label · 44px web, 52px field</span>
+      </div>
+      <div class="ds-specimen ds-specimen--white">
+        <div class="ds-cell" style="width: 280px">
+          <span class="ds-cell__label">Default</span>
+          <div class="field">
+            <span class="field__label">Campaign name</span>
+            <div class="field__box"><span class="field__ph">e.g. Mistri Meet — Savar Cluster</span></div>
+            <span class="field__help">Shown to approvers and in every report. 80 characters maximum.</span>
+          </div>
+        </div>
+        <div class="ds-cell" style="width: 280px">
+          <span class="ds-cell__label">Filled and focused</span>
+          <div class="field">
+            <span class="field__label">Campaign name</span>
+            <div class="field__box is-focus"><span>Mistri Meet — Savar Cluster</span></div>
+            <span class="field__help">Shown to approvers and in every report. 80 characters maximum.</span>
+          </div>
+        </div>
+        <div class="ds-cell" style="width: 280px">
+          <span class="ds-cell__label">Error — specific and corrective</span>
+          <div class="field">
+            <span class="field__label">Campaign name</span>
+            <div class="field__box is-error"><span>Mistri Meet</span></div>
+            <span class="field__err"><span>⚠</span>A campaign named “Mistri Meet” is already active in Savar. Add the cluster or month to tell them apart.</span>
+          </div>
+        </div>
+        <div class="ds-cell" style="width: 280px">
+          <span class="ds-cell__label">Organisation-configured · read only</span>
+          <div class="field">
+            <span class="field__label">Attendance window tolerance</span>
+            <div class="field__box is-readonly"><span>± 30 minutes</span><span class="field__affix">🔒</span></div>
+            <span class="field__help">Set by your organisation's configuration. Contact an Org Admin to change it.</span>
+          </div>
+        </div>
+      </div>
+      <div class="ds-note">
+        <div class="ds-note__body"><b>Placeholders are examples, never labels.</b> The label stays visible once a value is
+          entered, because a half-filled 24-field campaign form with floating labels is unauditable — a reviewer cannot tell
+          what an unlabelled value means.</div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Selection and choice</h2>
+      </div>
+      <div class="ds-specimen ds-specimen--white">
+        <div class="ds-cell" style="width: 300px">
+          <span class="ds-cell__label">Multi-select with chips</span>
+          <div class="field">
+            <span class="field__label">Territory scope <span class="req">*</span></span>
+            <div class="field__box"><span class="field__ph">Add a territory</span><span class="field__affix">⌄</span></div>
+            <div class="row gap-2 wrap" style="padding-top: 4px">
+              <span class="fchip is-active">Savar <span class="fchip__x">✕</span></span>
+              <span class="fchip is-active">Gazipur <span class="fchip__x">✕</span></span>
+              <span class="fchip is-active">Narayanganj <span class="fchip__x">✕</span></span>
+            </div>
+            <span class="field__help">Only territories within your own scope are selectable.</span>
+          </div>
+        </div>
+        <div class="ds-cell" style="width: 300px">
+          <span class="ds-cell__label">Single choice — outcome, radio</span>
+          <div class="col gap-1">
+            <label class="choice is-selected"><span class="radio is-on"></span>
+              <span class="col gap-1"><span class="t-strong">Approve</span>
+                <span class="t-caption">Counts toward verified attendance and reward eligibility.</span></span></label>
+            <label class="choice"><span class="radio"></span>
+              <span class="col gap-1"><span class="t-strong">Return for recapture</span>
+                <span class="t-caption">Sends the session back to the field user. The original attempt is kept.</span></span></label>
+            <label class="choice"><span class="radio"></span>
+              <span class="col gap-1"><span class="t-strong">Reject</span>
+                <span class="t-caption">Excluded from verified attendance. Cannot be undone by the same reviewer.</span></span></label>
+          </div>
+        </div>
+        <div class="ds-cell" style="width: 260px">
+          <span class="ds-cell__label">Toggle and checkbox</span>
+          <div class="col gap-3">
+            <label class="row gap-3"><span class="switch is-on"></span>
+              <span class="col"><span class="t-strong">Enforce geofence</span>
+                <span class="t-caption">Capture outside the venue radius requires an override.</span></span></label>
+            <label class="row gap-3"><span class="switch"></span>
+              <span class="col"><span class="t-strong">Allow waitlist</span>
+                <span class="t-caption">Registrations beyond capacity are queued rather than refused.</span></span></label>
+            <label class="row gap-3"><span class="check is-on"></span>
+              <span class="t-strong">I have reviewed the schedule conflict</span></label>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Date, time and conflict guidance</h2>
+        <span class="ds-block__note">Locale-aware · timezone always shown</span>
+      </div>
+      <div class="ds-specimen ds-specimen--white ds-specimen--col">
+        <div class="row gap-4 wrap" style="align-items: flex-start">
+          <div class="field" style="width: 220px">
+            <span class="field__label">Session start <span class="req">*</span></span>
+            <div class="field__box"><span>04 Aug 2026, 10:00</span><span class="field__affix">▤</span></div>
+            <span class="field__help">Asia/Dhaka (GMT+6)</span>
+          </div>
+          <div class="field" style="width: 220px">
+            <span class="field__label">Session end <span class="req">*</span></span>
+            <div class="field__box is-error"><span>04 Aug 2026, 09:30</span><span class="field__affix">▤</span></div>
+            <span class="field__err"><span>⚠</span>End is before start. Set an end time after 10:00.</span>
+          </div>
+          <div class="field" style="width: 260px">
+            <span class="field__label">Capture window</span>
+            <div class="field__box is-readonly"><span>09:30 – 13:30 · ± 30 min tolerance</span></div>
+            <span class="field__help">Derived from the session time and your organisation's tolerance setting.</span>
+          </div>
+        </div>
+        <div class="banner banner--warning">
+          <span class="banner__icon">⚠</span>
+          <div class="col gap-1">
+            <span class="banner__title">Schedule conflict with an approved campaign</span>
+            <span class="banner__body">Savar Community Hall is already booked for “Carpenter Skill Camp — Aug” on 04 Aug,
+              09:00–12:00. Two sessions at one venue will produce overlapping attendance windows and duplicate-capture
+              exceptions.</span>
+          </div>
+          <div class="banner__action row gap-2">
+            <button class="btn btn--outlined">View that campaign</button>
+            <button class="btn btn--tonal">Change venue</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Sensitive values</h2>
+        <span class="ds-block__note">Masked display · permission-gated reveal</span>
+      </div>
+      <div class="ds-specimen ds-specimen--white">
+        <div class="ds-cell" style="width: 300px">
+          <span class="ds-cell__label">As a field user sees it</span>
+          <dl class="kv">
+            <dt>Carpenter ID</dt><dd class="num">CRP-48812</dd>
+            <dt>Phone</dt><dd><span class="masked"><span class="masked__dots">•••••••</span><span class="num">812</span></span></dd>
+            <dt>NID</dt><dd class="t-caption">Not available at this role</dd>
+          </dl>
+        </div>
+        <div class="ds-cell" style="width: 300px">
+          <span class="ds-cell__label">As an authorised CRM reviewer sees it</span>
+          <dl class="kv">
+            <dt>Carpenter ID</dt><dd class="num">CRP-48812</dd>
+            <dt>Phone</dt><dd><span class="masked"><span class="masked__dots">•••••••</span><span class="num">812</span>
+              <button class="masked__reveal">Reveal</button></span></dd>
+            <dt>NID</dt><dd><span class="masked"><span class="masked__dots">••••••••••</span><span class="num">4471</span>
+              <button class="masked__reveal">Reveal</button></span></dd>
+          </dl>
+          <span class="t-caption">Revealing writes an audit entry naming the reviewer, the case and the time.</span>
+        </div>
+        <div class="col gap-3" style="max-width: 40ch">
+          <div class="ds-note ds-note--privacy">
+            <div class="ds-note__body"><b>Full NID is never a general field.</b> There is no input in this product that accepts
+              or displays a complete national ID. The suffix is enough to disambiguate two similar names, which is the only
+              operational reason the field exists.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Validation</h2>
+        <span class="ds-block__note">Inline first · summary only after a failed submit</span>
+      </div>
+      <div class="ds-specimen ds-specimen--white ds-specimen--col">
+        <div class="banner banner--error">
+          <span class="banner__icon">⚠</span>
+          <div class="col gap-2">
+            <span class="banner__title">Three fields need attention before this campaign can be submitted</span>
+            <div class="col gap-1">
+              <span class="banner__body">· <a href="#">Session end</a> — end is before start</span>
+              <span class="banner__body">· <a href="#">Approver</a> — no approver is configured for Savar at this campaign value</span>
+              <span class="banner__body">· <a href="#">Budget reference</a> — required once the target exceeds 500 participants</span>
+            </div>
+            <span class="banner__body">Your draft is saved. Nothing was lost.</span>
+          </div>
+        </div>
+        <span class="t-caption">The summary appears only after a submit attempt, lists every failure, links each one to its
+          field, and states that the work is preserved. It never replaces the inline messages.</span>
+      </div>
+      <div class="ds-do-dont">
+        <div class="ds-dd ds-dd--do">
+          <div class="ds-dd__head">Do</div>
+          <div class="ds-dd__body">
+            <div class="field">
+              <span class="field__label">Target participants</span>
+              <div class="field__box is-error"><span class="num">0</span></div>
+              <span class="field__err"><span>⚠</span>Enter a target of at least 1. This is what the funnel and cost-per-verified metrics are measured against.</span>
+            </div>
+          </div>
+        </div>
+        <div class="ds-dd ds-dd--dont">
+          <div class="ds-dd__head">Don't</div>
+          <div class="ds-dd__body">
+            <div class="field">
+              <span class="field__label">Target participants</span>
+              <div class="field__box is-error"><span class="num">0</span></div>
+              <span class="field__err"><span>⚠</span>Invalid input</span>
+            </div>
+            <span class="t-body">Names the failure without naming the fix, and gives the user no idea why the field matters.</span>
+          </div>
+        </div>
+      </div>
+    </section>

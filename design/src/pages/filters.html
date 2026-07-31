@@ -1,0 +1,185 @@
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Search</h2>
+        <span class="ds-block__note">Scope is always visible</span>
+      </div>
+      <div class="ds-specimen ds-specimen--white ds-specimen--col">
+        <div class="row gap-3 wrap">
+          <div class="search" style="max-width: 460px">
+            <span>⌕</span><span class="field__ph">Name, carpenter ID or last 3 phone digits</span>
+            <span class="search__scope">Savar · Gazipur</span>
+          </div>
+          <div class="search" style="max-width: 420px">
+            <span>⌕</span><span>Rafiq</span>
+            <span class="search__scope">This session only</span>
+          </div>
+        </div>
+        <span class="t-caption">Debounced. Matches campaign name and code, carpenter ID, name and phone suffix. The scope tag on
+          the right is not decoration — it is the difference between “this carpenter does not exist” and “this carpenter is not
+          in your territory”.</span>
+      </div>
+      <div class="ds-note ds-note--rule">
+        <div class="ds-note__body"><b>An empty result must say which kind of empty it is.</b> Three very different situations
+          produce zero rows, and conflating them sends the user down the wrong path — one needs a new profile request, one needs
+          an escalation, one needs a corrected spelling.</div>
+      </div>
+      <div class="grid g-3">
+        <div class="card">
+          <div class="state" style="padding: var(--space-6)">
+            <div class="state__icon">⌕</div>
+            <span class="state__title">No carpenter matches “Rafiqul Islan”</span>
+            <span class="state__body">Check the spelling, or search by carpenter ID or the last three digits of the phone
+              number.</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="state state--denied" style="padding: var(--space-6)">
+            <div class="state__icon">⚠</div>
+            <span class="state__title">Outside your territory scope</span>
+            <span class="state__body">This carpenter exists in Chattogram, which is not in your scope. Ask a Campaign Admin to
+              extend the session's territory or to register them for you.</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="state" style="padding: var(--space-6)">
+            <div class="state__icon">＋</div>
+            <span class="state__title">Not in the Sales Eco master</span>
+            <span class="state__body">You can request a new carpenter profile. Registration will show as Pending profile sync
+              until Sales Eco confirms it.</span>
+            <button class="btn btn--tonal">Request new profile</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Filter bar</h2>
+        <span class="ds-block__note">3–5 inline · the rest in a side sheet</span>
+      </div>
+      <div class="ds-specimen ds-specimen--col">
+        <div class="filterbar" style="position: static">
+          <div class="search"><span>⌕</span><span class="field__ph">Campaign name or code</span>
+            <span class="search__scope">All in scope</span></div>
+          <span class="select">Status <span>⌄</span></span>
+          <span class="select">Territory <span>⌄</span></span>
+          <span class="select">Date range <span>⌄</span></span>
+          <button class="btn btn--outlined">⚟ More filters <span class="nav-item__count">3</span></button>
+          <button class="btn btn--text">Clear all</button>
+        </div>
+        <div class="row gap-2 wrap">
+          <span class="t-micro">Active</span>
+          <span class="fchip is-active">Status: Returned <span class="fchip__x">✕</span></span>
+          <span class="fchip is-active">Status: Pending approval <span class="fchip__x">✕</span></span>
+          <span class="fchip is-active">Territory: Savar <span class="fchip__x">✕</span></span>
+          <span class="t-caption">4 of 62 campaigns</span>
+        </div>
+        <span class="t-caption">Every active filter is visible and individually removable. A count on the “More filters” button
+          means a user can never be filtered by something they cannot see.</span>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Saved views and sort</h2>
+        <span class="ds-block__note">Action priority, not alphabetical</span>
+      </div>
+      <div class="ds-specimen">
+        <div class="card" style="width: 260px">
+          <div class="card__body">
+            <span class="t-micro">Saved views</span>
+            <div class="saved-views">
+              <a class="is-current" href="#"><span>My queue</span><span class="t-caption num">28</span></a>
+              <a href="#"><span>SLA breach</span><span class="t-caption num">14</span></a>
+              <a href="#"><span>Returned</span><span class="t-caption num">9</span></a>
+              <a href="#"><span>High risk</span><span class="t-caption num">6</span></a>
+              <a href="#"><span>Unassigned</span><span class="t-caption num">31</span></a>
+            </div>
+            <div class="card__foot" style="padding: var(--space-3) 0 0">
+              <button class="btn btn--text">＋ Save current filters</button>
+            </div>
+          </div>
+        </div>
+        <div class="col gap-4" style="max-width: 52ch">
+          <div class="ds-cell">
+            <span class="ds-cell__label">Sort — CRM and exception queues</span>
+            <table class="ds-spec">
+              <thead><tr><th>Rank</th><th>Key</th></tr></thead>
+              <tbody>
+                <tr><td>1</td><td>SLA state — breached, then nearing breach</td></tr>
+                <tr><td>2</td><td>Integrity signal — suspected spoof, duplicate, no reference</td></tr>
+                <tr><td>3</td><td>Reward impact — cases affecting an eligible reward</td></tr>
+                <tr><td>4</td><td>Age in queue</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <span class="t-body">Creation time alone is not a priority. A case created an hour ago that blocks a reward outranks a
+            three-hour-old case with no consequence, and the default sort has to encode that or every reviewer invents their own.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Overflow filters in a side sheet</h2>
+      </div>
+      <div class="ds-specimen" style="padding: 0; overflow: hidden">
+        <div style="display: flex; width: 100%; min-height: 460px">
+          <div class="grow" style="padding: var(--space-6); background: var(--surface-base)">
+            <div class="col gap-3">
+              <div class="skel skel--40" style="height: 20px"></div>
+              <div class="skel skel--block"></div>
+              <div class="skel skel--block"></div>
+              <div class="skel skel--80"></div>
+            </div>
+          </div>
+          <div class="sheet-right" style="width: 340px">
+            <div class="sheet-right__head spread">
+              <span class="t-card">More filters</span>
+              <button class="icon-btn" title="Close">✕</button>
+            </div>
+            <div class="sheet-right__body">
+              <div class="field">
+                <span class="field__label">Match band</span>
+                <div class="row gap-2 wrap">
+                  <span class="fchip is-active">Low</span><span class="fchip">Medium</span>
+                  <span class="fchip">High</span><span class="fchip is-active">No reference</span>
+                </div>
+              </div>
+              <div class="field">
+                <span class="field__label">Reference source</span>
+                <div class="col gap-2">
+                  <label class="row gap-2"><span class="check is-on"></span><span class="t-body">Verified profile photo</span></label>
+                  <label class="row gap-2"><span class="check"></span><span class="t-body">Authorised NID photo</span></label>
+                  <label class="row gap-2"><span class="check"></span><span class="t-body">Approved baseline photo</span></label>
+                  <label class="row gap-2"><span class="check is-on"></span><span class="t-body">Unavailable</span></label>
+                </div>
+              </div>
+              <div class="field">
+                <span class="field__label">Quality and PAD flags</span>
+                <div class="row gap-2 wrap">
+                  <span class="fchip">Poor quality</span><span class="fchip is-active">PAD review</span>
+                  <span class="fchip">Geofence exception</span>
+                </div>
+              </div>
+              <div class="field">
+                <span class="field__label">Assignee</span>
+                <div class="field__box"><span class="field__ph">Anyone</span><span class="field__affix">⌄</span></div>
+              </div>
+              <div class="field">
+                <span class="field__label">Reward impact</span>
+                <label class="row gap-3"><span class="switch is-on"></span><span class="t-body">Only cases affecting a reward</span></label>
+              </div>
+            </div>
+            <div class="sheet-right__foot">
+              <button class="btn btn--primary grow">Apply 5 filters</button>
+              <button class="btn btn--outlined">Reset</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="ds-note">
+        <div class="ds-note__body">The sheet's primary button counts what it will apply. Closing without applying discards the
+          change — so the count is also the confirmation that something is about to happen.</div>
+      </div>
+    </section>

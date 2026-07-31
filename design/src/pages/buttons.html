@@ -1,0 +1,126 @@
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Variants</h2>
+        <span class="ds-block__note">One filled primary per page or step</span>
+      </div>
+      <div class="ds-specimen ds-specimen--white ds-specimen--col gap-4">
+        <div class="row gap-4 wrap">
+          <div class="ds-cell"><span class="ds-cell__label">Primary / filled</span>
+            <button class="btn btn--primary">Submit for approval</button></div>
+          <div class="ds-cell"><span class="ds-cell__label">Secondary / tonal</span>
+            <button class="btn btn--tonal">Capture attendance</button></div>
+          <div class="ds-cell"><span class="ds-cell__label">Tonal · navy</span>
+            <button class="btn btn--tonal-navy">Run readiness checks</button></div>
+          <div class="ds-cell"><span class="ds-cell__label">Outlined</span>
+            <button class="btn btn--outlined">Save draft</button></div>
+          <div class="ds-cell"><span class="ds-cell__label">Text</span>
+            <button class="btn btn--text">Cancel</button></div>
+        </div>
+        <div class="row gap-4 wrap">
+          <div class="ds-cell"><span class="ds-cell__label">Danger · filled</span>
+            <button class="btn btn--danger">Cancel campaign</button></div>
+          <div class="ds-cell"><span class="ds-cell__label">Danger · outlined</span>
+            <button class="btn btn--danger-outline">Reject final</button></div>
+          <div class="ds-cell"><span class="ds-cell__label">With icon</span>
+            <button class="btn btn--outlined"><span>⇣</span>Download template</button></div>
+          <div class="ds-cell"><span class="ds-cell__label">Icon button</span>
+            <div class="row gap-1">
+              <button class="icon-btn" title="Search">⌕</button>
+              <button class="icon-btn" title="Filter">⚟</button>
+              <button class="icon-btn" title="More">⋯</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <table class="ds-spec">
+        <thead><tr><th>Variant</th><th>Use</th><th>Specification</th></tr></thead>
+        <tbody>
+          <tr><td>Primary / filled</td><td>The single page-level or step-level action</td><td>Brand red fill, white label, 44px web / 52px mobile, 8px radius</td></tr>
+          <tr><td>Secondary / tonal</td><td>A common alternative action</td><td>Soft red or navy-tinted ground, brand or navy label, no shadow</td></tr>
+          <tr><td>Outlined</td><td>Cancel, back, a less prominent submit alternative</td><td>1px neutral border, elevated surface, navy label</td></tr>
+          <tr><td>Text</td><td>Inline or low-emphasis action</td><td>No container. Underline is for links, never for buttons</td></tr>
+          <tr><td>Danger</td><td>Reject final, delete, cancel a campaign</td><td>Semantic error fill or outline; confirmation required where irreversible</td></tr>
+          <tr><td>Icon button</td><td>Search, filter, zoom, more, close</td><td>40–48px target, tooltip on web, visible label wherever the icon is ambiguous</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">States</h2>
+        <span class="ds-block__note">Loading preserves the label width</span>
+      </div>
+      <div class="ds-specimen ds-specimen--white">
+        <div class="ds-cell"><span class="ds-cell__label">Default</span><button class="btn btn--primary">Commit 1,142 rows</button></div>
+        <div class="ds-cell"><span class="ds-cell__label">Hover</span><button class="btn btn--primary" style="background: var(--bmd-primary-700)">Commit 1,142 rows</button></div>
+        <div class="ds-cell"><span class="ds-cell__label">Focus</span><button class="btn btn--primary" style="box-shadow: var(--focus-ring)">Commit 1,142 rows</button></div>
+        <div class="ds-cell"><span class="ds-cell__label">Loading</span><button class="btn btn--primary is-loading">Commit 1,142 rows</button></div>
+        <div class="ds-cell"><span class="ds-cell__label">Disabled</span><button class="btn" disabled>Commit 1,142 rows</button></div>
+      </div>
+      <div class="ds-note">
+        <div class="ds-note__body"><b>The button does not resize while it works.</b> A commit button that shrinks to a spinner
+          shifts everything beside it, and on a slow connection the user has already moved the pointer. The label's width is
+          held and the spinner is drawn inside it.</div>
+      </div>
+      <div class="ds-note ds-note--a11y">
+        <div class="ds-note__body"><b>Disabled needs a reason nearby.</b> A disabled primary action is only acceptable when the
+          page says what would enable it — “Approve” disabled while critical warnings are unacknowledged, with the
+          acknowledgement directly above it. A disabled button with no explanation is a dead end.</div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Field sizing</h2>
+        <span class="ds-block__note">52px controls · 56px camera and confirmation</span>
+      </div>
+      <div class="ds-specimen">
+        <div style="width: 300px" class="col gap-3">
+          <button class="btn btn--primary btn--camera">Capture attendance</button>
+          <button class="btn btn--outlined btn--mobile">Recapture</button>
+          <button class="btn btn--text btn--mobile">Use manual verification instead</button>
+        </div>
+        <div class="col gap-3" style="max-width: 44ch">
+          <span class="t-body">Field actions are full-width and stacked in decision order, with the destructive-to-the-flow
+            option last. The manual route is always visible rather than hidden behind an overflow, because it is a legitimate
+            path and not a failure.</span>
+          <span class="t-caption">Minimum 48 × 48px for every field target. Camera and confirmation actions get 56px because
+            they are pressed while the operator is also holding the phone steady.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head"><h2 class="ds-block__title">Action pairing</h2></div>
+      <div class="ds-do-dont">
+        <div class="ds-dd ds-dd--do">
+          <div class="ds-dd__head">Do — one primary, ordered by consequence</div>
+          <div class="ds-dd__body">
+            <div class="row gap-2 wrap">
+              <button class="btn btn--primary">Approve</button>
+              <button class="btn btn--outlined">Return for correction</button>
+              <button class="btn btn--danger-outline">Reject</button>
+            </div>
+            <span class="t-body">Reject is reachable but visually distinct, so it is never pressed by muscle memory.</span>
+          </div>
+        </div>
+        <div class="ds-dd ds-dd--dont">
+          <div class="ds-dd__head">Don't — competing emphasis</div>
+          <div class="ds-dd__body">
+            <div class="row gap-2 wrap">
+              <button class="btn btn--primary">Approve</button>
+              <button class="btn btn--danger">Reject</button>
+              <button class="btn btn--tonal">Return</button>
+            </div>
+            <span class="t-body">Two filled buttons side by side, one of them irreversible. The eye cannot tell which action
+              the page expects, and the riskiest option is the most visually prominent.</span>
+          </div>
+        </div>
+      </div>
+      <div class="ds-checks">
+        <div class="ds-check"><span class="ds-check__mark">✓</span><span>Labels are direct and name the outcome: “Submit for approval”, “Return for recapture”, “Retry sync”. Never “Process”, “Okay” or “Done”.</span></div>
+        <div class="ds-check"><span class="ds-check__mark">✓</span><span>An action keeps its name through the whole flow — the button that says “Commit valid rows” produces a result that says “Committed”.</span></div>
+        <div class="ds-check"><span class="ds-check__mark">✓</span><span>Sentence case throughout. No title case, no all-caps button labels.</span></div>
+        <div class="ds-check"><span class="ds-check__mark">✓</span><span>Irreversible actions confirm in a dialog that names the consequence, not a generic “Are you sure?”.</span></div>
+      </div>
+    </section>

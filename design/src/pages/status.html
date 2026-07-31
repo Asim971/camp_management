@@ -1,0 +1,167 @@
+    <div class="ds-note ds-note--rule">
+      <div class="ds-note__body"><b>One vocabulary, one renderer.</b> These are the only status words the product may use. They
+        are not re-worded per surface, not abbreviated in tables, and not translated into a synonym by a chart legend. If a new
+        state is genuinely needed it is added here first — a screen may not invent one.</div>
+    </div>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Campaign</h2>
+        <span class="ds-block__note">Lifecycle status sits beside the page title</span>
+      </div>
+      <div class="ds-specimen ds-specimen--white">
+        <span class="chip chip--neutral"><span class="chip__dot">○</span>Draft</span>
+        <span class="chip chip--info"><span class="chip__dot">◍</span>Pending approval</span>
+        <span class="chip chip--warning"><span class="chip__dot">↩</span>Returned</span>
+        <span class="chip chip--success"><span class="chip__dot">✓</span>Approved</span>
+        <span class="chip chip--info"><span class="chip__dot">●</span>Active</span>
+        <span class="chip chip--warning"><span class="chip__dot">‖</span>Paused</span>
+        <span class="chip chip--success"><span class="chip__dot">✓</span>Completed</span>
+        <span class="chip chip--error"><span class="chip__dot">✕</span>Cancelled</span>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Registration</h2>
+        <span class="ds-block__note">Green is not spent on “Registered”</span>
+      </div>
+      <div class="ds-specimen ds-specimen--white">
+        <span class="chip chip--neutral"><span class="chip__dot">✉</span>Invited</span>
+        <span class="chip chip--info"><span class="chip__dot">●</span>Registered</span>
+        <span class="chip chip--warning"><span class="chip__dot">⟳</span>Pending profile sync</span>
+        <span class="chip chip--error"><span class="chip__dot">✕</span>Ineligible</span>
+        <span class="chip chip--neutral"><span class="chip__dot">◷</span>Waitlisted</span>
+        <span class="chip chip--error"><span class="chip__dot">✕</span>Cancelled</span>
+      </div>
+      <div class="ds-note">
+        <div class="ds-note__body">Registering someone is an intention, not an outcome. Green is reserved for verified and
+          approved results, so a dashboard full of registrations does not read as a dashboard full of success.</div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Attendance</h2>
+        <span class="ds-block__note">Identical wording on mobile, CRM and analytics</span>
+      </div>
+      <div class="ds-specimen ds-specimen--white">
+        <span class="chip chip--neutral"><span class="chip__dot">○</span>Not captured</span>
+        <span class="chip chip--warning"><span class="chip__dot">⇡</span>Pending sync</span>
+        <span class="chip chip--info"><span class="chip__dot">⟳</span>Match processing</span>
+        <span class="chip chip--info"><span class="chip__dot">◍</span>CRM review</span>
+        <span class="chip chip--success"><span class="chip__dot">✓</span>Approved</span>
+        <span class="chip chip--error"><span class="chip__dot">✕</span>Rejected</span>
+        <span class="chip chip--warning"><span class="chip__dot">↩</span>Returned</span>
+      </div>
+
+      <div class="ds-block__head" style="border: 0; padding-top: var(--space-2)">
+        <h3 class="t-card">The same record, on three surfaces</h3>
+      </div>
+      <div class="grid g-3">
+        <div class="card">
+          <div class="card__body">
+            <span class="t-micro">Mobile · offline queue</span>
+            <div class="row gap-3">
+              <div class="thumb is-veiled">◍</div>
+              <div class="grow col gap-1">
+                <span class="t-strong">Md. Rafiqul Islam</span>
+                <span class="t-caption">CRP-48812 · captured 10:24</span>
+              </div>
+              <span class="chip chip--warning"><span class="chip__dot">⇡</span>Pending sync</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card__body">
+            <span class="t-micro">CRM · queue row</span>
+            <table class="tbl" style="font: var(--type-body)">
+              <tbody><tr>
+                <td class="tbl__primary">Md. Rafiqul Islam</td>
+                <td><span class="chip chip--warning"><span class="chip__dot">⇡</span>Pending sync</span></td>
+              </tr></tbody>
+            </table>
+            <span class="t-caption">Not yet a case — it appears as unavailable for decision, with the same words.</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card__body">
+            <span class="t-micro">Analytics · funnel exclusion</span>
+            <div class="row gap-2">
+              <span class="chip chip--warning"><span class="chip__dot">⇡</span>Pending sync</span>
+              <span class="t-strong num">41</span>
+            </div>
+            <span class="t-caption">Excluded from verified attendance. The exclusion reason uses the status word itself, so the
+              number always reconciles back to a queue you can open.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Import</h2>
+        <span class="ds-block__note">Always paired with progress and row counts</span>
+      </div>
+      <div class="ds-specimen ds-specimen--white">
+        <span class="chip chip--neutral"><span class="chip__dot">◔</span>Dry run</span>
+        <span class="chip chip--info"><span class="chip__dot">◍</span>Ready to commit</span>
+        <span class="chip chip--info"><span class="chip__dot">⟳</span>Processing</span>
+        <span class="chip chip--success"><span class="chip__dot">✓</span>Completed</span>
+        <span class="chip chip--warning"><span class="chip__dot">◐</span>Partially completed</span>
+        <span class="chip chip--error"><span class="chip__dot">✕</span>Failed</span>
+        <span class="chip chip--neutral"><span class="chip__dot">✕</span>Cancelled</span>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Integrity</h2>
+        <span class="ds-block__note">Warning and error semantics · neutral language</span>
+      </div>
+      <div class="ds-specimen ds-specimen--white">
+        <span class="chip chip--warning"><span class="chip__dot">⃠</span>No reference</span>
+        <span class="chip chip--warning"><span class="chip__dot">◌</span>Poor quality</span>
+        <span class="chip chip--error"><span class="chip__dot">⚠</span>Suspected spoof</span>
+        <span class="chip chip--error"><span class="chip__dot">⧉</span>Duplicate</span>
+        <span class="chip chip--warning"><span class="chip__dot">⌖</span>Geofence exception</span>
+        <span class="chip chip--info"><span class="chip__dot">✎</span>Manual override</span>
+      </div>
+      <div class="ds-note ds-note--privacy">
+        <div class="ds-note__body"><b>Factual, neutral, non-accusatory.</b> A failed liveness or match result means
+          “Review required”, not “Fraud detected”. These labels describe what the system observed, never what it concluded
+          about a person — the observation is defensible, the accusation is not, and a field operator reading the second one
+          over a participant's shoulder is a real incident.</div>
+      </div>
+      <div class="ds-do-dont">
+        <div class="ds-dd ds-dd--do">
+          <div class="ds-dd__head">Do</div>
+          <div class="ds-dd__body">
+            <span class="chip chip--error"><span class="chip__dot">⚠</span>Suspected spoof</span>
+            <span class="t-body">Names the signal. A reviewer knows what to look at and the participant is not accused.</span>
+          </div>
+        </div>
+        <div class="ds-dd ds-dd--dont">
+          <div class="ds-dd__head">Don't</div>
+          <div class="ds-dd__body">
+            <span class="chip chip--error"><span class="chip__dot">⚠</span>Fraud detected · risk 0.87</span>
+            <span class="t-body">A conclusion the system is not entitled to draw, plus a raw score with no approved,
+              explainable policy behind it.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head"><h2 class="ds-block__title">Tone mapping</h2></div>
+      <table class="ds-spec">
+        <thead><tr><th>Tone</th><th>Meaning</th><th>Icon family</th><th>Never used for</th></tr></thead>
+        <tbody>
+          <tr><td>success</td><td>A verified or approved outcome</td><td>check</td><td>Activity that has merely started</td></tr>
+          <tr><td>warning</td><td>Waiting on someone, or degraded but recoverable</td><td>clock · upload · return</td><td>A permanent failure</td></tr>
+          <tr><td>error</td><td>Rejected, failed, or irreversibly cancelled</td><td>cross · alert</td><td>Anything the brand action uses</td></tr>
+          <tr><td>info</td><td>In progress under machine or human review</td><td>spinner · dot</td><td>A completed decision</td></tr>
+          <tr><td>neutral</td><td>Not started, or intentionally inert</td><td>hollow circle</td><td>Something needing action</td></tr>
+        </tbody>
+      </table>
+    </section>

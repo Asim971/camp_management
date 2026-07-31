@@ -1,0 +1,166 @@
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Choosing a container</h2>
+        <span class="ds-block__note">Four containers, four non-overlapping jobs</span>
+      </div>
+      <table class="ds-spec">
+        <thead><tr><th>Container</th><th>Use it for</th><th>Never use it for</th></tr></thead>
+        <tbody>
+          <tr><td>Dialog</td><td>An irreversible decision, a short approve or reject, a consent notice, a session override confirmation</td><td>Anything requiring more than about six fields, or reference material the user must read while typing</td></tr>
+          <tr><td>Right side sheet</td><td>Filters, audit preview, registration quick view, import row detail</td><td>A decision that needs the full evidence at full size</td></tr>
+          <tr><td>Full page</td><td>Campaign creation, a verification case, Carpenter 360, complex analytics</td><td>A confirmation — a full page for “are you sure” loses the user's place</td></tr>
+          <tr><td>Bottom sheet</td><td>Mobile carpenter selection, reason code, session switch, offline queue action</td><td>Anything on the desktop web app</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Confirmation dialog</h2>
+        <span class="ds-block__note">Names the consequence, not “are you sure”</span>
+      </div>
+      <div class="ds-specimen" style="position: relative; min-height: 420px; align-items: center; justify-content: center">
+        <div class="scrim" style="border-radius: var(--radius-3)"></div>
+        <div class="dialog" style="position: relative">
+          <div class="dialog__head">
+            <span class="t-micro">Irreversible</span>
+            <h3 class="t-section" style="font-size: 20px; line-height: 28px">Cancel “Mistri Meet — Savar Cluster”?</h3>
+          </div>
+          <div class="dialog__body">
+            <p class="t-body">Cancelling closes registration and capture immediately. This is what happens to work already
+              done:</p>
+            <div class="col gap-2">
+              <div class="row gap-2"><span class="chip chip--success"><span class="chip__dot">✓</span>Kept</span>
+                <span class="t-body">411 verified attendance records and their evidence</span></div>
+              <div class="row gap-2"><span class="chip chip--info"><span class="chip__dot">◍</span>Continues</span>
+                <span class="t-body">28 cases already in CRM review will still be decided</span></div>
+              <div class="row gap-2"><span class="chip chip--error"><span class="chip__dot">✕</span>Stopped</span>
+                <span class="t-body">229 registrations that have not been captured</span></div>
+            </div>
+            <div class="field">
+              <span class="field__label">Reason <span class="req">*</span></span>
+              <div class="field__box"><span class="field__ph">Select a reason code</span><span class="field__affix">⌄</span></div>
+              <span class="field__help">Recorded in the audit log against your name.</span>
+            </div>
+          </div>
+          <div class="dialog__foot">
+            <button class="btn btn--text">Keep campaign</button>
+            <button class="btn btn--danger">Cancel campaign</button>
+          </div>
+        </div>
+      </div>
+      <div class="ds-note ds-note--rule">
+        <div class="ds-note__body"><b>The consequence is itemised, not summarised.</b> “This cannot be undone” tells the user
+          nothing they can weigh. Listing what survives, what continues and what stops lets them make the decision they are
+          actually being asked to make — and the destructive button is the only red thing in the dialog.</div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Right side sheet</h2>
+        <span class="ds-block__note">Lightweight detail without losing the list</span>
+      </div>
+      <div class="ds-specimen" style="padding: 0; overflow: hidden">
+        <div style="display: flex; width: 100%; min-height: 500px">
+          <div class="grow" style="background: var(--surface-base); padding: var(--space-4)">
+            <div class="table-wrap">
+              <table class="tbl">
+                <thead><tr><th>Row</th><th>Carpenter</th><th>Outcome</th></tr></thead>
+                <tbody>
+                  <tr><td class="c-id">104</td><td class="tbl__primary">Md. Rafiqul Islam</td>
+                    <td><span class="chip chip--success"><span class="chip__dot">✓</span>Valid</span></td></tr>
+                  <tr class="is-selected"><td class="c-id">105</td><td class="tbl__primary">Abdul Karim</td>
+                    <td><span class="chip chip--warning"><span class="chip__dot">⧉</span>Duplicate</span></td></tr>
+                  <tr><td class="c-id">106</td><td class="tbl__primary">Jashim Uddin</td>
+                    <td><span class="chip chip--warning"><span class="chip__dot">⟳</span>Needs profile</span></td></tr>
+                  <tr><td class="c-id">107</td><td class="tbl__primary">Nurul Haque</td>
+                    <td><span class="chip chip--error"><span class="chip__dot">✕</span>Unauthorised territory</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="sheet-right">
+            <div class="sheet-right__head">
+              <div class="spread">
+                <div class="col gap-1">
+                  <span class="t-micro">Import row 105</span>
+                  <span class="t-card">Abdul Karim</span>
+                </div>
+                <button class="icon-btn" title="Close">✕</button>
+              </div>
+            </div>
+            <div class="sheet-right__body">
+              <div class="banner banner--warning">
+                <span class="banner__icon">⧉</span>
+                <div class="col gap-1">
+                  <span class="banner__title">Already registered for this campaign</span>
+                  <span class="banner__body">Registered on 28 Jul by F. Rahman via manual registration.</span>
+                </div>
+              </div>
+              <dl class="kv">
+                <dt>File value</dt><dd>Abdul Karim, 01711•••812</dd>
+                <dt>Matched to</dt><dd class="num">CRP-48813</dd>
+                <dt>Territory</dt><dd>Savar</dd>
+                <dt>Dealer</dt><dd>Savar Hardware &amp; Rod</dd>
+                <dt>Profile status</dt><dd><span class="chip chip--success"><span class="chip__dot">✓</span>Active</span></dd>
+                <dt>Last sync</dt><dd>29 Jul 2026, 06:10</dd>
+              </dl>
+              <span class="t-caption">Row 105 will be skipped on commit. The existing registration is unaffected.</span>
+            </div>
+            <div class="sheet-right__foot">
+              <button class="btn btn--outlined grow">Open profile</button>
+              <button class="btn btn--text">Next issue →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Bottom sheet — mobile only</h2>
+      </div>
+      <div class="ds-devices">
+        <div class="ds-cell">
+          <span class="ds-cell__label">Reason code selection</span>
+          <div class="device" style="height: 520px">
+            <div class="device__status"><span>10:42</span><span>◍ ▮</span></div>
+            <div class="device__appbar">
+              <button class="icon-btn">←</button>
+              <span class="device__title">Session 3 · Savar</span>
+            </div>
+            <div class="device__body" style="position: relative; justify-content: flex-end; padding: 0">
+              <div class="scrim"></div>
+              <div class="sheet-bottom" style="position: relative">
+                <div class="sheet-bottom__grip"></div>
+                <span class="t-card">Why is a manual route needed?</span>
+                <span class="t-caption">The participant's answer is recorded with the attendance record.</span>
+                <div class="col gap-1">
+                  <label class="choice is-selected"><span class="radio is-on"></span>
+                    <span class="t-strong">Participant declined the photo</span></label>
+                  <label class="choice"><span class="radio"></span>
+                    <span class="t-strong">Camera unavailable on this device</span></label>
+                  <label class="choice"><span class="radio"></span>
+                    <span class="t-strong">Repeated capture failure</span></label>
+                  <label class="choice"><span class="radio"></span>
+                    <span class="t-strong">Other — needs a note</span></label>
+                </div>
+                <button class="btn btn--primary btn--mobile">Continue with manual route</button>
+                <button class="btn btn--text btn--mobile">Back to capture</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col gap-3" style="max-width: 46ch">
+          <span class="t-body">A bottom sheet keeps the thumb in the lower half of a 6-inch screen, which is the only part of
+            the device an operator can reach while holding it steady. Options are full-width rows, not a picker wheel.</span>
+          <span class="t-body">The sheet is dismissible by dragging the grip, and dismissing always returns the user to exactly
+            where they were — a field user interrupted mid-capture must never lose the carpenter they had selected.</span>
+          <div class="ds-note ds-note--a11y">
+            <div class="ds-note__body"><b>Focus and dismissal.</b> Opening moves focus into the sheet and traps it there;
+              Escape or the grip closes it and returns focus to the control that opened it. The scrim is not the only way out.</div>
+          </div>
+        </div>
+      </div>
+    </section>

@@ -1,0 +1,219 @@
+    <section class="ds-block">
+      <div class="ds-plate">
+        <div class="ds-plate__chrome">
+          <span class="ds-plate__dot"></span><span class="ds-plate__dot"></span><span class="ds-plate__dot"></span>
+          <span class="ds-plate__url">sales.bmd.internal/verification?view=my-queue</span>
+        </div>
+        <div class="ds-plate__body">
+          <div class="shell" data-nav="verification">
+<!--@include partials/drawer-web.html-->
+            <div class="col" style="gap: 0; min-width: 0">
+              <header class="appbar">
+                <button class="icon-btn" title="Collapse navigation">☰</button>
+                <div class="crumb"><span>Verification</span><span class="crumb__sep">/</span><b>My queue</b></div>
+                <div class="row gap-2" style="margin-left: auto">
+                  <span class="context-pill is-locked">🔒 CRM · all territories</span>
+                  <button class="icon-btn" title="Notifications">◔</button>
+                  <button class="icon-btn" title="Keyboard shortcuts">?</button>
+                  <span class="thumb" title="Shirin Ahmed">SA</span>
+                </div>
+              </header>
+
+              <div class="content">
+                <div class="page-head">
+                  <div class="page-head__text">
+                    <div class="page-head__title">
+                      <h2 class="t-page">Verification queue</h2>
+                      <span class="chip chip--error chip--lg"><span class="chip__dot">⚠</span>14 breached</span>
+                      <span class="chip chip--warning chip--lg"><span class="chip__dot">◷</span>9 nearing SLA</span>
+                    </div>
+                    <p class="t-body">Sorted by SLA state, then integrity signal, then reward impact — not by arrival time.</p>
+                  </div>
+                  <div class="page-head__actions">
+                    <button class="btn btn--outlined">Assign selected</button>
+                    <button class="btn btn--primary">Claim next case</button>
+                  </div>
+                </div>
+
+                <div class="grid" style="grid-template-columns: 232px minmax(0, 1fr); align-items: start">
+                  <!-- saved views -->
+                  <div class="col gap-4">
+                    <div class="card">
+                      <div class="card__body gap-2">
+                        <span class="t-micro">Views</span>
+                        <div class="saved-views">
+                          <a class="is-current" href="#"><span>My queue</span><span class="t-caption num">28</span></a>
+                          <a href="#"><span>SLA breach</span><span class="t-caption num" style="color: var(--semantic-error)">14</span></a>
+                          <a href="#"><span>Unassigned</span><span class="t-caption num">31</span></a>
+                          <a href="#"><span>Returned</span><span class="t-caption num">9</span></a>
+                          <a href="#"><span>No reference</span><span class="t-caption num">23</span></a>
+                          <a href="#"><span>High risk</span><span class="t-caption num">6</span></a>
+                          <a href="#"><span>Completed today</span><span class="t-caption num">142</span></a>
+                          <a href="#"><span>Quality audit</span><span class="t-caption num">12</span></a>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="card">
+                      <div class="card__body gap-2">
+                        <span class="t-micro">Your day</span>
+                        <dl class="kv" style="grid-template-columns: 1fr auto">
+                          <dt>Decided</dt><dd class="num">63</dd>
+                          <dt>Median time</dt><dd class="num">2h 41m</dd>
+                          <dt>Returned</dt><dd class="num">7</dd>
+                          <dt>Overridden</dt><dd class="num">3</dd>
+                        </dl>
+                        <span class="footnote">Overrides are a quality-audit signal, not an error count.</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- the queue -->
+                  <div class="col gap-3">
+                    <div class="filterbar" style="position: static">
+                      <div class="search"><span>⌕</span><span class="field__ph">Carpenter, campaign or case ID</span>
+                        <span class="search__scope">My queue</span></div>
+                      <span class="select">Match band <span>⌄</span></span>
+                      <span class="select">Campaign <span>⌄</span></span>
+                      <span class="select">Age <span>⌄</span></span>
+                      <button class="btn btn--outlined">⚟ More</button>
+                    </div>
+
+                    <div class="table-wrap">
+                      <table class="tbl">
+                        <thead>
+                          <tr>
+                            <th style="width: 44px"><span class="check"></span></th>
+                            <th style="width: 56px">Photo</th>
+                            <th>Carpenter</th><th>Campaign · session</th>
+                            <th class="c-num">Age</th><th>Band</th><th>Reference</th>
+                            <th>Flags</th><th>Reward</th><th>Assignee</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr class="is-selected">
+                            <td><span class="check is-on"></span></td>
+                            <td><div class="thumb is-veiled">◍</div></td>
+                            <td class="tbl__primary">Shafiqul Alam
+                              <div class="t-caption num">CRP-47201</div></td>
+                            <td>Rod Clinic — Savar · S2</td>
+                            <td class="c-num" style="color: var(--semantic-error)">21h 04m</td>
+                            <td><span class="chip chip--warning"><span class="chip__dot">⃠</span>No reference</span></td>
+                            <td class="t-caption">Unavailable</td>
+                            <td><span class="chip chip--warning"><span class="chip__dot">◌</span>Poor quality</span></td>
+                            <td><span class="chip chip--info"><span class="chip__dot">◍</span>Eligible</span></td>
+                            <td>S. Ahmed</td>
+                          </tr>
+                          <tr>
+                            <td><span class="check is-on"></span></td>
+                            <td><div class="thumb is-veiled">◍</div></td>
+                            <td class="tbl__primary">Nurul Haque
+                              <div class="t-caption num">CRP-49881</div></td>
+                            <td>Rod Clinic — Savar · S2</td>
+                            <td class="c-num" style="color: var(--semantic-error)">19h 22m</td>
+                            <td><span class="chip chip--warning"><span class="chip__dot">◍</span>Low</span></td>
+                            <td class="t-caption">NID photo</td>
+                            <td><span class="chip chip--error"><span class="chip__dot">⚠</span>Suspected spoof</span></td>
+                            <td><span class="chip chip--info"><span class="chip__dot">◍</span>Eligible</span></td>
+                            <td>S. Ahmed</td>
+                          </tr>
+                          <tr>
+                            <td><span class="check"></span></td>
+                            <td><div class="thumb is-veiled">◍</div></td>
+                            <td class="tbl__primary">Jashim Uddin
+                              <div class="t-caption num">CRP-49907</div></td>
+                            <td>Skill Camp — Bogura · S1</td>
+                            <td class="c-num" style="color: var(--semantic-warning)">7h 40m</td>
+                            <td><span class="chip chip--error"><span class="chip__dot">⧉</span>Duplicate</span></td>
+                            <td class="t-caption">Profile photo</td>
+                            <td><span class="chip chip--error"><span class="chip__dot">⧉</span>Same photo hash</span></td>
+                            <td class="t-caption">—</td>
+                            <td>S. Ahmed</td>
+                          </tr>
+                          <tr>
+                            <td><span class="check"></span></td>
+                            <td><div class="thumb is-veiled">◍</div></td>
+                            <td class="tbl__primary">Abdul Karim
+                              <div class="t-caption num">CRP-48813</div></td>
+                            <td>Rod Clinic — Savar · S2</td>
+                            <td class="c-num" style="color: var(--semantic-warning)">6h 12m</td>
+                            <td><span class="chip chip--info"><span class="chip__dot">◍</span>Medium</span></td>
+                            <td class="t-caption">Profile photo</td>
+                            <td><span class="chip chip--warning"><span class="chip__dot">⌖</span>Geofence exception</span></td>
+                            <td><span class="chip chip--info"><span class="chip__dot">◍</span>Eligible</span></td>
+                            <td>S. Ahmed</td>
+                          </tr>
+                          <tr>
+                            <td><span class="check"></span></td>
+                            <td><div class="thumb is-veiled">◍</div></td>
+                            <td class="tbl__primary">Md. Rafiqul Islam
+                              <div class="t-caption num">CRP-48812</div></td>
+                            <td>Rod Clinic — Savar · S2</td>
+                            <td class="c-num">41m</td>
+                            <td><span class="chip chip--success"><span class="chip__dot">✓</span>High</span></td>
+                            <td class="t-caption">Profile photo</td>
+                            <td class="t-caption">—</td>
+                            <td class="t-caption">—</td>
+                            <td>S. Ahmed</td>
+                          </tr>
+                          <tr>
+                            <td><span class="check"></span></td>
+                            <td><div class="thumb is-veiled">◍</div></td>
+                            <td class="tbl__primary">Shahin Mia
+                              <div class="t-caption num">CRP-52014</div></td>
+                            <td>Mistri Meet — Cumilla · S3</td>
+                            <td class="c-num">28m</td>
+                            <td><span class="chip chip--success"><span class="chip__dot">✓</span>High</span></td>
+                            <td class="t-caption">Baseline photo</td>
+                            <td class="t-caption">—</td>
+                            <td class="t-caption">—</td>
+                            <td>S. Ahmed</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div class="spread">
+                      <div class="row gap-3 wrap">
+                        <span class="t-strong">2 selected</span>
+                        <button class="btn btn--outlined">Assign to reviewer</button>
+                        <button class="btn btn--outlined">Mark for quality audit</button>
+                        <button class="btn btn--outlined">Escalate to supervisor</button>
+                        <button class="btn" disabled title="A verification decision is made one case at a time">Approve selected</button>
+                      </div>
+                      <span class="t-caption">28 cases · 6 of 8 shown</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head"><h2 class="ds-block__title">Specification</h2></div>
+      <table class="ds-spec">
+        <thead><tr><th>Dimension</th><th>Specification</th></tr></thead>
+        <tbody>
+          <tr><td>Primary users</td><td>CRM Verifier, CRM Supervisor</td></tr>
+          <tr><td>Columns</td><td>Veiled preview, campaign and session, carpenter, age, match band, reference source, quality and PAD flags, reward impact, assignee</td></tr>
+          <tr><td>Saved views</td><td>My queue · SLA breach · Unassigned · Returned · No reference · High risk · Completed · Quality audit</td></tr>
+          <tr><td>Default sort</td><td>SLA state, then integrity signal, then reward impact, then age. Never creation time alone.</td></tr>
+          <tr><td>Mobile</td><td>Tablet is supported for review. Phone is limited to queue monitoring — never final image comparison.</td></tr>
+          <tr><td>Primary actions</td><td>Open case · assign · claim · filter · escalate · mark for quality audit</td></tr>
+          <tr><td>Required states</td><td>Unassigned · assigned · nearing SLA · breached · no reference · suspected spoof · returned</td></tr>
+        </tbody>
+      </table>
+      <div class="ds-note ds-note--rule">
+        <div class="ds-note__body"><b>Bulk assign, never bulk approve.</b> Assignment is reversible and administrative, so it
+          batches safely. A decision is irreversible, attaches to a named person, and requires looking at evidence — so
+          “Approve selected” exists only as a disabled control whose tooltip explains the rule. Removing it entirely would leave
+          reviewers hunting for a feature that is deliberately absent.</div>
+      </div>
+      <div class="ds-note ds-note--privacy">
+        <div class="ds-note__body"><b>No face appears in the queue.</b> The preview column is a veiled placeholder. A reviewer
+          scrolling 200 rows has no operational need to see faces, and an unveiled queue is a bulk disclosure waiting to be
+          screenshotted.</div>
+      </div>
+    </section>

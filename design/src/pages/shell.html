@@ -1,0 +1,241 @@
+    <div class="ds-note ds-note--rule">
+      <div class="ds-note__body"><b>This is the existing Sales Ecosystem shell.</b> Campaign Management is added as a parent
+        module where role and organisation configuration permit — not a second navigation model, not a separate product with its
+        own identity. A user who already knows the Sales Ecosystem should not have to learn anything here.</div>
+    </div>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Desktop shell</h2>
+        <span class="ds-block__note">Drawer 264px · app bar 64px · content capped at 1440px</span>
+      </div>
+      <div class="ds-plate">
+        <div class="ds-plate__chrome">
+          <span class="ds-plate__dot"></span><span class="ds-plate__dot"></span><span class="ds-plate__dot"></span>
+          <span class="ds-plate__url">sales.bmd.internal/campaigns</span>
+        </div>
+        <div class="ds-plate__body">
+          <div class="shell" style="min-height: 620px">
+            <nav class="drawer">
+              <div class="drawer__brand">
+                <span class="drawer__mark">BMD</span>
+                <div class="col" style="gap: 0">
+                  <span class="drawer__product">Sales Ecosystem</span>
+                  <span class="t-caption">Anwar Group</span>
+                </div>
+              </div>
+
+              <a class="nav-item" href="#"><span class="nav-item__icon">⌂</span>Home</a>
+              <a class="nav-item" href="#"><span class="nav-item__icon">◱</span>Orders</a>
+              <a class="nav-item" href="#"><span class="nav-item__icon">◕</span>Dealers &amp; retailers</a>
+              <a class="nav-item" href="#"><span class="nav-item__icon">☰</span>Carpenters</a>
+
+              <div class="drawer__group"><span class="t-micro">Campaign management</span></div>
+              <a class="nav-item is-current" href="#"><span class="nav-item__icon">◈</span>Campaigns
+                <span class="nav-item__count">3</span></a>
+              <div class="nav-sub">
+                <a href="#">Dashboard</a>
+                <a class="is-current" href="#">All campaigns</a>
+                <a href="#">My campaigns</a>
+                <a href="#">Approval queue <span class="t-caption num">2</span></a>
+                <a href="#">Templates</a>
+              </div>
+              <a class="nav-item" href="#"><span class="nav-item__icon">▤</span>Sessions</a>
+              <a class="nav-item" href="#"><span class="nav-item__icon">☑</span>Participants</a>
+              <a class="nav-item" href="#"><span class="nav-item__icon">◍</span>Verification
+                <span class="nav-item__count">28</span></a>
+              <a class="nav-item" href="#"><span class="nav-item__icon">◔</span>Analytics</a>
+
+              <div class="drawer__group"><span class="t-micro">Administration</span></div>
+              <a class="nav-item" href="#"><span class="nav-item__icon">⚙</span>Configuration</a>
+              <a class="nav-item" href="#"><span class="nav-item__icon">⚟</span>Operations</a>
+            </nav>
+
+            <div class="col" style="gap: 0; min-width: 0">
+              <header class="appbar">
+                <button class="icon-btn" title="Collapse navigation">☰</button>
+                <div class="crumb">
+                  <span>Campaign management</span><span class="crumb__sep">/</span><b>All campaigns</b>
+                </div>
+                <div class="row gap-2" style="margin-left: auto">
+                  <span class="context-pill is-locked">🔒 Dhaka North · BMD</span>
+                  <button class="icon-btn" title="Notifications">◔</button>
+                  <button class="icon-btn" title="Help">?</button>
+                  <span class="thumb" title="Farhana Rahman">FR</span>
+                </div>
+              </header>
+              <div class="content">
+                <div class="page-head">
+                  <div class="page-head__text">
+                    <div class="page-head__title">
+                      <h2 class="t-page">All campaigns</h2>
+                      <span class="chip chip--neutral chip--lg"><span class="chip__dot">◈</span>62 in scope</span>
+                    </div>
+                    <p class="t-body">Campaigns you own, approve or have territory scope over.</p>
+                  </div>
+                  <div class="page-head__actions">
+                    <button class="btn btn--outlined">Import</button>
+                    <button class="btn btn--primary">Create campaign</button>
+                  </div>
+                </div>
+                <div class="col gap-3">
+                  <div class="skel skel--40" style="height: 44px; border-radius: var(--radius-3)"></div>
+                  <div class="skel skel--block"></div>
+                  <div class="skel skel--block"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <table class="ds-spec">
+        <thead><tr><th>Region</th><th>Specification</th></tr></thead>
+        <tbody>
+          <tr><td>Navigation drawer</td><td>Expanded 248–264px, collapsed 72–80px. The existing hierarchy, with Campaign Management inserted as a parent module. Counts appear only where an action is waiting.</td></tr>
+          <tr><td>Top app bar</td><td>64px. Page title, breadcrumb, organisation context, notifications, help, user menu.</td></tr>
+          <tr><td>Content area</td><td>1440px maximum working width. 24px gutter at 1280–1439, 32px at 1440 and above. 12 columns, 24px gaps.</td></tr>
+          <tr><td>Page header</td><td>Title, short description, key status, one primary action, contextual secondary actions.</td></tr>
+          <tr><td>Right side sheet</td><td>Lightweight detail, filters, audit context. Complex creation, verification and 360 views take a full page.</td></tr>
+        </tbody>
+      </table>
+      <div class="ds-note">
+        <div class="ds-note__body"><b>Organisation context is visible but locked.</b> The pill in the app bar shows which
+          organisation and territory the page is scoped to, with a padlock when the role cannot switch. Without it, a user with
+          multi-territory access cannot tell whether an empty list means “nothing here” or “wrong scope”.</div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Tablet — navigation rail</h2>
+        <span class="ds-block__note">600–1023px</span>
+      </div>
+      <div class="ds-specimen" style="padding: 0; overflow: hidden">
+        <div style="display: flex; width: 100%; min-height: 320px; background: var(--surface-base)">
+          <nav class="drawer" style="width: 80px; padding: var(--space-4) var(--space-2); align-items: center">
+            <span class="drawer__mark" style="margin-bottom: var(--space-6)">BMD</span>
+            <a class="nav-item" href="#" style="justify-content: center; padding: 0; width: 56px"><span class="nav-item__icon">⌂</span></a>
+            <a class="nav-item is-current" href="#" style="justify-content: center; padding: 0; width: 56px"><span class="nav-item__icon">◈</span></a>
+            <a class="nav-item" href="#" style="justify-content: center; padding: 0; width: 56px"><span class="nav-item__icon">◍</span></a>
+            <a class="nav-item" href="#" style="justify-content: center; padding: 0; width: 56px"><span class="nav-item__icon">◔</span></a>
+          </nav>
+          <div class="grow" style="padding: var(--space-4)">
+            <div class="page-head" style="padding-bottom: var(--space-4)">
+              <div class="page-head__text">
+                <h3 class="t-section">Verification queue</h3>
+                <p class="t-caption">Tablet landscape is supported for review. Phone is monitoring only.</p>
+              </div>
+              <div class="page-head__actions"><button class="btn btn--primary">Claim next</button></div>
+            </div>
+            <div class="col gap-2">
+              <div class="skel skel--block"></div><div class="skel skel--block"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Mobile field shell</h2>
+        <span class="ds-block__note">56px bar · four destinations · no territory switcher on the capture path</span>
+      </div>
+      <div class="ds-devices">
+        <div class="ds-cell">
+          <span class="ds-cell__label">Session-focused home</span>
+          <div class="device device--tall" style="min-height: 640px">
+            <div class="device__status"><span>10:24</span><span>▮ ▮ ◗</span></div>
+            <div class="device__appbar">
+              <span class="device__title">Session 3 · Savar</span>
+              <span class="row gap-2"><span class="sync-dot sync-dot--pending"></span>
+                <span class="t-caption num">3</span></span>
+              <button class="icon-btn" title="More">⋮</button>
+            </div>
+            <div class="offline-bar">
+              <span>⇡</span>
+              <span class="offline-bar__count num">3</span>
+              <span>waiting · last sync 14m ago</span>
+              <a class="offline-bar__link" href="#">View queue</a>
+            </div>
+            <div class="device__body">
+              <div class="card">
+                <div class="card__body">
+                  <div class="spread">
+                    <span class="t-micro">Active session</span>
+                    <span class="chip chip--info"><span class="chip__dot">●</span>Capture open</span>
+                  </div>
+                  <span class="t-card">Savar Community Hall</span>
+                  <span class="t-caption">Capture window 09:30–13:30 · closes in 3h 06m</span>
+                  <div class="row gap-4" style="padding-top: var(--space-2)">
+                    <div class="col" style="gap: 0"><span class="t-micro">Registered</span>
+                      <span class="t-section num" style="font-size: 20px">184</span></div>
+                    <div class="col" style="gap: 0"><span class="t-micro">Captured</span>
+                      <span class="t-section num" style="font-size: 20px">122</span></div>
+                    <div class="col" style="gap: 0"><span class="t-micro">Waiting</span>
+                      <span class="t-section num" style="font-size: 20px">3</span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="card">
+                <div class="card__body">
+                  <span class="t-micro">Returned for recapture</span>
+                  <div class="row gap-3">
+                    <div class="thumb is-veiled">◍</div>
+                    <div class="grow col gap-1">
+                      <span class="t-strong">Shafiqul Alam</span>
+                      <span class="t-caption">Poor quality · returned 10:41</span>
+                    </div>
+                    <span class="chip chip--warning"><span class="chip__dot">↩</span>Recapture</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="device__dock">
+              <button class="btn btn--primary btn--camera">Capture attendance</button>
+            </div>
+            <nav class="device__nav">
+              <a class="is-current" href="#"><span>⌂</span>Home</a>
+              <a href="#"><span>◈</span>Campaigns</a>
+              <a href="#"><span>☑</span>Attendance</a>
+              <a href="#"><span class="badge num">3</span><span>⇅</span>Sync</a>
+            </nav>
+          </div>
+        </div>
+        <div class="col gap-4" style="max-width: 46ch">
+          <table class="ds-spec">
+            <thead><tr><th>Region</th><th>Specification</th></tr></thead>
+            <tbody>
+              <tr><td>Top app bar</td><td>56px. Back, session title, sync indicator, overflow. No organisation or territory switcher on the capture path.</td></tr>
+              <tr><td>Primary navigation</td><td>Four destinations at most. During an active session the home tab becomes session-focused.</td></tr>
+              <tr><td>Content</td><td>16px horizontal padding, 8–12px card gaps, single column.</td></tr>
+              <tr><td>Primary action</td><td>Docked above the system navigation, only where it cannot obscure content.</td></tr>
+              <tr><td>Touch targets</td><td>48 × 48px minimum. Camera and confirmation actions 52–56px.</td></tr>
+              <tr><td>Offline banner</td><td>Persistent but compact: queue count, last sync, and a direct route to the queue.</td></tr>
+            </tbody>
+          </table>
+          <div class="ds-note ds-note--privacy">
+            <div class="ds-note__body"><b>Why no territory switcher here.</b> An operator mid-session who changes territory
+              context can capture against the wrong session, and the error surfaces hours later as an unresolvable attendance
+              exception. The switcher exists in the More tab, disabled while a session is active.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Navigation map</h2>
+      </div>
+      <table class="ds-spec">
+        <thead><tr><th>Module</th><th>Sub-navigation</th></tr></thead>
+        <tbody>
+          <tr><td>Campaigns</td><td>Dashboard · All campaigns · My campaigns · Approval queue · Templates</td></tr>
+          <tr><td>Sessions</td><td>Today · Upcoming · Active · Completed · Session readiness</td></tr>
+          <tr><td>Participants</td><td>Registrations · Add/select carpenter · Bulk imports · Exception queue</td></tr>
+          <tr><td>Verification</td><td>My queue · Unassigned · SLA breach · Returned · Completed · Quality audit</td></tr>
+          <tr><td>Analytics</td><td>Campaign performance · Carpenter 360 · Order contribution · Integrity · ROI</td></tr>
+          <tr><td>Administration</td><td>Campaign types · Reason codes · SLA · Attendance windows · Geofence · Reference priority · Retention · Attribution windows</td></tr>
+          <tr><td>Operations</td><td>Integration jobs · Sync queue · Order reconciliation · Media health · Audit log</td></tr>
+        </tbody>
+      </table>
+    </section>

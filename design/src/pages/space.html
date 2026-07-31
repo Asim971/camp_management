@@ -1,0 +1,169 @@
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Spacing</h2>
+        <span class="ds-block__note">8px rhythm · 4px only for tightly-bound metadata</span>
+      </div>
+      <div class="ds-specimen ds-specimen--white ds-specimen--col">
+        <div class="ds-ruler">
+          <div class="ds-cell" style="width: 4px"><div class="ds-ruler__bar" style="height: 16px"></div></div>
+          <div class="ds-cell" style="width: 8px"><div class="ds-ruler__bar" style="height: 24px"></div></div>
+          <div class="ds-cell" style="width: 12px"><div class="ds-ruler__bar" style="height: 32px"></div></div>
+          <div class="ds-cell" style="width: 16px"><div class="ds-ruler__bar" style="height: 40px"></div></div>
+          <div class="ds-cell" style="width: 20px"><div class="ds-ruler__bar" style="height: 48px"></div></div>
+          <div class="ds-cell" style="width: 24px"><div class="ds-ruler__bar" style="height: 56px"></div></div>
+          <div class="ds-cell" style="width: 32px"><div class="ds-ruler__bar" style="height: 64px"></div></div>
+          <div class="ds-cell" style="width: 40px"><div class="ds-ruler__bar" style="height: 72px"></div></div>
+          <div class="ds-cell" style="width: 48px"><div class="ds-ruler__bar" style="height: 80px"></div></div>
+          <div class="ds-cell" style="width: 64px"><div class="ds-ruler__bar" style="height: 88px"></div></div>
+        </div>
+        <div class="ds-token-list">
+          <span class="ds-token">space.1 · 4</span><span class="ds-token">space.2 · 8</span>
+          <span class="ds-token">space.3 · 12</span><span class="ds-token">space.4 · 16</span>
+          <span class="ds-token">space.5 · 20</span><span class="ds-token">space.6 · 24</span>
+          <span class="ds-token">space.7 · 32</span><span class="ds-token">space.8 · 40</span>
+          <span class="ds-token">space.9 · 48</span><span class="ds-token">space.10 · 64</span>
+        </div>
+      </div>
+      <table class="ds-spec">
+        <thead><tr><th>Step</th><th>Where it is used</th></tr></thead>
+        <tbody>
+          <tr><td>4</td><td>Between a value and the unit or status that belongs to it. Nothing else.</td></tr>
+          <tr><td>8</td><td>The default gap: label to field, icon to text, chip to chip.</td></tr>
+          <tr><td>12</td><td>Between rows inside a card; table cell padding.</td></tr>
+          <tr><td>16</td><td>Card padding; mobile horizontal page padding.</td></tr>
+          <tr><td>24</td><td>Between cards; grid gap; desktop gutter below 1440.</td></tr>
+          <tr><td>32</td><td>Between page sections; desktop gutter at 1440 and above.</td></tr>
+          <tr><td>48 · 64</td><td>Around empty states and page-level separation only.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Radius</h2>
+        <span class="ds-block__note">Radius encodes the surface class</span>
+      </div>
+      <div class="ds-specimen ds-specimen--white">
+        <div class="ds-cell">
+          <div style="width: 132px; height: 76px; border-radius: var(--radius-1); background: var(--bmd-navy-50); border: 1px solid var(--border-default)"></div>
+          <span class="ds-swatch__name">radius.1 · 6px</span><span class="ds-swatch__use">Chips, compact controls</span>
+        </div>
+        <div class="ds-cell">
+          <div style="width: 132px; height: 76px; border-radius: var(--radius-2); background: var(--bmd-navy-50); border: 1px solid var(--border-default)"></div>
+          <span class="ds-swatch__name">radius.2 · 8px</span><span class="ds-swatch__use">Fields and buttons</span>
+        </div>
+        <div class="ds-cell">
+          <div style="width: 132px; height: 76px; border-radius: var(--radius-3); background: var(--bmd-navy-50); border: 1px solid var(--border-default)"></div>
+          <span class="ds-swatch__name">radius.3 · 12px</span><span class="ds-swatch__use">Standard cards</span>
+        </div>
+        <div class="ds-cell">
+          <div style="width: 132px; height: 76px; border-radius: var(--radius-4); background: var(--bmd-navy-50); border: 1px solid var(--border-default)"></div>
+          <span class="ds-swatch__name">radius.4 · 16px</span><span class="ds-swatch__use">Dialogs and sheets</span>
+        </div>
+        <div class="ds-cell">
+          <div style="width: 132px; height: 76px; border-radius: var(--radius-5); background: var(--bmd-navy-50); border: 1px solid var(--border-default)"></div>
+          <span class="ds-swatch__name">radius.5 · 24px</span><span class="ds-swatch__use">Hero and cover</span>
+        </div>
+      </div>
+      <div class="ds-note">
+        <div class="ds-note__body">Radius is a signal, not a style preference: a 16px corner tells the user this surface is
+          temporary and dismissible, a 12px corner says it is part of the page. Mixing them breaks that read.</div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Elevation</h2>
+        <span class="ds-block__note">Tinted to the ink hue · never stacked</span>
+      </div>
+      <div class="ds-specimen">
+        <div class="ds-cell">
+          <div class="card" style="width: 192px; height: 96px; box-shadow: var(--elev-0)"></div>
+          <span class="ds-swatch__name">elevation.0</span><span class="ds-swatch__use">Tables, inline sections, default surfaces</span>
+        </div>
+        <div class="ds-cell">
+          <div class="card" style="width: 192px; height: 96px; box-shadow: var(--elev-1)"></div>
+          <span class="ds-swatch__name">elevation.1</span><span class="ds-swatch__use">Cards and sticky bars</span>
+        </div>
+        <div class="ds-cell">
+          <div class="card" style="width: 192px; height: 96px; box-shadow: var(--elev-2)"></div>
+          <span class="ds-swatch__name">elevation.2</span><span class="ds-swatch__use">Menus, popovers, side sheets</span>
+        </div>
+        <div class="ds-cell">
+          <div class="card" style="width: 192px; height: 96px; box-shadow: var(--elev-3)"></div>
+          <span class="ds-swatch__name">elevation.3</span><span class="ds-swatch__use">Dialogs only</span>
+        </div>
+      </div>
+      <div class="ds-note ds-note--rule">
+        <div class="ds-note__body"><b>Default to elevation 0.</b> A dense operational page with shadowed cards reads as clutter.
+          Separation comes from the hairline border against the tinted page. Shadow is reserved for surfaces that genuinely
+          float above the page, and two floating surfaces never stack.</div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Grid and working width</h2>
+        <span class="ds-block__note">12 columns · 24px gaps · 1440px maximum</span>
+      </div>
+      <div class="ds-specimen ds-specimen--white ds-specimen--col">
+        <div class="row gap-3" style="width: 100%">
+          <div style="flex:1; height: 64px; background: var(--tint-info); border-radius: var(--radius-1)"></div>
+          <div style="flex:1; height: 64px; background: var(--tint-info); border-radius: var(--radius-1)"></div>
+          <div style="flex:1; height: 64px; background: var(--tint-info); border-radius: var(--radius-1)"></div>
+          <div style="flex:1; height: 64px; background: var(--tint-info); border-radius: var(--radius-1)"></div>
+          <div style="flex:1; height: 64px; background: var(--tint-info); border-radius: var(--radius-1)"></div>
+          <div style="flex:1; height: 64px; background: var(--tint-info); border-radius: var(--radius-1)"></div>
+          <div style="flex:1; height: 64px; background: var(--tint-info); border-radius: var(--radius-1)"></div>
+          <div style="flex:1; height: 64px; background: var(--tint-info); border-radius: var(--radius-1)"></div>
+          <div style="flex:1; height: 64px; background: var(--tint-info); border-radius: var(--radius-1)"></div>
+          <div style="flex:1; height: 64px; background: var(--tint-info); border-radius: var(--radius-1)"></div>
+          <div style="flex:1; height: 64px; background: var(--tint-info); border-radius: var(--radius-1)"></div>
+          <div style="flex:1; height: 64px; background: var(--tint-info); border-radius: var(--radius-1)"></div>
+        </div>
+        <span class="t-caption">Content is capped at 1440px and centred. Beyond that the gutter grows rather than the measure —
+          a form field stretched to 1800px is unreadable and a table row becomes impossible to track across.</span>
+      </div>
+      <table class="ds-spec">
+        <thead><tr><th>Breakpoint</th><th>Width</th><th>Behaviour</th></tr></thead>
+        <tbody>
+          <tr><td>Mobile S</td><td>320–374</td><td>Single column · 16px padding · 48px targets · bottom sheets · no table</td></tr>
+          <tr><td>Mobile L</td><td>375–599</td><td>Single column · larger evidence preview · sticky primary action · bottom navigation</td></tr>
+          <tr><td>Tablet</td><td>600–1023</td><td>Two columns where safe · navigation rail · CRM review in landscape · side-sheet filters</td></tr>
+          <tr><td>Desktop</td><td>1024–1439</td><td>Navigation drawer · 12-column grid · tables and side panels · 24px gutter</td></tr>
+          <tr><td>Large desktop</td><td>≥ 1440</td><td>1440px working width · 32px gutter · no stretched text or forms</td></tr>
+        </tbody>
+      </table>
+      <div class="ds-note ds-note--a11y">
+        <div class="ds-note__body"><b>Responsive priority order.</b> When space runs out, things are given up in this order:
+          secondary metadata collapses into a disclosure, tables become cards or gain a sticky identity column, filters move
+          into a sheet. Current status and the primary action are never what gets dropped — and sync, privacy and SLA warnings
+          are never hidden just because the viewport is narrow.</div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Control and target sizing</h2>
+        <span class="ds-block__note">Field use drives the floor</span>
+      </div>
+      <div class="ds-specimen ds-specimen--white ds-specimen--col">
+        <div class="row gap-4 wrap" style="align-items: flex-end">
+          <div class="ds-cell"><span class="ds-cell__label">44px · web control</span><button class="btn btn--outlined">Open case</button></div>
+          <div class="ds-cell"><span class="ds-cell__label">52px · mobile control</span><button class="btn btn--outlined btn--mobile" style="width: 200px">Select carpenter</button></div>
+          <div class="ds-cell"><span class="ds-cell__label">56px · camera / confirm</span><button class="btn btn--primary btn--camera" style="width: 200px">Capture attendance</button></div>
+        </div>
+        <table class="ds-spec">
+          <thead><tr><th>Token</th><th>Value</th><th>Applies to</th></tr></thead>
+          <tbody>
+            <tr><td>control.h</td><td>44px</td><td>Web buttons, fields, selects</td></tr>
+            <tr><td>control.h.mobile</td><td>52px</td><td>Field buttons and fields</td></tr>
+            <tr><td>control.h.camera</td><td>56px</td><td>Capture and confirmation actions</td></tr>
+            <tr><td>row.h</td><td>46px</td><td>Operational table rows (44–48 band)</td></tr>
+            <tr><td>touch.min</td><td>48 × 48px</td><td>Every interactive target on the field app</td></tr>
+          </tbody>
+        </table>
+        <span class="t-caption">The field floor is 48px because the operator is standing outdoors, often one-handed, sometimes
+          in gloves, with a phone they are also using to shield the participant's face from glare.</span>
+      </div>
+    </section>

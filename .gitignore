@@ -35,3 +35,6 @@ ios/
 macos/
 linux/
 windows/
+
+# design system render scratch
+design/.render/

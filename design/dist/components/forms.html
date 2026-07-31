@@ -1,0 +1,1489 @@
+<!-- @dsCard group="Components" name="Form controls" subtitle="Outlined fields, validation, masked reveal" viewport="1280x900" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Form controls — BMD / ACSL Campaign Management</title>
+<style>
+/* ==========================================================================
+   BMD / ACSL Carpenter Campaign Management — token layer
+   --------------------------------------------------------------------------
+   The single source of truth for the design system. Mirrors the UI/UX
+   Guideline §4 (Visual Foundations) and the variable collections named in
+   §12.2, so the same token names hold in CSS, Figma and Flutter.
+
+   Provenance of every value:
+     * "confirmed"  — from the accessible Figma / guideline §4.1
+     * "guideline"  — specified verbatim in the guideline
+     * "validated"  — derived here and machine-checked; see design/PALETTE.md
+   Nothing in this file is eyeballed.
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* --- Brand ------------------------------------------------------ confirmed */
+  --bmd-primary-600: #E71E25;   /* primary action, current nav, principal series */
+  --bmd-primary-700: #CF1A20;   /* pressed/hover step of the primary action */
+  --bmd-ink-700:     #2B3674;   /* headings, nav labels */
+  --bmd-deep-red:    #831D1D;   /* high-emphasis outline; use sparingly */
+
+  /* --- Tonal & surfaces ------------------------------------------- guideline */
+  --bmd-red-50:      #FFF2F3;   /* tonal primary surface, selected row */
+  --bmd-navy-50:     #F4F5FB;   /* neutral brand-tinted background */
+  --surface-base:    #F8F9FC;   /* application background */
+  --surface-elevated:#FFFFFF;   /* cards, dialogs, sheets */
+  --surface-sunken:  #F1F3F9;   /* table zebra / inset wells */
+  --border-default:  #D9DDE8;   /* card, divider and field borders */
+  --border-strong:   #BFC5D6;   /* field border on hover, table header rule */
+
+  /* --- Text ------------------------------------------------------- guideline
+     Navy carries hierarchy; long body copy drops to neutral dark grey to
+     reduce visual fatigue (§4.2). */
+  --text-heading:   #2B3674;
+  --text-primary:   #1C2036;
+  --text-secondary: #4A5069;
+  --text-muted:     #737A94;
+  --text-on-brand:  #FFFFFF;
+  /* Ink on the neutral dark veil that covers sensitive media. Fixed in both
+     themes — the veil is always dark, so this pair never flips. */
+  --ink-on-veil:       #E7E9F4;
+  --ink-on-veil-muted: #A8AEC8;
+
+  /* --- Semantic state --------------------------------------------- guideline
+     Deliberately NOT brand red, so brand and risk stay distinguishable.
+     Text contrast on --surface-elevated: 5.32 / 5.43 / 6.57 / 5.99 : 1. */
+  --semantic-success: #1F7A4D;
+  --semantic-warning: #B54708;
+  --semantic-error:   #B42318;
+  --semantic-info:    #175CD3;
+  --semantic-neutral: #4A5069;
+
+  /* 10% tints for chip and banner grounds. Same hue, so the label keeps its
+     AA text contrast while the fill stays quiet in a dense table. */
+  --tint-success: rgba(31, 122, 77, 0.10);
+  --tint-warning: rgba(181, 71, 8, 0.10);
+  --tint-error:   rgba(180, 35, 24, 0.10);
+  --tint-info:    rgba(23, 92, 211, 0.10);
+  --tint-neutral: rgba(43, 54, 116, 0.07);
+  --tint-brand:   rgba(231, 30, 37, 0.08);
+
+  /* --- Data series ------------------------------------------------ validated
+     Categorical identity. Fixed order — assigned in sequence, never cycled.
+     Slot 1 is brand red: the guideline's "one principal chart series" (§4.2).
+     Enumerated and machine-checked on BMD's own surfaces; worst adjacent
+     CVD ΔE 15.9 (target ≥8), worst adjacent normal-vision ΔE 32.6 (floor ≥15). */
+  --series-1: #E71E25;   /* brand red   — principal */
+  --series-2: #3B4A96;   /* navy        — brand navy lifted into the L band */
+  --series-3: #CA8A04;   /* ochre       — relief: needs a visible label (2.94:1) */
+  --series-4: #6D28D9;   /* violet */
+  --series-5: #4D7C0F;   /* olive */
+  --series-6: #E85D95;   /* magenta */
+
+  /* Ordinal ramp — one hue, monotone lightness. The conversion funnel is
+     ordinal (stage order carries meaning), so it must read as a sequence.
+     Light end clears 2:1 on the surface at 2.47:1. */
+  --funnel-1: #97A2DC;
+  --funnel-2: #7382CC;
+  --funnel-3: #5566C4;
+  --funnel-4: #3B4A96;
+  --funnel-5: #2B3674;
+
+  /* Chart chrome */
+  --chart-surface:  #FFFFFF;
+  --chart-grid:     #E8EBF3;
+  --chart-baseline: #C6CCDC;
+  --chart-ink:      #1C2036;
+  --chart-muted:    #737A94;
+
+  /* --- Spacing ---------------------------------------------------- guideline
+     8px primary rhythm; 4px only for tightly related metadata. */
+  --space-1: 4px;   --space-2: 8px;   --space-3: 12px;  --space-4: 16px;
+  --space-5: 20px;  --space-6: 24px;  --space-7: 32px;  --space-8: 40px;
+  --space-9: 48px;  --space-10: 64px;
+
+  /* --- Radius ----------------------------------------------------- guideline */
+  --radius-1: 6px;   /* compact controls, chips */
+  --radius-2: 8px;   /* fields, buttons */
+  --radius-3: 12px;  /* standard cards */
+  --radius-4: 16px;  /* dialogs, sheets */
+  --radius-5: 24px;  /* hero / cover */
+  --radius-pill: 999px;
+
+  /* --- Elevation -------------------------------------------------- guideline
+     Tinted to the ink hue so shadows read as part of the brand, not as grey
+     fog. Never stack two high-elevation surfaces. */
+  --elev-0: none;
+  --elev-1: 0 1px 2px rgba(43, 54, 116, 0.08);
+  --elev-2: 0 4px 12px rgba(43, 54, 116, 0.12);
+  --elev-3: 0 12px 28px rgba(43, 54, 116, 0.16);
+
+  /* --- Type ------------------------------------------------------- guideline
+     Inter throughout, Noto Sans Bengali as the Bangla fallback at matching
+     weight and line height (§4.3). */
+  --font-sans: "Inter", "Noto Sans Bengali", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --type-hero:         700 48px/56px var(--font-sans);
+  --type-page:         700 28px/36px var(--font-sans);
+  --type-section:      700 22px/30px var(--font-sans);
+  --type-card:         600 16px/24px var(--font-sans);
+  --type-body-lg:      400 16px/24px var(--font-sans);
+  --type-body:         400 14px/20px var(--font-sans);
+  --type-body-strong:  600 14px/20px var(--font-sans);
+  --type-label:        600 12px/16px var(--font-sans);
+  --type-caption:      400 12px/18px var(--font-sans);
+
+  /* The one type treatment that is a choice rather than a spec: operational
+     figures are always tabular so columns and KPI values align vertically,
+     and the micro-label role carries tracking so 12px uppercase stays legible. */
+  --tracking-micro: 0.06em;
+
+  /* --- Shell ------------------------------------------------------ guideline */
+  --shell-drawer:           264px;  /* expanded 248–264 */
+  --shell-drawer-collapsed: 76px;   /* collapsed 72–80 */
+  --shell-appbar:           64px;   /* web */
+  --shell-appbar-mobile:    56px;
+  --content-max:            1440px;
+  --gutter:                 24px;   /* 32px at >=1440, set in the media query */
+
+  /* --- Controls --------------------------------------------------- guideline */
+  --control-h:        44px;  /* web */
+  --control-h-mobile: 52px;  /* field use */
+  --control-h-camera: 56px;  /* camera & confirmation actions */
+  --row-h:            46px;  /* operational table row, 44–48 */
+  --touch-min:        48px;  /* field minimum */
+
+  --focus-ring: 0 0 0 2px var(--surface-elevated), 0 0 0 4px var(--bmd-primary-600);
+  --duration: 160ms;
+  --ease: cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+@media (min-width: 1440px) {
+  :root { --gutter: 32px; }
+}
+
+/* ==========================================================================
+   Dark mode — selected, not flipped. Series steps are the same six hues
+   re-stepped for the dark surface and validated as a set against #161A2E
+   (worst adjacent CVD ΔE 14.8, normal-vision 29.4). Declared under both the
+   OS media query and the explicit theme stamp so a toggle wins either way.
+   ========================================================================== */
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+
+    --surface-base:     #0D1020;
+    --surface-elevated: #161A2E;
+    --surface-sunken:   #1D2238;
+    --border-default:   #2B3152;
+    --border-strong:    #3A4166;
+
+    --bmd-red-50:  rgba(231, 30, 37, 0.14);
+    --bmd-navy-50: #1A1F36;
+
+    --text-heading:   #E7E9F4;
+    --text-primary:   #E7E9F4;
+    --text-secondary: #B4B9D0;
+    --text-muted:     #8A90AC;
+
+    /* Lifted so each state clears AA text contrast on the dark surface. */
+    --semantic-success: #4ADE80;
+    --semantic-warning: #FDBA4D;
+    --semantic-error:   #FF8A80;
+    --semantic-info:    #7DB0FF;
+    --semantic-neutral: #B4B9D0;
+
+    --tint-success: rgba(74, 222, 128, 0.14);
+    --tint-warning: rgba(253, 186, 77, 0.14);
+    --tint-error:   rgba(255, 138, 128, 0.14);
+    --tint-info:    rgba(125, 176, 255, 0.14);
+    --tint-neutral: rgba(231, 233, 244, 0.08);
+    --tint-brand:   rgba(231, 30, 37, 0.16);
+
+    --series-1: #E71E25;
+    --series-2: #4657AE;
+    --series-3: #B87309;
+    --series-4: #6D28D9;
+    --series-5: #65A30D;
+    --series-6: #BE185D;
+
+    /* The ordinal ramp reverses anchor in dark: the far end of the sequence
+       carries the light steps so no stage sinks into the surface. */
+    --funnel-1: #C3CAEE;
+    --funnel-2: #A3ADE1;
+    --funnel-3: #7E8CD1;
+    --funnel-4: #5A6BC7;
+    --funnel-5: #4657AE;
+
+    --chart-surface:  #161A2E;
+    --chart-grid:     #262C48;
+    --chart-baseline: #3A4166;
+    --chart-ink:      #E7E9F4;
+    --chart-muted:    #8A90AC;
+
+    --elev-1: 0 1px 2px rgba(0, 0, 0, 0.40);
+    --elev-2: 0 4px 12px rgba(0, 0, 0, 0.48);
+    --elev-3: 0 12px 28px rgba(0, 0, 0, 0.56);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --surface-base:     #0D1020;
+  --surface-elevated: #161A2E;
+  --surface-sunken:   #1D2238;
+  --border-default:   #2B3152;
+  --border-strong:    #3A4166;
+
+  --bmd-red-50:  rgba(231, 30, 37, 0.14);
+  --bmd-navy-50: #1A1F36;
+
+  --text-heading:   #E7E9F4;
+  --text-primary:   #E7E9F4;
+  --text-secondary: #B4B9D0;
+  --text-muted:     #8A90AC;
+
+  --semantic-success: #4ADE80;
+  --semantic-warning: #FDBA4D;
+  --semantic-error:   #FF8A80;
+  --semantic-info:    #7DB0FF;
+  --semantic-neutral: #B4B9D0;
+
+  --tint-success: rgba(74, 222, 128, 0.14);
+  --tint-warning: rgba(253, 186, 77, 0.14);
+  --tint-error:   rgba(255, 138, 128, 0.14);
+  --tint-info:    rgba(125, 176, 255, 0.14);
+  --tint-neutral: rgba(231, 233, 244, 0.08);
+  --tint-brand:   rgba(231, 30, 37, 0.16);
+
+  --series-1: #E71E25;
+  --series-2: #4657AE;
+  --series-3: #B87309;
+  --series-4: #6D28D9;
+  --series-5: #65A30D;
+  --series-6: #BE185D;
+
+  --funnel-1: #C3CAEE;
+  --funnel-2: #A3ADE1;
+  --funnel-3: #7E8CD1;
+  --funnel-4: #5A6BC7;
+  --funnel-5: #4657AE;
+
+  --chart-surface:  #161A2E;
+  --chart-grid:     #262C48;
+  --chart-baseline: #3A4166;
+  --chart-ink:      #E7E9F4;
+  --chart-muted:    #8A90AC;
+
+  --elev-1: 0 1px 2px rgba(0, 0, 0, 0.40);
+  --elev-2: 0 4px 12px rgba(0, 0, 0, 0.48);
+  --elev-3: 0 12px 28px rgba(0, 0, 0, 0.56);
+}
+
+/* ==========================================================================
+   BMD / ACSL — component layer
+   Material 3 interaction primitives wearing the BMD brand layer, per the
+   guideline's design position: extend the Sales Ecosystem shell, never invent
+   a second navigation model.
+
+   Selector discipline: components own their own box (padding/radius/border);
+   layout utilities own spacing between boxes. No component sets an outer
+   margin, so nothing cancels out when they nest.
+   ========================================================================== */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--surface-base);
+  color: var(--text-primary);
+  font: var(--type-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 { margin: 0; color: var(--text-heading); }
+p { margin: 0; color: var(--text-secondary); }
+a { color: var(--semantic-info); }
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-1);
+}
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0;
+  margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+/* --- type roles ---------------------------------------------------------- */
+.t-hero    { font: var(--type-hero); color: var(--text-heading); }
+.t-page    { font: var(--type-page); color: var(--text-heading); letter-spacing: -0.01em; }
+.t-section { font: var(--type-section); color: var(--text-heading); }
+.t-card    { font: var(--type-card); color: var(--text-heading); }
+.t-body-lg { font: var(--type-body-lg); color: var(--text-secondary); }
+.t-body    { font: var(--type-body); color: var(--text-secondary); }
+.t-strong  { font: var(--type-body-strong); color: var(--text-primary); }
+.t-caption { font: var(--type-caption); color: var(--text-muted); }
+
+/* The micro-label: the system's utility face role. Uppercase 12px needs
+   tracking to stay legible, and it is the only uppercase in the system. */
+.t-micro {
+  font: var(--type-label);
+  letter-spacing: var(--tracking-micro);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* Figures. Columns align vertically (tabular); large standalone values keep
+   proportional figures so they read as a headline, not a readout. */
+.num      { font-variant-numeric: tabular-nums; }
+.num-hero { font-variant-numeric: proportional-nums; letter-spacing: -0.02em; }
+
+/* --- layout utilities ---------------------------------------------------- */
+.row  { display: flex; align-items: center; gap: var(--space-2); }
+.row-t{ display: flex; align-items: flex-start; gap: var(--space-2); }
+.col  { display: flex; flex-direction: column; gap: var(--space-2); }
+.wrap { flex-wrap: wrap; }
+.grow { flex: 1 1 auto; min-width: 0; }
+.spread { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.gap-1 { gap: var(--space-1); } .gap-2 { gap: var(--space-2); }
+.gap-3 { gap: var(--space-3); } .gap-4 { gap: var(--space-4); }
+.gap-6 { gap: var(--space-6); } .gap-7 { gap: var(--space-7); }
+
+.grid { display: grid; gap: var(--space-6); }
+.g-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.g-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.g-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.g-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+
+/* ==========================================================================
+   Application shell — §3.1 desktop, §3.2 mobile field
+   ========================================================================== */
+.shell { display: grid; grid-template-columns: var(--shell-drawer) 1fr; min-height: 100%; }
+.shell.is-collapsed { grid-template-columns: var(--shell-drawer-collapsed) 1fr; }
+
+.drawer {
+  background: var(--surface-elevated);
+  border-right: 1px solid var(--border-default);
+  padding: var(--space-4) var(--space-3);
+  display: flex; flex-direction: column; gap: var(--space-1);
+}
+.drawer__brand {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-2) var(--space-3) var(--space-6);
+}
+.drawer__mark {
+  width: 32px; height: 32px; flex: none;
+  border-radius: var(--radius-1);
+  background: var(--bmd-primary-600);
+  color: #fff; font: var(--type-label); letter-spacing: 0;
+  display: grid; place-items: center;
+}
+.drawer__product { font: var(--type-body-strong); color: var(--text-heading); }
+.drawer__group { padding: var(--space-5) var(--space-3) var(--space-2); }
+
+.nav-item {
+  display: flex; align-items: center; gap: var(--space-3);
+  min-height: 40px; padding: 0 var(--space-3);
+  border-radius: var(--radius-2);
+  font: var(--type-body-strong); color: var(--text-secondary);
+  text-decoration: none; cursor: pointer;
+  border-left: 3px solid transparent;
+}
+.nav-item:hover { background: var(--bmd-navy-50); color: var(--text-heading); }
+/* Current item is one of the three places filled brand red is allowed (§4.2). */
+.nav-item.is-current {
+  background: var(--bmd-red-50);
+  color: var(--bmd-primary-600);
+  border-left-color: var(--bmd-primary-600);
+}
+.nav-item__icon { width: 20px; text-align: center; flex: none; }
+.nav-item__count {
+  margin-left: auto; font: var(--type-label);
+  padding: 2px var(--space-2); border-radius: var(--radius-pill);
+  background: var(--tint-neutral); color: var(--text-secondary);
+}
+.nav-item.is-current .nav-item__count { background: #fff; color: var(--bmd-primary-600); }
+
+/* The shared drawer partial marks the current module declaratively: the shell
+   carries data-nav="<id>" and the matching nav item lights up. Keeps one copy
+   of the navigation markup across every screen specimen. */
+[data-nav="campaigns"]    [data-nav-id="campaigns"],
+[data-nav="sessions"]     [data-nav-id="sessions"],
+[data-nav="participants"] [data-nav-id="participants"],
+[data-nav="verification"] [data-nav-id="verification"],
+[data-nav="analytics"]    [data-nav-id="analytics"],
+[data-nav="config"]       [data-nav-id="config"],
+[data-nav="operations"]   [data-nav-id="operations"] {
+  background: var(--bmd-red-50);
+  color: var(--bmd-primary-600);
+  border-left-color: var(--bmd-primary-600);
+}
+[data-nav="campaigns"]    [data-nav-id="campaigns"]    .nav-item__count,
+[data-nav="verification"] [data-nav-id="verification"] .nav-item__count {
+  background: var(--surface-elevated); color: var(--bmd-primary-600);
+}
+/* Sub-navigation follows the same pattern, one level deeper. */
+[data-sub] .nav-sub a[data-sub-id] { color: var(--text-secondary); }
+[data-sub="dashboard"]     a[data-sub-id="dashboard"],
+[data-sub="all"]           a[data-sub-id="all"],
+[data-sub="mine"]          a[data-sub-id="mine"],
+[data-sub="approval"]      a[data-sub-id="approval"],
+[data-sub="templates"]     a[data-sub-id="templates"] {
+  color: var(--bmd-primary-600); font: var(--type-body-strong);
+}
+.nav-sub { display: flex; flex-direction: column; gap: 2px; padding-left: var(--space-7); }
+.nav-sub a {
+  font: var(--type-body); color: var(--text-secondary);
+  text-decoration: none; padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-1);
+}
+.nav-sub a:hover { background: var(--bmd-navy-50); }
+.nav-sub a.is-current { color: var(--bmd-primary-600); font: var(--type-body-strong); }
+
+.appbar {
+  height: var(--shell-appbar);
+  border-bottom: 1px solid var(--border-default);
+  background: var(--surface-elevated);
+  display: flex; align-items: center; gap: var(--space-4);
+  padding: 0 var(--gutter);
+  position: sticky; top: 0; z-index: 5;
+}
+.crumb { display: flex; align-items: center; gap: var(--space-2); font: var(--type-body); color: var(--text-muted); }
+.crumb b { font: var(--type-body-strong); color: var(--text-heading); }
+.crumb__sep { color: var(--border-strong); }
+
+/* Organization context is visible but not editable unless the role can switch. */
+.context-pill {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  height: 32px; padding: 0 var(--space-3);
+  border: 1px solid var(--border-default); border-radius: var(--radius-pill);
+  background: var(--surface-base); font: var(--type-label); color: var(--text-secondary);
+}
+.context-pill.is-locked { color: var(--text-muted); }
+
+.content { padding: var(--gutter); max-width: var(--content-max); margin: 0 auto; width: 100%; }
+
+/* Page header — one filled primary action, never two (§3.1). */
+.page-head { display: flex; align-items: flex-start; gap: var(--space-4); padding-bottom: var(--space-6); }
+.page-head__text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.page-head__title { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.page-head__actions { display: flex; align-items: center; gap: var(--space-2); flex: none; }
+
+/* ==========================================================================
+   Buttons — §5.1
+   ========================================================================== */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+  height: var(--control-h); padding: 0 var(--space-4);
+  border-radius: var(--radius-2); border: 1px solid transparent;
+  font: var(--type-body-strong); cursor: pointer;
+  transition: background var(--duration) var(--ease), box-shadow var(--duration) var(--ease);
+  white-space: nowrap;
+}
+.btn--primary { background: var(--bmd-primary-600); color: var(--text-on-brand); }
+.btn--primary:hover { background: var(--bmd-primary-700); }
+.btn--tonal { background: var(--bmd-red-50); color: var(--bmd-primary-600); }
+.btn--tonal:hover { background: #FFE4E6; }
+.btn--tonal-navy { background: var(--bmd-navy-50); color: var(--bmd-ink-700); }
+.btn--outlined { background: var(--surface-elevated); color: var(--text-heading); border-color: var(--border-default); }
+.btn--outlined:hover { border-color: var(--border-strong); background: var(--surface-base); }
+.btn--text { background: transparent; color: var(--bmd-ink-700); padding: 0 var(--space-2); }
+.btn--text:hover { background: var(--bmd-navy-50); }
+.btn--danger { background: var(--semantic-error); color: #fff; }
+.btn--danger-outline { background: var(--surface-elevated); color: var(--semantic-error); border-color: var(--semantic-error); }
+.btn[disabled], .btn.is-disabled {
+  background: var(--surface-sunken); color: var(--text-muted);
+  border-color: transparent; cursor: not-allowed;
+}
+.btn--mobile { height: var(--control-h-mobile); width: 100%; font: var(--type-card); }
+.btn--camera { height: var(--control-h-camera); width: 100%; font: var(--type-card); }
+
+/* Loading preserves the label width so the button never resizes (§5.1). */
+.btn.is-loading { position: relative; color: transparent; pointer-events: none; }
+.btn.is-loading::after {
+  content: ""; position: absolute; width: 16px; height: 16px;
+  border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%;
+  color: var(--text-on-brand); animation: spin 700ms linear infinite;
+}
+.btn--outlined.is-loading::after, .btn--text.is-loading::after { color: var(--bmd-ink-700); }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.icon-btn {
+  width: 40px; height: 40px; flex: none;
+  display: grid; place-items: center;
+  border-radius: var(--radius-2); border: 1px solid transparent;
+  background: transparent; color: var(--text-secondary); cursor: pointer;
+}
+.icon-btn:hover { background: var(--bmd-navy-50); color: var(--text-heading); }
+.icon-btn--field { width: var(--touch-min); height: var(--touch-min); }
+
+/* ==========================================================================
+   Form controls — §5.2. Outlined, persistent label, placeholders never
+   stand in for labels.
+   ========================================================================== */
+.field { display: flex; flex-direction: column; gap: var(--space-1); }
+.field__label { font: var(--type-label); color: var(--text-secondary); }
+.field__label .req { color: var(--semantic-error); }
+.field__box {
+  display: flex; align-items: center; gap: var(--space-2);
+  height: var(--control-h); padding: 0 var(--space-3);
+  border: 1px solid var(--border-default); border-radius: var(--radius-2);
+  background: var(--surface-elevated); color: var(--text-primary); font: var(--type-body);
+}
+.field__box:hover { border-color: var(--border-strong); }
+.field__box.is-focus { border-color: var(--bmd-primary-600); box-shadow: 0 0 0 3px var(--tint-brand); }
+.field__box.is-error { border-color: var(--semantic-error); }
+.field__box.is-readonly { background: var(--surface-sunken); color: var(--text-secondary); }
+.field__box--area { height: auto; min-height: 96px; align-items: flex-start; padding: var(--space-3); }
+.field__box--mobile { height: var(--control-h-mobile); }
+.field__ph { color: var(--text-muted); }
+.field__help { font: var(--type-caption); color: var(--text-muted); }
+.field__err { font: var(--type-caption); color: var(--semantic-error); display: flex; gap: var(--space-1); }
+.field__affix { color: var(--text-muted); flex: none; }
+
+/* Masked value with permission-gated reveal. Full NID is never a field. */
+.masked { display: inline-flex; align-items: center; gap: var(--space-2); font-variant-numeric: tabular-nums; }
+.masked__dots { letter-spacing: 0.12em; color: var(--text-secondary); }
+.masked__reveal { font: var(--type-label); color: var(--semantic-info); cursor: pointer; background: none; border: 0; padding: 0; }
+
+.switch { width: 40px; height: 22px; border-radius: var(--radius-pill); background: var(--border-strong); position: relative; flex: none; }
+.switch::after { content: ""; position: absolute; inset: 2px auto 2px 2px; width: 18px; border-radius: 50%; background: #fff; }
+.switch.is-on { background: var(--semantic-success); }
+.switch.is-on::after { left: auto; right: 2px; }
+
+.radio, .check {
+  width: 18px; height: 18px; flex: none; border: 2px solid var(--border-strong);
+  background: var(--surface-elevated);
+}
+.radio { border-radius: 50%; }
+.check { border-radius: 4px; }
+.radio.is-on { border-color: var(--bmd-primary-600); box-shadow: inset 0 0 0 3px var(--surface-elevated), inset 0 0 0 9px var(--bmd-primary-600); }
+.check.is-on { border-color: var(--bmd-primary-600); background: var(--bmd-primary-600); }
+.check.is-on::after { content: "✓"; color: #fff; font-size: 12px; display: grid; place-items: center; height: 100%; }
+
+.choice { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-3); border-radius: var(--radius-2); cursor: pointer; }
+.choice:hover { background: var(--bmd-navy-50); }
+.choice.is-selected { background: var(--bmd-red-50); }
+
+/* ==========================================================================
+   Status chips — §5.4. Controlled vocabulary, one renderer.
+   Colour NEVER carries state alone: every chip is icon + text.
+   ========================================================================== */
+.chip {
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  height: 24px; padding: 0 var(--space-2) 0 var(--space-1);
+  border-radius: var(--radius-pill);
+  font: var(--type-label); white-space: nowrap;
+}
+.chip__dot { width: 14px; text-align: center; font-size: 11px; line-height: 1; }
+.chip--success { background: var(--tint-success); color: var(--semantic-success); }
+.chip--warning { background: var(--tint-warning); color: var(--semantic-warning); }
+.chip--error   { background: var(--tint-error);   color: var(--semantic-error); }
+.chip--info    { background: var(--tint-info);    color: var(--semantic-info); }
+.chip--neutral { background: var(--tint-neutral); color: var(--text-secondary); }
+.chip--lg { height: 28px; padding: 0 var(--space-3) 0 var(--space-2); }
+
+/* Filter / selection chips are a different object from status chips. */
+.fchip {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  height: 32px; padding: 0 var(--space-3);
+  border: 1px solid var(--border-default); border-radius: var(--radius-pill);
+  background: var(--surface-elevated); font: var(--type-label); color: var(--text-secondary); cursor: pointer;
+}
+.fchip.is-active { background: var(--bmd-red-50); border-color: var(--bmd-primary-600); color: var(--bmd-primary-600); }
+.fchip__x { color: var(--text-muted); }
+
+/* ==========================================================================
+   Cards
+   ========================================================================== */
+.card {
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-3);
+  box-shadow: var(--elev-0);
+}
+.card--raised { box-shadow: var(--elev-1); }
+.card__head { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-4) var(--space-4) 0; }
+.card__body { padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); }
+.card__foot { padding: var(--space-3) var(--space-4); border-top: 1px solid var(--border-default); }
+.card__title { font: var(--type-card); color: var(--text-heading); }
+
+.section { display: flex; flex-direction: column; gap: var(--space-4); padding-bottom: var(--space-7); }
+.section__head { display: flex; align-items: baseline; gap: var(--space-3); }
+
+/* KPI card — §6.3. Label, value, denominator, definition, source, freshness.
+   Never an isolated vanity count. */
+.kpi { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-4); }
+.kpi__label { display: flex; align-items: center; gap: var(--space-1); }
+.kpi__info {
+  width: 14px; height: 14px; border-radius: 50%; flex: none;
+  border: 1px solid var(--border-strong); color: var(--text-muted);
+  font-size: 9px; display: grid; place-items: center; cursor: help;
+}
+.kpi__value { font: var(--type-hero); font-size: 34px; line-height: 40px; color: var(--text-heading); }
+.kpi__denom { font: var(--type-body); color: var(--text-muted); }
+.kpi__foot { display: flex; align-items: center; gap: var(--space-2); font: var(--type-caption); color: var(--text-muted); }
+.delta { display: inline-flex; align-items: center; gap: 2px; font: var(--type-label); }
+.delta--up { color: var(--semantic-success); }
+.delta--down { color: var(--semantic-error); }
+.delta--flat { color: var(--text-muted); }
+
+/* Exception card — the dashboard's opening block (§6.1). Action backlog first,
+   aggregate totals second. */
+.exc {
+  display: flex; flex-direction: column; gap: var(--space-3);
+  padding: var(--space-4); border-left: 3px solid var(--border-strong);
+}
+.exc--warning { border-left-color: var(--semantic-warning); }
+.exc--error   { border-left-color: var(--semantic-error); }
+.exc--info    { border-left-color: var(--semantic-info); }
+.exc__count { font: var(--type-page); font-size: 30px; line-height: 34px; color: var(--text-heading); }
+.exc__age { display: flex; align-items: center; gap: var(--space-2); }
+/* Hairline age bar: how long the oldest item in this bucket has waited. */
+.agebar { height: 4px; border-radius: 2px; background: var(--surface-sunken); flex: 1 1 auto; overflow: hidden; }
+.agebar__fill { height: 100%; border-radius: 2px; background: var(--semantic-warning); }
+.agebar__fill--error { background: var(--semantic-error); }
+.agebar__fill--ok { background: var(--semantic-success); }
+
+/* ==========================================================================
+   Tables — §5.5. Sticky header, 46px rows, status/owner/SLA before the rest.
+   ========================================================================== */
+.table-wrap { overflow-x: auto; border: 1px solid var(--border-default); border-radius: var(--radius-3); background: var(--surface-elevated); }
+table.tbl { width: 100%; border-collapse: separate; border-spacing: 0; font: var(--type-body); }
+.tbl thead th {
+  position: sticky; top: 0; z-index: 1;
+  background: var(--surface-elevated);
+  border-bottom: 1px solid var(--border-strong);
+  padding: var(--space-3) var(--space-4);
+  text-align: left; white-space: nowrap;
+  font: var(--type-label); letter-spacing: var(--tracking-micro);
+  text-transform: uppercase; color: var(--text-muted);
+}
+.tbl tbody td {
+  height: var(--row-h); padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--border-default);
+  color: var(--text-secondary); vertical-align: middle;
+}
+.tbl tbody tr:last-child td { border-bottom: 0; }
+.tbl tbody tr:hover td { background: var(--bmd-navy-50); }
+.tbl tbody tr.is-selected td { background: var(--bmd-red-50); }
+.tbl .num, .tbl .c-num { font-variant-numeric: tabular-nums; text-align: right; }
+.tbl .c-id { font-variant-numeric: tabular-nums; color: var(--text-primary); }
+.tbl__primary { font: var(--type-body-strong); color: var(--text-primary); }
+/* Sticky identity column for the horizontal-scroll case (§11.1). */
+.tbl .c-sticky { position: sticky; left: 0; background: var(--surface-elevated); z-index: 2; }
+.tbl tbody tr:hover .c-sticky { background: var(--bmd-navy-50); }
+
+.list { display: flex; flex-direction: column; }
+.list__item {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border-default);
+  min-height: var(--touch-min);
+}
+.list__item:last-child { border-bottom: 0; }
+
+/* ==========================================================================
+   Filter bar — §5.3. 3–5 high-value filters inline, the rest in a side sheet.
+   ========================================================================== */
+.filterbar {
+  display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-default); border-radius: var(--radius-3);
+  position: sticky; top: var(--shell-appbar); z-index: 4;
+}
+.search {
+  display: flex; align-items: center; gap: var(--space-2);
+  height: var(--control-h); min-width: 260px; flex: 1 1 260px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-default); border-radius: var(--radius-2);
+  background: var(--surface-elevated); color: var(--text-muted);
+}
+.search__scope { font: var(--type-label); color: var(--text-secondary); padding-left: var(--space-2); border-left: 1px solid var(--border-default); }
+.select {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  height: var(--control-h); padding: 0 var(--space-3);
+  border: 1px solid var(--border-default); border-radius: var(--radius-2);
+  background: var(--surface-elevated); font: var(--type-body); color: var(--text-secondary); cursor: pointer;
+}
+.saved-views { display: flex; flex-direction: column; gap: 2px; }
+.saved-views a {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
+  padding: var(--space-2) var(--space-3); border-radius: var(--radius-2);
+  font: var(--type-body); color: var(--text-secondary); text-decoration: none;
+}
+.saved-views a:hover { background: var(--bmd-navy-50); }
+.saved-views a.is-current { background: var(--bmd-red-50); color: var(--bmd-primary-600); font: var(--type-body-strong); }
+
+/* ==========================================================================
+   Overlays — §5.6
+   ========================================================================== */
+.scrim { position: absolute; inset: 0; background: rgba(28, 32, 54, 0.45); }
+.dialog {
+  background: var(--surface-elevated); border-radius: var(--radius-4);
+  box-shadow: var(--elev-3); width: 100%; max-width: 480px;
+  display: flex; flex-direction: column;
+}
+.dialog__head { padding: var(--space-6) var(--space-6) var(--space-3); display: flex; flex-direction: column; gap: var(--space-2); }
+.dialog__body { padding: 0 var(--space-6) var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); }
+.dialog__foot { padding: var(--space-4) var(--space-6) var(--space-6); display: flex; justify-content: flex-end; gap: var(--space-2); }
+
+.sheet-right {
+  background: var(--surface-elevated); box-shadow: var(--elev-2);
+  border-left: 1px solid var(--border-default);
+  width: 400px; height: 100%; display: flex; flex-direction: column;
+}
+.sheet-right__head { padding: var(--space-4); border-bottom: 1px solid var(--border-default); }
+.sheet-right__body { padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-4); overflow: auto; }
+.sheet-right__foot { margin-top: auto; padding: var(--space-4); border-top: 1px solid var(--border-default); display: flex; gap: var(--space-2); }
+
+.sheet-bottom {
+  background: var(--surface-elevated);
+  border-radius: var(--radius-4) var(--radius-4) 0 0;
+  box-shadow: var(--elev-3); padding: var(--space-4);
+  display: flex; flex-direction: column; gap: var(--space-3);
+}
+.sheet-bottom__grip { width: 32px; height: 4px; border-radius: 2px; background: var(--border-strong); margin: 0 auto var(--space-2); }
+
+/* ==========================================================================
+   Banners — offline, delayed data, permission
+   ========================================================================== */
+.banner {
+  display: flex; align-items: flex-start; gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-default); border-radius: var(--radius-2);
+  background: var(--surface-elevated);
+}
+.banner--warning { background: var(--tint-warning); border-color: transparent; }
+.banner--info    { background: var(--tint-info);    border-color: transparent; }
+.banner--error   { background: var(--tint-error);   border-color: transparent; }
+.banner__icon { flex: none; }
+.banner__title { font: var(--type-body-strong); color: var(--text-primary); }
+.banner__body { font: var(--type-caption); color: var(--text-secondary); }
+.banner__action { margin-left: auto; flex: none; }
+
+/* Offline banner — persistent but compact: queue count, last sync, view queue. */
+.offline-bar {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-2) var(--space-4); min-height: 40px;
+  background: var(--tint-warning); color: var(--semantic-warning);
+  font: var(--type-label);
+}
+.offline-bar__count {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 20px; height: 20px; padding: 0 6px;
+  border-radius: var(--radius-pill); background: var(--semantic-warning); color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+.offline-bar__link { margin-left: auto; color: var(--semantic-warning); text-decoration: underline; }
+
+/* ==========================================================================
+   SIGNATURE — the lineage rail
+   --------------------------------------------------------------------------
+   An attendance record moves through an irreversible chain of custody:
+   captured → queued → uploaded → matched → decided → counted. The guideline's
+   hardest requirements are all about keeping those links distinct — capture
+   success is not upload success (§8.11), and the machine result is not the
+   human decision (§8.13). So the chain itself is a component, and it renders
+   identically on the mobile queue, the CRM case, Carpenter 360 and the audit
+   trail: one object, one reading, everywhere.
+
+   Rules, deliberately narrow:
+     * solid node + solid connector = this happened
+     * dashed connector + hollow node = has not happened yet
+     * tone carries the outcome; every node still names itself in text
+     * the rail NEVER wears brand red — red is reserved for the primary action,
+       so the rail can never be mistaken for something you click
+   ========================================================================== */
+.lineage { display: flex; align-items: flex-start; gap: 0; width: 100%; list-style: none; margin: 0; padding: 0; }
+.lineage__node { display: flex; flex-direction: column; gap: var(--space-1); flex: 1 1 0; min-width: 0; position: relative; }
+.lineage__mark { display: flex; align-items: center; gap: 0; }
+.lineage__dot {
+  width: 12px; height: 12px; border-radius: 50%; flex: none;
+  background: var(--semantic-neutral); box-shadow: 0 0 0 2px var(--surface-elevated);
+}
+.lineage__line { height: 2px; flex: 1 1 auto; background: var(--semantic-neutral); }
+.lineage__node:last-child .lineage__line { display: none; }
+.lineage__label { font: var(--type-label); color: var(--text-primary); padding-right: var(--space-2); }
+.lineage__meta { font: var(--type-caption); color: var(--text-muted); padding-right: var(--space-2); }
+
+.lineage__node.is-done .lineage__dot,
+.lineage__node.is-done .lineage__line { background: var(--semantic-success); }
+.lineage__node.is-current .lineage__dot { background: var(--semantic-info); box-shadow: 0 0 0 2px var(--surface-elevated), 0 0 0 5px var(--tint-info); }
+.lineage__node.is-current .lineage__line,
+.lineage__node.is-pending .lineage__line {
+  background: none;
+  border-top: 2px dashed var(--border-strong);
+  height: 0;
+}
+.lineage__node.is-pending .lineage__dot {
+  background: var(--surface-elevated);
+  border: 2px solid var(--border-strong);
+  width: 12px; height: 12px;
+}
+.lineage__node.is-pending .lineage__label { color: var(--text-muted); }
+.lineage__node.is-failed .lineage__dot { background: var(--semantic-error); }
+.lineage__node.is-failed .lineage__label { color: var(--semantic-error); }
+.lineage__node.is-blocked .lineage__dot { background: var(--semantic-warning); }
+.lineage__node.is-blocked .lineage__label { color: var(--semantic-warning); }
+
+/* Vertical variant for narrow surfaces — same semantics, stacked. */
+.lineage--v { flex-direction: column; gap: 0; }
+.lineage--v .lineage__node { flex: none; width: 100%; display: grid; grid-template-columns: 12px 1fr; gap: 0 var(--space-3); }
+.lineage--v .lineage__mark { flex-direction: column; grid-row: span 2; align-self: stretch; }
+.lineage--v .lineage__line { width: 2px; height: auto; min-height: 20px; flex: 1 1 auto; }
+.lineage--v .lineage__node.is-current .lineage__line,
+.lineage--v .lineage__node.is-pending .lineage__line {
+  border-top: 0; border-left: 2px dashed var(--border-strong); width: 0; height: auto;
+}
+.lineage--v .lineage__label { padding-bottom: 2px; }
+.lineage--v .lineage__meta { padding-bottom: var(--space-3); }
+
+/* ==========================================================================
+   Evidence — §10.2. Sensitive media is hidden until an authorized case is
+   opened, and every view is logged.
+   ========================================================================== */
+.evidence { display: flex; flex-direction: column; gap: var(--space-2); }
+.evidence__frame {
+  position: relative; aspect-ratio: 3 / 4; border-radius: var(--radius-3);
+  overflow: hidden; background: #22263C;
+  display: grid; place-items: center;
+}
+.evidence__frame--sm { aspect-ratio: 1; border-radius: var(--radius-2); }
+/* Neutral dark overlay — never a promotional gradient inside verification. */
+.evidence__veil {
+  position: absolute; inset: 0; background: rgba(13, 16, 32, 0.86);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--space-2); text-align: center; padding: var(--space-4);
+  color: var(--ink-on-veil); font: var(--type-label);
+}
+.evidence__veil-note { font: var(--type-caption); color: var(--ink-on-veil-muted); }
+.evidence__stand-in { color: #5A6180; font: var(--type-caption); }
+.evidence__badge {
+  position: absolute; top: var(--space-2); left: var(--space-2);
+  padding: 2px var(--space-2); border-radius: var(--radius-1);
+  background: rgba(13, 16, 32, 0.72); color: #fff; font: var(--type-label);
+}
+.evidence__zoom {
+  position: absolute; bottom: var(--space-2); right: var(--space-2);
+  display: flex; gap: 2px;
+}
+.evidence__zoom button {
+  width: 32px; height: 32px; border: 0; border-radius: var(--radius-1);
+  background: rgba(13, 16, 32, 0.72); color: #fff; cursor: pointer;
+}
+.thumb {
+  width: 40px; height: 40px; border-radius: var(--radius-1); flex: none;
+  background: var(--surface-sunken); display: grid; place-items: center;
+  color: var(--text-muted); font: var(--type-label); overflow: hidden;
+}
+.thumb.is-veiled { background: #22263C; color: #6B7290; }
+.thumb--lg { width: 56px; height: 56px; }
+
+/* Machine advisory block — visually a different object from the decision. */
+.advisory {
+  border: 1px dashed var(--border-strong); border-radius: var(--radius-3);
+  background: var(--surface-base); padding: var(--space-4);
+  display: flex; flex-direction: column; gap: var(--space-3);
+}
+.advisory__head { display: flex; align-items: center; gap: var(--space-2); }
+.band { display: flex; align-items: center; gap: var(--space-2); }
+.band__track { height: 6px; border-radius: 3px; background: var(--surface-sunken); flex: 1 1 auto; display: flex; gap: 2px; overflow: hidden; }
+.band__seg { flex: 1 1 0; background: var(--surface-sunken); }
+.band__seg.is-on { background: var(--semantic-info); }
+
+/* ==========================================================================
+   States — every one is designed, never a bare spinner (§13.2)
+   ========================================================================== */
+.state {
+  display: flex; flex-direction: column; align-items: center; gap: var(--space-3);
+  padding: var(--space-9) var(--space-6); text-align: center;
+}
+.state__icon {
+  width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--bmd-navy-50); color: var(--text-muted); font-size: 20px;
+}
+.state__title { font: var(--type-card); color: var(--text-heading); }
+.state__body { font: var(--type-body); color: var(--text-secondary); max-width: 46ch; }
+.state--error .state__icon { background: var(--tint-error); color: var(--semantic-error); }
+.state--denied .state__icon { background: var(--tint-warning); color: var(--semantic-warning); }
+
+.skel { background: var(--surface-sunken); border-radius: var(--radius-1); height: 12px; }
+.skel--text { width: 100%; }
+.skel--40 { width: 40%; } .skel--60 { width: 60%; } .skel--80 { width: 80%; }
+.skel--block { height: 72px; border-radius: var(--radius-2); }
+
+/* ==========================================================================
+   Stepper — wizard (§8.3)
+   ========================================================================== */
+.stepper { display: flex; align-items: stretch; gap: 0; border-bottom: 1px solid var(--border-default); }
+.step {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-3) var(--space-4); flex: 1 1 0; min-width: 0;
+  border-bottom: 2px solid transparent;
+}
+.step__n {
+  width: 24px; height: 24px; border-radius: 50%; flex: none;
+  display: grid; place-items: center; font: var(--type-label);
+  background: var(--surface-sunken); color: var(--text-muted);
+}
+.step__label { font: var(--type-body); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.step.is-done .step__n { background: var(--tint-success); color: var(--semantic-success); }
+.step.is-done .step__label { color: var(--text-secondary); }
+.step.is-current { border-bottom-color: var(--bmd-primary-600); }
+.step.is-current .step__n { background: var(--bmd-primary-600); color: #fff; }
+.step.is-current .step__label { font: var(--type-body-strong); color: var(--text-heading); }
+.step.has-error .step__n { background: var(--tint-error); color: var(--semantic-error); }
+
+/* Tabs — detail pages (§8.5) */
+.tabs { display: flex; gap: var(--space-1); border-bottom: 1px solid var(--border-default); }
+.tab {
+  padding: var(--space-3) var(--space-4); border-bottom: 2px solid transparent;
+  font: var(--type-body-strong); color: var(--text-secondary); cursor: pointer; white-space: nowrap;
+}
+.tab:hover { color: var(--text-heading); }
+.tab.is-current { color: var(--bmd-primary-600); border-bottom-color: var(--bmd-primary-600); }
+.tab__count { font: var(--type-label); color: var(--text-muted); padding-left: var(--space-1); }
+
+/* Key/value detail rows */
+.kv { display: grid; grid-template-columns: 140px 1fr; gap: var(--space-2) var(--space-4); align-items: baseline; }
+.kv dt { font: var(--type-label); color: var(--text-muted); }
+.kv dd { margin: 0; font: var(--type-body); color: var(--text-primary); }
+
+/* Audit timeline */
+.audit { display: flex; flex-direction: column; }
+.audit__row { display: grid; grid-template-columns: 12px 1fr; gap: 0 var(--space-3); }
+.audit__spine { display: flex; flex-direction: column; align-items: center; }
+.audit__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border-strong); margin-top: 6px; flex: none; }
+.audit__line { width: 2px; flex: 1 1 auto; background: var(--border-default); min-height: 12px; }
+.audit__body { padding-bottom: var(--space-4); display: flex; flex-direction: column; gap: 2px; }
+
+/* ==========================================================================
+   Mobile device frame — for the field screens (§3.2)
+   ========================================================================== */
+.device {
+  width: 390px; flex: none;
+  background: var(--surface-base);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-5); overflow: hidden;
+  box-shadow: var(--elev-2);
+  display: flex; flex-direction: column;
+  position: relative;
+}
+.device--tall { min-height: 780px; }
+.device__status {
+  height: 28px; background: var(--surface-elevated);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 var(--space-4); font: var(--type-caption); color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.device__appbar {
+  height: var(--shell-appbar-mobile); flex: none;
+  background: var(--surface-elevated); border-bottom: 1px solid var(--border-default);
+  display: flex; align-items: center; gap: var(--space-3); padding: 0 var(--space-3);
+}
+.device__title { font: var(--type-card); color: var(--text-heading); flex: 1 1 auto; min-width: 0; }
+.device__body { flex: 1 1 auto; padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); overflow: hidden; }
+.device__body--flush { padding: 0; }
+.device__dock {
+  flex: none; padding: var(--space-3) var(--space-4);
+  background: var(--surface-elevated); border-top: 1px solid var(--border-default);
+  display: flex; flex-direction: column; gap: var(--space-2);
+}
+.device__nav {
+  flex: none; height: 64px; background: var(--surface-elevated);
+  border-top: 1px solid var(--border-default);
+  display: grid; grid-template-columns: repeat(4, 1fr);
+}
+.device__nav a {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  font: var(--type-caption); color: var(--text-muted); text-decoration: none; position: relative;
+}
+.device__nav a.is-current { color: var(--bmd-primary-600); }
+.device__nav .badge {
+  position: absolute; top: 8px; right: 50%; margin-right: -22px;
+  min-width: 16px; height: 16px; padding: 0 4px; border-radius: var(--radius-pill);
+  background: var(--semantic-warning); color: #fff; font: 600 10px/16px var(--font-sans);
+  text-align: center; font-variant-numeric: tabular-nums;
+}
+.sync-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--semantic-success); }
+.sync-dot--pending { background: var(--semantic-warning); }
+.sync-dot--offline { background: var(--text-muted); }
+
+/* Readiness checklist */
+.checklist { display: flex; flex-direction: column; }
+.checkrow {
+  display: flex; align-items: center; gap: var(--space-3);
+  min-height: var(--touch-min); padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border-default);
+}
+.checkrow:last-child { border-bottom: 0; }
+.checkrow__mark { width: 20px; text-align: center; flex: none; font-size: 14px; }
+.checkrow.is-pass .checkrow__mark { color: var(--semantic-success); }
+.checkrow.is-warn .checkrow__mark { color: var(--semantic-warning); }
+.checkrow.is-block .checkrow__mark { color: var(--semantic-error); }
+.checkrow__text { flex: 1 1 auto; min-width: 0; }
+.checkrow__name { font: var(--type-body-strong); color: var(--text-primary); }
+.checkrow__note { font: var(--type-caption); color: var(--text-muted); }
+
+/* Camera viewport */
+.camera {
+  position: relative; aspect-ratio: 3 / 4; background: #1A1E30;
+  display: grid; place-items: center; overflow: hidden;
+}
+/* Framing guidance is neutral — red is reserved for an explicit capture
+   failure, never for normal framing (§8.10). */
+.camera__guide {
+  width: 62%; aspect-ratio: 3 / 4; border: 2px dashed rgba(231, 233, 244, 0.7);
+  border-radius: 50% / 42%;
+}
+.camera__guide.is-ok { border-color: var(--semantic-success); border-style: solid; }
+.camera__guide.is-fail { border-color: var(--semantic-error); border-style: solid; }
+.camera__hint {
+  position: absolute; left: var(--space-4); right: var(--space-4); bottom: var(--space-4);
+  padding: var(--space-2) var(--space-3); border-radius: var(--radius-2);
+  background: rgba(13, 16, 32, 0.78); color: #E7E9F4;
+  font: var(--type-body-strong); text-align: center;
+}
+.camera__hint--fail { background: var(--semantic-error); }
+
+/* ==========================================================================
+   Charts — mark specs from the dataviz method.
+   Thin marks, 4px rounded data-ends anchored to the baseline, 2px lines,
+   >=8px markers, a 2px surface gap between adjacent fills, recessive grid,
+   selective direct labels. Series slots sub-3:1 on their surface carry a
+   visible label or the table view as relief — never the fill alone.
+   ========================================================================== */
+.chart { display: flex; flex-direction: column; gap: var(--space-3); }
+.chart__head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); }
+.chart__meta { font: var(--type-caption); color: var(--text-muted); }
+.legend { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
+.legend__item { display: inline-flex; align-items: center; gap: var(--space-2); font: var(--type-label); color: var(--text-secondary); }
+.legend__swatch { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+
+/* View switch: chart / table. The table view is the standing relief channel. */
+.viewswitch { display: inline-flex; border: 1px solid var(--border-default); border-radius: var(--radius-2); overflow: hidden; }
+.viewswitch button {
+  padding: var(--space-1) var(--space-3); border: 0; background: var(--surface-elevated);
+  font: var(--type-label); color: var(--text-secondary); cursor: pointer;
+}
+.viewswitch button.is-on { background: var(--bmd-navy-50); color: var(--bmd-ink-700); }
+
+/* Funnel — ordinal ramp, count AND rate always shown, click-through implied. */
+.funnel { display: flex; flex-direction: column; gap: var(--space-2); }
+.fstage { display: grid; grid-template-columns: 168px 1fr auto; gap: var(--space-3); align-items: center; }
+.fstage__label { font: var(--type-body); color: var(--text-secondary); }
+.fstage__track { height: 28px; background: var(--surface-sunken); border-radius: var(--radius-1); overflow: hidden; }
+.fstage__bar { height: 100%; border-radius: 0 4px 4px 0; display: flex; align-items: center; padding-left: var(--space-3); }
+.fstage__val { font: var(--type-body-strong); color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.fstage__rate { font: var(--type-caption); color: var(--text-muted); font-variant-numeric: tabular-nums; min-width: 92px; text-align: right; }
+.fstage__inbar { font: var(--type-label); color: #fff; }
+
+/* Ranked bars — nominal categories all take slot 1; length already encodes
+   the value, so colour is not spent re-encoding it. */
+.ranked { display: flex; flex-direction: column; gap: var(--space-2); }
+.rbar { display: grid; grid-template-columns: 150px 1fr 64px; gap: var(--space-3); align-items: center; }
+.rbar__label { font: var(--type-body); color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rbar__track { height: 20px; }
+.rbar__fill { height: 100%; background: var(--series-1); border-radius: 0 4px 4px 0; }
+.rbar__val { font: var(--type-body-strong); color: var(--text-primary); font-variant-numeric: tabular-nums; text-align: right; }
+.rbar__note { font: var(--type-caption); color: var(--semantic-warning); }
+
+/* 100% stacked — 2px surface gap so segments never bleed together. */
+.stack { display: flex; height: 24px; gap: 2px; border-radius: var(--radius-1); overflow: hidden; background: var(--chart-surface); }
+.stack__seg { display: grid; place-items: center; font: var(--type-label); color: #fff; min-width: 2px; }
+.stack__seg--light { color: var(--text-primary); }
+.stackrow { display: grid; grid-template-columns: 150px 1fr; gap: var(--space-3); align-items: center; }
+
+/* Line/area chart scaffolding (inline SVG) */
+.plot { width: 100%; height: auto; display: block; overflow: visible; }
+.plot .grid-line { stroke: var(--chart-grid); stroke-width: 1; }
+.plot .axis-line { stroke: var(--chart-baseline); stroke-width: 1; }
+.plot .tick { fill: var(--chart-muted); font: var(--type-caption); font-variant-numeric: tabular-nums; }
+.plot .series-line { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.plot .series-dot { r: 4; stroke: var(--chart-surface); stroke-width: 2; }
+.plot .dlabel { font: var(--type-label); fill: var(--chart-ink); }
+/* No-data gaps are never silently interpolated. */
+.plot .gap-line { stroke-dasharray: 3 3; opacity: 0.55; }
+
+/* Sparkline in a table cell */
+.spark { width: 72px; height: 20px; display: block; }
+.spark path { fill: none; stroke: var(--series-2); stroke-width: 2; stroke-linecap: round; }
+
+/* Attribution / definition footnote under any metric block */
+.footnote {
+  font: var(--type-caption); color: var(--text-muted);
+  border-top: 1px dashed var(--border-default); padding-top: var(--space-2);
+}
+
+/* ==========================================================================
+   Documentation chrome — the frame around each specimen.
+   Deliberately quiet: the specimen is the subject, the page around it is a
+   drafting sheet. Prefixed `ds-` so it can never collide with the `bmd`
+   component layer it is documenting.
+   ========================================================================== */
+
+.ds-page { padding: var(--space-7) var(--space-8) var(--space-10); max-width: 1400px; margin: 0 auto; }
+.ds-page--flush { padding: 0; max-width: none; }
+
+.ds-head { display: flex; flex-direction: column; gap: var(--space-2); padding-bottom: var(--space-7); }
+.ds-head__eyebrow { display: flex; align-items: center; gap: var(--space-3); }
+.ds-head__id {
+  font: var(--type-label); letter-spacing: var(--tracking-micro);
+  padding: 3px var(--space-2); border-radius: var(--radius-1);
+  background: var(--bmd-ink-700); color: #fff;
+}
+.ds-head__ref { font: var(--type-label); letter-spacing: var(--tracking-micro); color: var(--text-muted); }
+.ds-head__title { font: var(--type-page); color: var(--text-heading); }
+.ds-head__lede { font: var(--type-body-lg); color: var(--text-secondary); max-width: 78ch; }
+
+.ds-block { display: flex; flex-direction: column; gap: var(--space-4); padding-bottom: var(--space-8); }
+.ds-block__head { display: flex; align-items: baseline; gap: var(--space-3); border-bottom: 1px solid var(--border-default); padding-bottom: var(--space-2); }
+.ds-block__title { font: var(--type-section); color: var(--text-heading); }
+.ds-block__note { font: var(--type-caption); color: var(--text-muted); margin-left: auto; }
+
+/* A specimen well: neutral ground so component surfaces read correctly. */
+.ds-specimen {
+  background: var(--surface-base);
+  border: 1px solid var(--border-default); border-radius: var(--radius-3);
+  padding: var(--space-6);
+  display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-4);
+}
+.ds-specimen--col { flex-direction: column; flex-wrap: nowrap; }
+.ds-specimen--tight { padding: var(--space-4); gap: var(--space-3); }
+.ds-specimen--white { background: var(--surface-elevated); }
+.ds-specimen--dark { background: #0D1020; border-color: #2B3152; }
+
+.ds-cell { display: flex; flex-direction: column; gap: var(--space-2); }
+/* .ds-specimen sets align-items: flex-start so side-by-side specimens size to
+   their content. In a stacked specimen that would let each cell shrink to its
+   own caption width — which makes full-width components like the lineage rail
+   render at inconsistent lengths down the page. Stack children always stretch. */
+.ds-specimen--col > .ds-cell { align-self: stretch; }
+.ds-cell__label { font: var(--type-label); letter-spacing: var(--tracking-micro); text-transform: uppercase; color: var(--text-muted); }
+
+/* Swatches */
+.ds-swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); gap: var(--space-4); }
+.ds-swatch { display: flex; flex-direction: column; gap: var(--space-2); }
+.ds-swatch__chip {
+  height: 76px; border-radius: var(--radius-2); border: 1px solid rgba(43, 54, 116, 0.10);
+  display: flex; align-items: flex-end; padding: var(--space-2);
+}
+.ds-swatch__name { font: var(--type-body-strong); color: var(--text-primary); }
+.ds-swatch__hex { font: var(--type-caption); color: var(--text-muted); font-variant-numeric: tabular-nums; text-transform: uppercase; }
+.ds-swatch__use { font: var(--type-caption); color: var(--text-muted); }
+.ds-swatch__prov {
+  align-self: flex-start; font: 600 10px/14px var(--font-sans);
+  letter-spacing: var(--tracking-micro); text-transform: uppercase;
+  padding: 1px 5px; border-radius: 3px;
+}
+.ds-prov--confirmed { background: var(--tint-success); color: var(--semantic-success); }
+.ds-prov--guideline { background: var(--tint-info); color: var(--semantic-info); }
+.ds-prov--validated { background: var(--tint-neutral); color: var(--text-secondary); }
+
+/* Spec table */
+table.ds-spec { width: 100%; border-collapse: collapse; font: var(--type-body); }
+.ds-spec th {
+  text-align: left; padding: var(--space-2) var(--space-3);
+  font: var(--type-label); letter-spacing: var(--tracking-micro); text-transform: uppercase;
+  color: var(--text-muted); border-bottom: 1px solid var(--border-strong);
+}
+.ds-spec td {
+  padding: var(--space-3); border-bottom: 1px solid var(--border-default);
+  color: var(--text-secondary); vertical-align: top;
+}
+.ds-spec td:first-child { color: var(--text-primary); font: var(--type-body-strong); white-space: nowrap; }
+.ds-spec code, .ds-code {
+  font: 500 12px/18px ui-monospace, "Cascadia Code", Consolas, monospace;
+  background: var(--bmd-navy-50); color: var(--bmd-ink-700);
+  padding: 1px 5px; border-radius: 4px;
+}
+
+/* Annotation — the redline voice. Numbered only where the content is genuinely
+   a sequence; otherwise plain. */
+.ds-note {
+  display: flex; gap: var(--space-3); padding: var(--space-3) var(--space-4);
+  background: var(--bmd-navy-50); border-radius: var(--radius-2);
+  border-left: 3px solid var(--bmd-ink-700);
+}
+.ds-note__body { font: var(--type-body); color: var(--text-secondary); }
+.ds-note__body b { color: var(--text-heading); }
+.ds-note--rule { border-left-color: var(--bmd-primary-600); background: var(--bmd-red-50); }
+.ds-note--privacy { border-left-color: var(--semantic-warning); background: var(--tint-warning); }
+.ds-note--a11y { border-left-color: var(--semantic-success); background: var(--tint-success); }
+
+.ds-do-dont { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
+.ds-dd { border: 1px solid var(--border-default); border-radius: var(--radius-3); overflow: hidden; }
+.ds-dd__head { padding: var(--space-2) var(--space-4); font: var(--type-label); letter-spacing: var(--tracking-micro); text-transform: uppercase; }
+.ds-dd--do .ds-dd__head { background: var(--tint-success); color: var(--semantic-success); }
+.ds-dd--dont .ds-dd__head { background: var(--tint-error); color: var(--semantic-error); }
+.ds-dd__body { padding: var(--space-4); background: var(--surface-elevated); display: flex; flex-direction: column; gap: var(--space-3); }
+
+/* Screen mockups sit on a plate that mimics the browser working width. */
+.ds-plate {
+  background: var(--surface-base);
+  border: 1px solid var(--border-strong); border-radius: var(--radius-3);
+  overflow: hidden; box-shadow: var(--elev-1);
+}
+.ds-plate__chrome {
+  height: 34px; background: var(--surface-sunken);
+  border-bottom: 1px solid var(--border-default);
+  display: flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-3);
+}
+.ds-plate__dot { width: 9px; height: 9px; border-radius: 50%; background: var(--border-strong); flex: none; }
+.ds-plate__url {
+  margin-left: var(--space-3); font: var(--type-caption); color: var(--text-muted);
+  background: var(--surface-elevated); border: 1px solid var(--border-default);
+  border-radius: var(--radius-pill); padding: 2px var(--space-3);
+}
+.ds-plate__body { background: var(--surface-base); }
+
+.ds-devices { display: flex; gap: var(--space-6); flex-wrap: wrap; align-items: flex-start; }
+.ds-devices .ds-cell { max-width: 390px; }
+
+.ds-token-list { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.ds-token { font: var(--type-label); background: var(--surface-sunken); color: var(--text-secondary); padding: 3px var(--space-2); border-radius: var(--radius-1); }
+
+.ds-ruler { display: flex; align-items: flex-end; gap: var(--space-3); }
+.ds-ruler__bar { background: var(--bmd-ink-700); border-radius: 2px; width: 100%; }
+.ds-checks { display: flex; flex-direction: column; gap: var(--space-2); }
+.ds-check { display: flex; align-items: flex-start; gap: var(--space-2); font: var(--type-body); color: var(--text-secondary); }
+.ds-check__mark { color: var(--semantic-success); flex: none; }
+
+</style>
+</head>
+<body>
+  <main class="ds-page">
+    <header class="ds-head">
+      <div class="ds-head__eyebrow">
+        <span class="ds-head__id">C-02</span>
+        <span class="ds-head__ref">Guideline §5.2</span>
+      </div>
+      <h1 class="ds-head__title">Form controls</h1>
+      <p class="ds-head__lede">Outlined and dense for enterprise configuration, with persistent labels, specific inline validation, and masked values that reveal only under permission.</p>
+    </header>
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Text fields</h2>
+        <span class="ds-block__note">Outlined · persistent label · 44px web, 52px field</span>
+      </div>
+      <div class="ds-specimen ds-specimen--white">
+        <div class="ds-cell" style="width: 280px">
+          <span class="ds-cell__label">Default</span>
+          <div class="field">
+            <span class="field__label">Campaign name</span>
+            <div class="field__box"><span class="field__ph">e.g. Mistri Meet — Savar Cluster</span></div>
+            <span class="field__help">Shown to approvers and in every report. 80 characters maximum.</span>
+          </div>
+        </div>
+        <div class="ds-cell" style="width: 280px">
+          <span class="ds-cell__label">Filled and focused</span>
+          <div class="field">
+            <span class="field__label">Campaign name</span>
+            <div class="field__box is-focus"><span>Mistri Meet — Savar Cluster</span></div>
+            <span class="field__help">Shown to approvers and in every report. 80 characters maximum.</span>
+          </div>
+        </div>
+        <div class="ds-cell" style="width: 280px">
+          <span class="ds-cell__label">Error — specific and corrective</span>
+          <div class="field">
+            <span class="field__label">Campaign name</span>
+            <div class="field__box is-error"><span>Mistri Meet</span></div>
+            <span class="field__err"><span>⚠</span>A campaign named “Mistri Meet” is already active in Savar. Add the cluster or month to tell them apart.</span>
+          </div>
+        </div>
+        <div class="ds-cell" style="width: 280px">
+          <span class="ds-cell__label">Organisation-configured · read only</span>
+          <div class="field">
+            <span class="field__label">Attendance window tolerance</span>
+            <div class="field__box is-readonly"><span>± 30 minutes</span><span class="field__affix">🔒</span></div>
+            <span class="field__help">Set by your organisation's configuration. Contact an Org Admin to change it.</span>
+          </div>
+        </div>
+      </div>
+      <div class="ds-note">
+        <div class="ds-note__body"><b>Placeholders are examples, never labels.</b> The label stays visible once a value is
+          entered, because a half-filled 24-field campaign form with floating labels is unauditable — a reviewer cannot tell
+          what an unlabelled value means.</div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Selection and choice</h2>
+      </div>
+      <div class="ds-specimen ds-specimen--white">
+        <div class="ds-cell" style="width: 300px">
+          <span class="ds-cell__label">Multi-select with chips</span>
+          <div class="field">
+            <span class="field__label">Territory scope <span class="req">*</span></span>
+            <div class="field__box"><span class="field__ph">Add a territory</span><span class="field__affix">⌄</span></div>
+            <div class="row gap-2 wrap" style="padding-top: 4px">
+              <span class="fchip is-active">Savar <span class="fchip__x">✕</span></span>
+              <span class="fchip is-active">Gazipur <span class="fchip__x">✕</span></span>
+              <span class="fchip is-active">Narayanganj <span class="fchip__x">✕</span></span>
+            </div>
+            <span class="field__help">Only territories within your own scope are selectable.</span>
+          </div>
+        </div>
+        <div class="ds-cell" style="width: 300px">
+          <span class="ds-cell__label">Single choice — outcome, radio</span>
+          <div class="col gap-1">
+            <label class="choice is-selected"><span class="radio is-on"></span>
+              <span class="col gap-1"><span class="t-strong">Approve</span>
+                <span class="t-caption">Counts toward verified attendance and reward eligibility.</span></span></label>
+            <label class="choice"><span class="radio"></span>
+              <span class="col gap-1"><span class="t-strong">Return for recapture</span>
+                <span class="t-caption">Sends the session back to the field user. The original attempt is kept.</span></span></label>
+            <label class="choice"><span class="radio"></span>
+              <span class="col gap-1"><span class="t-strong">Reject</span>
+                <span class="t-caption">Excluded from verified attendance. Cannot be undone by the same reviewer.</span></span></label>
+          </div>
+        </div>
+        <div class="ds-cell" style="width: 260px">
+          <span class="ds-cell__label">Toggle and checkbox</span>
+          <div class="col gap-3">
+            <label class="row gap-3"><span class="switch is-on"></span>
+              <span class="col"><span class="t-strong">Enforce geofence</span>
+                <span class="t-caption">Capture outside the venue radius requires an override.</span></span></label>
+            <label class="row gap-3"><span class="switch"></span>
+              <span class="col"><span class="t-strong">Allow waitlist</span>
+                <span class="t-caption">Registrations beyond capacity are queued rather than refused.</span></span></label>
+            <label class="row gap-3"><span class="check is-on"></span>
+              <span class="t-strong">I have reviewed the schedule conflict</span></label>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Date, time and conflict guidance</h2>
+        <span class="ds-block__note">Locale-aware · timezone always shown</span>
+      </div>
+      <div class="ds-specimen ds-specimen--white ds-specimen--col">
+        <div class="row gap-4 wrap" style="align-items: flex-start">
+          <div class="field" style="width: 220px">
+            <span class="field__label">Session start <span class="req">*</span></span>
+            <div class="field__box"><span>04 Aug 2026, 10:00</span><span class="field__affix">▤</span></div>
+            <span class="field__help">Asia/Dhaka (GMT+6)</span>
+          </div>
+          <div class="field" style="width: 220px">
+            <span class="field__label">Session end <span class="req">*</span></span>
+            <div class="field__box is-error"><span>04 Aug 2026, 09:30</span><span class="field__affix">▤</span></div>
+            <span class="field__err"><span>⚠</span>End is before start. Set an end time after 10:00.</span>
+          </div>
+          <div class="field" style="width: 260px">
+            <span class="field__label">Capture window</span>
+            <div class="field__box is-readonly"><span>09:30 – 13:30 · ± 30 min tolerance</span></div>
+            <span class="field__help">Derived from the session time and your organisation's tolerance setting.</span>
+          </div>
+        </div>
+        <div class="banner banner--warning">
+          <span class="banner__icon">⚠</span>
+          <div class="col gap-1">
+            <span class="banner__title">Schedule conflict with an approved campaign</span>
+            <span class="banner__body">Savar Community Hall is already booked for “Carpenter Skill Camp — Aug” on 04 Aug,
+              09:00–12:00. Two sessions at one venue will produce overlapping attendance windows and duplicate-capture
+              exceptions.</span>
+          </div>
+          <div class="banner__action row gap-2">
+            <button class="btn btn--outlined">View that campaign</button>
+            <button class="btn btn--tonal">Change venue</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Sensitive values</h2>
+        <span class="ds-block__note">Masked display · permission-gated reveal</span>
+      </div>
+      <div class="ds-specimen ds-specimen--white">
+        <div class="ds-cell" style="width: 300px">
+          <span class="ds-cell__label">As a field user sees it</span>
+          <dl class="kv">
+            <dt>Carpenter ID</dt><dd class="num">CRP-48812</dd>
+            <dt>Phone</dt><dd><span class="masked"><span class="masked__dots">•••••••</span><span class="num">812</span></span></dd>
+            <dt>NID</dt><dd class="t-caption">Not available at this role</dd>
+          </dl>
+        </div>
+        <div class="ds-cell" style="width: 300px">
+          <span class="ds-cell__label">As an authorised CRM reviewer sees it</span>
+          <dl class="kv">
+            <dt>Carpenter ID</dt><dd class="num">CRP-48812</dd>
+            <dt>Phone</dt><dd><span class="masked"><span class="masked__dots">•••••••</span><span class="num">812</span>
+              <button class="masked__reveal">Reveal</button></span></dd>
+            <dt>NID</dt><dd><span class="masked"><span class="masked__dots">••••••••••</span><span class="num">4471</span>
+              <button class="masked__reveal">Reveal</button></span></dd>
+          </dl>
+          <span class="t-caption">Revealing writes an audit entry naming the reviewer, the case and the time.</span>
+        </div>
+        <div class="col gap-3" style="max-width: 40ch">
+          <div class="ds-note ds-note--privacy">
+            <div class="ds-note__body"><b>Full NID is never a general field.</b> There is no input in this product that accepts
+              or displays a complete national ID. The suffix is enough to disambiguate two similar names, which is the only
+              operational reason the field exists.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Validation</h2>
+        <span class="ds-block__note">Inline first · summary only after a failed submit</span>
+      </div>
+      <div class="ds-specimen ds-specimen--white ds-specimen--col">
+        <div class="banner banner--error">
+          <span class="banner__icon">⚠</span>
+          <div class="col gap-2">
+            <span class="banner__title">Three fields need attention before this campaign can be submitted</span>
+            <div class="col gap-1">
+              <span class="banner__body">· <a href="#">Session end</a> — end is before start</span>
+              <span class="banner__body">· <a href="#">Approver</a> — no approver is configured for Savar at this campaign value</span>
+              <span class="banner__body">· <a href="#">Budget reference</a> — required once the target exceeds 500 participants</span>
+            </div>
+            <span class="banner__body">Your draft is saved. Nothing was lost.</span>
+          </div>
+        </div>
+        <span class="t-caption">The summary appears only after a submit attempt, lists every failure, links each one to its
+          field, and states that the work is preserved. It never replaces the inline messages.</span>
+      </div>
+      <div class="ds-do-dont">
+        <div class="ds-dd ds-dd--do">
+          <div class="ds-dd__head">Do</div>
+          <div class="ds-dd__body">
+            <div class="field">
+              <span class="field__label">Target participants</span>
+              <div class="field__box is-error"><span class="num">0</span></div>
+              <span class="field__err"><span>⚠</span>Enter a target of at least 1. This is what the funnel and cost-per-verified metrics are measured against.</span>
+            </div>
+          </div>
+        </div>
+        <div class="ds-dd ds-dd--dont">
+          <div class="ds-dd__head">Don't</div>
+          <div class="ds-dd__body">
+            <div class="field">
+              <span class="field__label">Target participants</span>
+              <div class="field__box is-error"><span class="num">0</span></div>
+              <span class="field__err"><span>⚠</span>Invalid input</span>
+            </div>
+            <span class="t-body">Names the failure without naming the fix, and gives the user no idea why the field matters.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

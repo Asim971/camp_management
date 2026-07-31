@@ -1,0 +1,275 @@
+/* ==========================================================================
+   BMD / ACSL Carpenter Campaign Management — token layer
+   --------------------------------------------------------------------------
+   The single source of truth for the design system. Mirrors the UI/UX
+   Guideline §4 (Visual Foundations) and the variable collections named in
+   §12.2, so the same token names hold in CSS, Figma and Flutter.
+
+   Provenance of every value:
+     * "confirmed"  — from the accessible Figma / guideline §4.1
+     * "guideline"  — specified verbatim in the guideline
+     * "validated"  — derived here and machine-checked; see design/PALETTE.md
+   Nothing in this file is eyeballed.
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* --- Brand ------------------------------------------------------ confirmed */
+  --bmd-primary-600: #E71E25;   /* primary action, current nav, principal series */
+  --bmd-primary-700: #CF1A20;   /* pressed/hover step of the primary action */
+  --bmd-ink-700:     #2B3674;   /* headings, nav labels */
+  --bmd-deep-red:    #831D1D;   /* high-emphasis outline; use sparingly */
+
+  /* --- Tonal & surfaces ------------------------------------------- guideline */
+  --bmd-red-50:      #FFF2F3;   /* tonal primary surface, selected row */
+  --bmd-navy-50:     #F4F5FB;   /* neutral brand-tinted background */
+  --surface-base:    #F8F9FC;   /* application background */
+  --surface-elevated:#FFFFFF;   /* cards, dialogs, sheets */
+  --surface-sunken:  #F1F3F9;   /* table zebra / inset wells */
+  --border-default:  #D9DDE8;   /* card, divider and field borders */
+  --border-strong:   #BFC5D6;   /* field border on hover, table header rule */
+
+  /* --- Text ------------------------------------------------------- guideline
+     Navy carries hierarchy; long body copy drops to neutral dark grey to
+     reduce visual fatigue (§4.2). */
+  --text-heading:   #2B3674;
+  --text-primary:   #1C2036;
+  --text-secondary: #4A5069;
+  --text-muted:     #737A94;
+  --text-on-brand:  #FFFFFF;
+  /* Ink on the neutral dark veil that covers sensitive media. Fixed in both
+     themes — the veil is always dark, so this pair never flips. */
+  --ink-on-veil:       #E7E9F4;
+  --ink-on-veil-muted: #A8AEC8;
+
+  /* --- Semantic state --------------------------------------------- guideline
+     Deliberately NOT brand red, so brand and risk stay distinguishable.
+     Text contrast on --surface-elevated: 5.32 / 5.43 / 6.57 / 5.99 : 1. */
+  --semantic-success: #1F7A4D;
+  --semantic-warning: #B54708;
+  --semantic-error:   #B42318;
+  --semantic-info:    #175CD3;
+  --semantic-neutral: #4A5069;
+
+  /* 10% tints for chip and banner grounds. Same hue, so the label keeps its
+     AA text contrast while the fill stays quiet in a dense table. */
+  --tint-success: rgba(31, 122, 77, 0.10);
+  --tint-warning: rgba(181, 71, 8, 0.10);
+  --tint-error:   rgba(180, 35, 24, 0.10);
+  --tint-info:    rgba(23, 92, 211, 0.10);
+  --tint-neutral: rgba(43, 54, 116, 0.07);
+  --tint-brand:   rgba(231, 30, 37, 0.08);
+
+  /* --- Data series ------------------------------------------------ validated
+     Categorical identity. Fixed order — assigned in sequence, never cycled.
+     Slot 1 is brand red: the guideline's "one principal chart series" (§4.2).
+     Enumerated and machine-checked on BMD's own surfaces; worst adjacent
+     CVD ΔE 15.9 (target ≥8), worst adjacent normal-vision ΔE 32.6 (floor ≥15). */
+  --series-1: #E71E25;   /* brand red   — principal */
+  --series-2: #3B4A96;   /* navy        — brand navy lifted into the L band */
+  --series-3: #CA8A04;   /* ochre       — relief: needs a visible label (2.94:1) */
+  --series-4: #6D28D9;   /* violet */
+  --series-5: #4D7C0F;   /* olive */
+  --series-6: #E85D95;   /* magenta */
+
+  /* Ordinal ramp — one hue, monotone lightness. The conversion funnel is
+     ordinal (stage order carries meaning), so it must read as a sequence.
+     Light end clears 2:1 on the surface at 2.47:1. */
+  --funnel-1: #97A2DC;
+  --funnel-2: #7382CC;
+  --funnel-3: #5566C4;
+  --funnel-4: #3B4A96;
+  --funnel-5: #2B3674;
+
+  /* Chart chrome */
+  --chart-surface:  #FFFFFF;
+  --chart-grid:     #E8EBF3;
+  --chart-baseline: #C6CCDC;
+  --chart-ink:      #1C2036;
+  --chart-muted:    #737A94;
+
+  /* --- Spacing ---------------------------------------------------- guideline
+     8px primary rhythm; 4px only for tightly related metadata. */
+  --space-1: 4px;   --space-2: 8px;   --space-3: 12px;  --space-4: 16px;
+  --space-5: 20px;  --space-6: 24px;  --space-7: 32px;  --space-8: 40px;
+  --space-9: 48px;  --space-10: 64px;
+
+  /* --- Radius ----------------------------------------------------- guideline */
+  --radius-1: 6px;   /* compact controls, chips */
+  --radius-2: 8px;   /* fields, buttons */
+  --radius-3: 12px;  /* standard cards */
+  --radius-4: 16px;  /* dialogs, sheets */
+  --radius-5: 24px;  /* hero / cover */
+  --radius-pill: 999px;
+
+  /* --- Elevation -------------------------------------------------- guideline
+     Tinted to the ink hue so shadows read as part of the brand, not as grey
+     fog. Never stack two high-elevation surfaces. */
+  --elev-0: none;
+  --elev-1: 0 1px 2px rgba(43, 54, 116, 0.08);
+  --elev-2: 0 4px 12px rgba(43, 54, 116, 0.12);
+  --elev-3: 0 12px 28px rgba(43, 54, 116, 0.16);
+
+  /* --- Type ------------------------------------------------------- guideline
+     Inter throughout, Noto Sans Bengali as the Bangla fallback at matching
+     weight and line height (§4.3). */
+  --font-sans: "Inter", "Noto Sans Bengali", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --type-hero:         700 48px/56px var(--font-sans);
+  --type-page:         700 28px/36px var(--font-sans);
+  --type-section:      700 22px/30px var(--font-sans);
+  --type-card:         600 16px/24px var(--font-sans);
+  --type-body-lg:      400 16px/24px var(--font-sans);
+  --type-body:         400 14px/20px var(--font-sans);
+  --type-body-strong:  600 14px/20px var(--font-sans);
+  --type-label:        600 12px/16px var(--font-sans);
+  --type-caption:      400 12px/18px var(--font-sans);
+
+  /* The one type treatment that is a choice rather than a spec: operational
+     figures are always tabular so columns and KPI values align vertically,
+     and the micro-label role carries tracking so 12px uppercase stays legible. */
+  --tracking-micro: 0.06em;
+
+  /* --- Shell ------------------------------------------------------ guideline */
+  --shell-drawer:           264px;  /* expanded 248–264 */
+  --shell-drawer-collapsed: 76px;   /* collapsed 72–80 */
+  --shell-appbar:           64px;   /* web */
+  --shell-appbar-mobile:    56px;
+  --content-max:            1440px;
+  --gutter:                 24px;   /* 32px at >=1440, set in the media query */
+
+  /* --- Controls --------------------------------------------------- guideline */
+  --control-h:        44px;  /* web */
+  --control-h-mobile: 52px;  /* field use */
+  --control-h-camera: 56px;  /* camera & confirmation actions */
+  --row-h:            46px;  /* operational table row, 44–48 */
+  --touch-min:        48px;  /* field minimum */
+
+  --focus-ring: 0 0 0 2px var(--surface-elevated), 0 0 0 4px var(--bmd-primary-600);
+  --duration: 160ms;
+  --ease: cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+@media (min-width: 1440px) {
+  :root { --gutter: 32px; }
+}
+
+/* ==========================================================================
+   Dark mode — selected, not flipped. Series steps are the same six hues
+   re-stepped for the dark surface and validated as a set against #161A2E
+   (worst adjacent CVD ΔE 14.8, normal-vision 29.4). Declared under both the
+   OS media query and the explicit theme stamp so a toggle wins either way.
+   ========================================================================== */
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+
+    --surface-base:     #0D1020;
+    --surface-elevated: #161A2E;
+    --surface-sunken:   #1D2238;
+    --border-default:   #2B3152;
+    --border-strong:    #3A4166;
+
+    --bmd-red-50:  rgba(231, 30, 37, 0.14);
+    --bmd-navy-50: #1A1F36;
+
+    --text-heading:   #E7E9F4;
+    --text-primary:   #E7E9F4;
+    --text-secondary: #B4B9D0;
+    --text-muted:     #8A90AC;
+
+    /* Lifted so each state clears AA text contrast on the dark surface. */
+    --semantic-success: #4ADE80;
+    --semantic-warning: #FDBA4D;
+    --semantic-error:   #FF8A80;
+    --semantic-info:    #7DB0FF;
+    --semantic-neutral: #B4B9D0;
+
+    --tint-success: rgba(74, 222, 128, 0.14);
+    --tint-warning: rgba(253, 186, 77, 0.14);
+    --tint-error:   rgba(255, 138, 128, 0.14);
+    --tint-info:    rgba(125, 176, 255, 0.14);
+    --tint-neutral: rgba(231, 233, 244, 0.08);
+    --tint-brand:   rgba(231, 30, 37, 0.16);
+
+    --series-1: #E71E25;
+    --series-2: #4657AE;
+    --series-3: #B87309;
+    --series-4: #6D28D9;
+    --series-5: #65A30D;
+    --series-6: #BE185D;
+
+    /* The ordinal ramp reverses anchor in dark: the far end of the sequence
+       carries the light steps so no stage sinks into the surface. */
+    --funnel-1: #C3CAEE;
+    --funnel-2: #A3ADE1;
+    --funnel-3: #7E8CD1;
+    --funnel-4: #5A6BC7;
+    --funnel-5: #4657AE;
+
+    --chart-surface:  #161A2E;
+    --chart-grid:     #262C48;
+    --chart-baseline: #3A4166;
+    --chart-ink:      #E7E9F4;
+    --chart-muted:    #8A90AC;
+
+    --elev-1: 0 1px 2px rgba(0, 0, 0, 0.40);
+    --elev-2: 0 4px 12px rgba(0, 0, 0, 0.48);
+    --elev-3: 0 12px 28px rgba(0, 0, 0, 0.56);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --surface-base:     #0D1020;
+  --surface-elevated: #161A2E;
+  --surface-sunken:   #1D2238;
+  --border-default:   #2B3152;
+  --border-strong:    #3A4166;
+
+  --bmd-red-50:  rgba(231, 30, 37, 0.14);
+  --bmd-navy-50: #1A1F36;
+
+  --text-heading:   #E7E9F4;
+  --text-primary:   #E7E9F4;
+  --text-secondary: #B4B9D0;
+  --text-muted:     #8A90AC;
+
+  --semantic-success: #4ADE80;
+  --semantic-warning: #FDBA4D;
+  --semantic-error:   #FF8A80;
+  --semantic-info:    #7DB0FF;
+  --semantic-neutral: #B4B9D0;
+
+  --tint-success: rgba(74, 222, 128, 0.14);
+  --tint-warning: rgba(253, 186, 77, 0.14);
+  --tint-error:   rgba(255, 138, 128, 0.14);
+  --tint-info:    rgba(125, 176, 255, 0.14);
+  --tint-neutral: rgba(231, 233, 244, 0.08);
+  --tint-brand:   rgba(231, 30, 37, 0.16);
+
+  --series-1: #E71E25;
+  --series-2: #4657AE;
+  --series-3: #B87309;
+  --series-4: #6D28D9;
+  --series-5: #65A30D;
+  --series-6: #BE185D;
+
+  --funnel-1: #C3CAEE;
+  --funnel-2: #A3ADE1;
+  --funnel-3: #7E8CD1;
+  --funnel-4: #5A6BC7;
+  --funnel-5: #4657AE;
+
+  --chart-surface:  #161A2E;
+  --chart-grid:     #262C48;
+  --chart-baseline: #3A4166;
+  --chart-ink:      #E7E9F4;
+  --chart-muted:    #8A90AC;
+
+  --elev-1: 0 1px 2px rgba(0, 0, 0, 0.40);
+  --elev-2: 0 4px 12px rgba(0, 0, 0, 0.48);
+  --elev-3: 0 12px 28px rgba(0, 0, 0, 0.56);
+}

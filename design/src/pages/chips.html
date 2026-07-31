@@ -1,0 +1,147 @@
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Two objects, deliberately different</h2>
+      </div>
+      <div class="ds-do-dont">
+        <div class="ds-dd ds-dd--do">
+          <div class="ds-dd__head">Status chip — reports state</div>
+          <div class="ds-dd__body">
+            <div class="row gap-2 wrap">
+              <span class="chip chip--warning"><span class="chip__dot">⇡</span>Pending sync</span>
+              <span class="chip chip--info"><span class="chip__dot">◍</span>CRM review</span>
+              <span class="chip chip--success"><span class="chip__dot">✓</span>Approved</span>
+            </div>
+            <span class="t-body">Pill, tonal ground, icon then word. Not focusable, not clickable, not in the tab order.
+              Announced as “Status: Approved”.</span>
+          </div>
+        </div>
+        <div class="ds-dd ds-dd--do">
+          <div class="ds-dd__head">Filter chip — is a control</div>
+          <div class="ds-dd__body">
+            <div class="row gap-2 wrap">
+              <span class="fchip">Territory</span>
+              <span class="fchip is-active">SLA breach <span class="fchip__x">✕</span></span>
+              <span class="fchip is-active">Savar <span class="fchip__x">✕</span></span>
+            </div>
+            <span class="t-body">Taller, bordered, dismissible. Focusable and clickable, with a visible active state and a
+              removal affordance.</span>
+          </div>
+        </div>
+      </div>
+      <div class="ds-note ds-note--rule">
+        <div class="ds-note__body"><b>They must never converge.</b> If a status chip gains a border and a hover state, users
+          start clicking it and expecting a filter. Height, border and the trailing ✕ are the three signals that keep the two
+          apart — none of them is decorative.</div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Anatomy</h2>
+        <span class="ds-block__note">24px standard · 28px beside a page title</span>
+      </div>
+      <div class="ds-specimen ds-specimen--white ds-specimen--col">
+        <div class="row gap-6 wrap" style="align-items: flex-end">
+          <div class="ds-cell"><span class="ds-cell__label">Standard · in tables and cards</span>
+            <span class="chip chip--info"><span class="chip__dot">◍</span>Pending approval</span></div>
+          <div class="ds-cell"><span class="ds-cell__label">Large · beside a page title</span>
+            <span class="chip chip--info chip--lg"><span class="chip__dot">◍</span>Pending approval</span></div>
+          <div class="ds-cell"><span class="ds-cell__label">In context</span>
+            <div class="page-head__title">
+              <h3 class="t-page" style="font-size: 22px">Mistri Meet — Savar</h3>
+              <span class="chip chip--info chip--lg"><span class="chip__dot">◍</span>Pending approval</span>
+            </div>
+          </div>
+        </div>
+        <table class="ds-spec">
+          <thead><tr><th>Part</th><th>Specification</th></tr></thead>
+          <tbody>
+            <tr><td>Height</td><td>24px standard, 28px large. Never taller — a chip is metadata, not a button.</td></tr>
+            <tr><td>Radius</td><td>Pill. Distinguishes it from the 6px filter chip and the 8px button at a glance.</td></tr>
+            <tr><td>Ground</td><td>10% tint of the tone's own hue, so the label keeps AA contrast on it.</td></tr>
+            <tr><td>Icon</td><td>Always present, 14px, drawn from the tone's icon family. This is the greyscale channel.</td></tr>
+            <tr><td>Label</td><td>The controlled status word, verbatim. Never abbreviated, never truncated.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">In a dense table</h2>
+        <span class="ds-block__note">The reason chips are quiet</span>
+      </div>
+      <div class="table-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Carpenter</th><th>Session</th><th>Attendance</th><th>Integrity</th><th class="c-num">SLA age</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="tbl__primary">Md. Rafiqul Islam</td><td>Savar · S3</td>
+              <td><span class="chip chip--info"><span class="chip__dot">◍</span>CRM review</span></td>
+              <td><span class="chip chip--warning"><span class="chip__dot">◌</span>Poor quality</span></td>
+              <td class="c-num">3h 20m</td>
+            </tr>
+            <tr>
+              <td class="tbl__primary">Abdul Karim</td><td>Savar · S3</td>
+              <td><span class="chip chip--success"><span class="chip__dot">✓</span>Approved</span></td>
+              <td class="t-caption">—</td>
+              <td class="c-num">—</td>
+            </tr>
+            <tr>
+              <td class="tbl__primary">Jashim Uddin</td><td>Gazipur · S1</td>
+              <td><span class="chip chip--warning"><span class="chip__dot">⇡</span>Pending sync</span></td>
+              <td class="t-caption">—</td>
+              <td class="c-num">—</td>
+            </tr>
+            <tr>
+              <td class="tbl__primary">Nurul Haque</td><td>Gazipur · S1</td>
+              <td><span class="chip chip--error"><span class="chip__dot">✕</span>Rejected</span></td>
+              <td><span class="chip chip--error"><span class="chip__dot">⧉</span>Duplicate</span></td>
+              <td class="c-num">—</td>
+            </tr>
+            <tr>
+              <td class="tbl__primary">Shafiqul Alam</td><td>Narayanganj · S2</td>
+              <td><span class="chip chip--warning"><span class="chip__dot">↩</span>Returned</span></td>
+              <td><span class="chip chip--warning"><span class="chip__dot">⃠</span>No reference</span></td>
+              <td class="c-num">18h 04m</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="ds-note">
+        <div class="ds-note__body">Forty rows of saturated pills would be unreadable. The 10% tint keeps the column scannable
+          while the icon and word carry the meaning — and the SLA age column is what the eye should be drawn to, not the
+          decoration.</div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head"><h2 class="ds-block__title">Don't</h2></div>
+      <div class="ds-do-dont">
+        <div class="ds-dd ds-dd--dont">
+          <div class="ds-dd__head">Don't invent vocabulary</div>
+          <div class="ds-dd__body">
+            <div class="row gap-2 wrap">
+              <span class="chip chip--warning"><span class="chip__dot">⇡</span>Syncing…</span>
+              <span class="chip chip--info"><span class="chip__dot">◍</span>In review</span>
+              <span class="chip chip--success"><span class="chip__dot">✓</span>Verified ✓</span>
+            </div>
+            <span class="t-body">Three near-synonyms for controlled values. Now the mobile app, the CRM console and the
+              dashboard describe the same record three different ways, and no one can reconcile a count.</span>
+          </div>
+        </div>
+        <div class="ds-dd ds-dd--dont">
+          <div class="ds-dd__head">Don't abbreviate to fit</div>
+          <div class="ds-dd__body">
+            <div class="row gap-2 wrap">
+              <span class="chip chip--warning"><span class="chip__dot">⇡</span>Pend. sync</span>
+              <span class="chip chip--warning"><span class="chip__dot">⃠</span>No ref.</span>
+            </div>
+            <span class="t-body">If the chip does not fit, the column is too narrow or the table needs a horizontal scroll with
+              a sticky identity column. The word does not get shortened.</span>
+          </div>
+        </div>
+      </div>
+    </section>
