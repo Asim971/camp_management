@@ -125,7 +125,7 @@ class _OverviewTab extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         Text('Target: ${data.campaign.targetAudience}',
-            style: Theme.of(context).textTheme.bodyLarge),
+            style: Theme.of(context).textTheme.bodyLarge,),
       ],
     );
   }
@@ -141,7 +141,7 @@ class _OverviewTab extends StatelessWidget {
                 Text(label, style: Theme.of(context).textTheme.labelMedium),
                 const SizedBox(height: 6),
                 Text('$value',
-                    style: Theme.of(context).textTheme.headlineMedium),
+                    style: Theme.of(context).textTheme.headlineMedium,),
               ],
             ),
           ),
@@ -186,13 +186,13 @@ class _SessionCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(session.venue,
-                      style: Theme.of(context).textTheme.titleMedium),
+                      style: Theme.of(context).textTheme.titleMedium,),
                 ),
                 if (!session.readinessOk)
                   const StatusChip(label: 'Readiness', tone: StatusTone.warning)
                 else if (session.overCapacity)
                   const StatusChip(
-                      label: 'Over capacity', tone: StatusTone.warning)
+                      label: 'Over capacity', tone: StatusTone.warning,)
                 else
                   StatusChip(label: session.status.name, tone: StatusTone.info),
               ],

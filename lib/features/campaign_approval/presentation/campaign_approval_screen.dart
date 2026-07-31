@@ -66,10 +66,10 @@ class _PlanSummary extends StatelessWidget {
         Row(children: [
           Expanded(
             child: Text(campaign.name,
-                style: Theme.of(context).textTheme.titleLarge),
+                style: Theme.of(context).textTheme.titleLarge,),
           ),
           StatusChip(label: campaign.status.name, tone: StatusTone.info),
-        ]),
+        ],),
         const SizedBox(height: 12),
         _row(context, 'Type', campaign.type),
         _row(context, 'Owner', campaign.ownerId),
@@ -89,7 +89,7 @@ class _PlanSummary extends StatelessWidget {
             child: Text(k, style: Theme.of(context).textTheme.labelMedium),
           ),
           Expanded(child: Text(v.isEmpty ? '—' : v)),
-        ]),
+        ],),
       );
 }
 
@@ -143,10 +143,10 @@ class _DecisionPanelState extends ConsumerState<_DecisionPanel> {
         context.go('/campaigns');
       case ApprovalResult.conflict:
         messenger.showSnackBar(const SnackBar(
-            content: Text('Campaign changed since you opened it. Reloaded.')));
+            content: Text('Campaign changed since you opened it. Reloaded.'),),);
       case ApprovalResult.error:
         messenger.showSnackBar(const SnackBar(
-            content: Text("Couldn't record the decision. Try again.")));
+            content: Text("Couldn't record the decision. Try again."),),);
     }
   }
 
@@ -179,14 +179,21 @@ class _DecisionPanelState extends ConsumerState<_DecisionPanel> {
                   'different approver — you can return or reject, but not approve.',
                 ),
               ),
-            for (final d in CampaignDecision.values)
-              RadioListTile<CampaignDecision>(
-                dense: true,
-                value: d,
-                groupValue: _decision,
-                onChanged: (v) => setState(() => _decision = v),
-                title: Text(_label(d)),
+            RadioGroup<CampaignDecision>(
+              groupValue: _decision,
+              onChanged: (v) => setState(() => _decision = v),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final d in CampaignDecision.values)
+                    RadioListTile<CampaignDecision>(
+                      dense: true,
+                      value: d,
+                      title: Text(_label(d)),
+                    ),
+                ],
               ),
+            ),
             if (_decision == CampaignDecision.approve)
               CheckboxListTile(
                 dense: true,

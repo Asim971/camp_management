@@ -4,8 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/auth/rbac.dart';
 import '../../core/design_system/placeholder_screen.dart';
-import '../../features/camera_capture/presentation/capture_flow_screen.dart';
 import '../../features/bulk_import/presentation/bulk_import_screen.dart';
+import '../../features/camera_capture/presentation/capture_flow_screen.dart';
 import '../../features/campaign_approval/presentation/campaign_approval_screen.dart';
 import '../../features/campaign_detail/presentation/campaign_detail_screen.dart';
 import '../../features/campaign_list/presentation/campaign_list_screen.dart';
@@ -118,7 +118,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/search/:sessionId',
         builder: (_, state) => CarpenterSearchScreen(
-            sessionId: state.pathParameters['sessionId']!),
+            sessionId: state.pathParameters['sessionId']!,),
       ),
       GoRoute(
         path: '/capture/:sessionId/:carpenterId',
@@ -151,8 +151,9 @@ Permission? _requiredPermission(String location) {
   }
   if (location.endsWith('/import')) return Permission.bulkImport;
   if (location.endsWith('/register')) return Permission.campaignCreate;
-  if (location.startsWith('/verification'))
+  if (location.startsWith('/verification')) {
     return Permission.verificationDecide;
+  }
   if (location.startsWith('/capture') ||
       location.startsWith('/search') ||
       location.startsWith('/queue')) {

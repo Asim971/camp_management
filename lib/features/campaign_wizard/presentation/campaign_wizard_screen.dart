@@ -92,7 +92,7 @@ class _StepHeader extends StatelessWidget {
                 style: TextStyle(
                   color: i <= current ? Colors.white : null,
                   fontSize: 12,
-                )),
+                ),),
           ),
           const SizedBox(width: 6),
           Text(labels[i], style: Theme.of(context).textTheme.labelMedium),
@@ -125,7 +125,7 @@ class _ErrorSummary extends StatelessWidget {
               Icon(Icons.error_outline, size: 16, color: scheme.error),
               const SizedBox(width: 6),
               Expanded(child: Text(e)),
-            ]),
+            ],),
         ],
       ),
     );
@@ -247,7 +247,7 @@ class _AudienceStep extends StatelessWidget {
                 selected: d.audienceTypes.contains(a),
                 onSelected: (on) => c.edit((x) => x.copyWith(
                       audienceTypes: _toggle(x.audienceTypes, a, on),
-                    )),
+                    ),),
               ),
           ],
         ),
@@ -263,7 +263,7 @@ class _AudienceStep extends StatelessWidget {
                 selected: d.territoryIds.contains(t),
                 onSelected: (on) => c.edit((x) => x.copyWith(
                       territoryIds: _toggle(x.territoryIds, t, on),
-                    )),
+                    ),),
               ),
           ],
         ),
@@ -324,12 +324,13 @@ class _SessionsStep extends StatelessWidget {
                         child: OutlinedButton(
                           onPressed: () async {
                             final dt = await _pick(context, s.startAt);
-                            if (dt != null)
+                            if (dt != null) {
                               c.updateSession(s.copyWith(startAt: dt));
+                            }
                           },
                           child: Text(s.startAt == null
                               ? 'Start time'
-                              : 'Start: ${s.startAt}'),
+                              : 'Start: ${s.startAt}',),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -337,11 +338,12 @@ class _SessionsStep extends StatelessWidget {
                         child: OutlinedButton(
                           onPressed: () async {
                             final dt = await _pick(context, s.endAt);
-                            if (dt != null)
+                            if (dt != null) {
                               c.updateSession(s.copyWith(endAt: dt));
+                            }
                           },
                           child: Text(
-                              s.endAt == null ? 'End time' : 'End: ${s.endAt}'),
+                              s.endAt == null ? 'End time' : 'End: ${s.endAt}',),
                         ),
                       ),
                       IconButton(
@@ -439,8 +441,8 @@ class _ReviewStep extends StatelessWidget {
           const SizedBox(width: 8),
           Text(d.isValid
               ? 'Ready to submit for approval'
-              : 'Some steps are incomplete'),
-        ]),
+              : 'Some steps are incomplete',),
+        ],),
       ],
     );
   }

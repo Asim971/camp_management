@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
-import 'package:drift/drift.dart';
 
 import '../../core/network/dio_client.dart';
 import '../../core/result/result.dart';

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -83,7 +85,7 @@ class _EvidenceZone extends StatelessWidget {
           children: [
             Expanded(
               child: _EvidenceImage(
-                  label: 'Captured', url: vcase.capturedImageUrl),
+                  label: 'Captured', url: vcase.capturedImageUrl,),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -253,7 +255,7 @@ class _DecisionPanelState extends ConsumerState<_DecisionPanel> {
       case DecisionResult.submitted:
         messenger
             .showSnackBar(const SnackBar(content: Text('Decision recorded')));
-        Navigator.of(context).maybePop();
+        unawaited(Navigator.of(context).maybePop());
       case DecisionResult.conflict:
         messenger.showSnackBar(
           const SnackBar(
@@ -263,7 +265,7 @@ class _DecisionPanelState extends ConsumerState<_DecisionPanel> {
       case DecisionResult.error:
         messenger.showSnackBar(
           const SnackBar(
-              content: Text("Couldn't record the decision. Try again.")),
+              content: Text("Couldn't record the decision. Try again."),),
         );
     }
   }
@@ -279,17 +281,24 @@ class _DecisionPanelState extends ConsumerState<_DecisionPanel> {
           children: [
             Text('Decision', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 12),
-            for (final o in VerificationOutcome.values)
-              Semantics(
-                identifier: 'crm_outcome_${o.name}',
-                child: RadioListTile<VerificationOutcome>(
-                  dense: true,
-                  value: o,
-                  groupValue: _outcome,
-                  onChanged: (v) => setState(() => _outcome = v),
-                  title: Text(_label(o)),
-                ),
+            RadioGroup<VerificationOutcome>(
+              groupValue: _outcome,
+              onChanged: (v) => setState(() => _outcome = v),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final o in VerificationOutcome.values)
+                    Semantics(
+                      identifier: 'crm_outcome_${o.name}',
+                      child: RadioListTile<VerificationOutcome>(
+                        dense: true,
+                        value: o,
+                        title: Text(_label(o)),
+                      ),
+                    ),
+                ],
               ),
+            ),
             const SizedBox(height: 8),
             Semantics(
               identifier: 'crm_reason',

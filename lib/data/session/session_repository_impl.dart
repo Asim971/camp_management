@@ -11,7 +11,7 @@ class SessionRepositoryImpl implements SessionRepository {
 
   @override
   Future<Result<List<CampaignSession>>> listForCampaign(
-      String campaignId) async {
+      String campaignId,) async {
     try {
       final res = await _dio.get<Map<String, dynamic>>(
         '/campaigns/$campaignId/sessions',

@@ -161,7 +161,7 @@ class CaptureController
 
       _pendingBytes = null;
       state = state.copyWith(
-          step: CaptureStep.captured, submitting: false, attendanceId: id);
+          step: CaptureStep.captured, submitting: false, attendanceId: id,);
     } catch (e) {
       state = state.copyWith(submitting: false, error: e.toString());
     }
@@ -170,4 +170,4 @@ class CaptureController
 
 final captureControllerProvider = NotifierProvider.autoDispose
     .family<CaptureController, CaptureState, CaptureArgs>(
-        CaptureController.new);
+        CaptureController.new,);

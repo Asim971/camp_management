@@ -66,7 +66,7 @@ class _CaptureFlowScreenState extends ConsumerState<CaptureFlowScreen> {
             CaptureStep.positioning => _Positioning(onReady: () {
                 controller.beginCamera();
                 _cameraInit ??= _initCamera();
-              }),
+              },),
             CaptureStep.liveCamera => _LiveCamera(
                 init: _cameraInit,
                 source: _source,
@@ -159,7 +159,7 @@ class _Positioning extends StatelessWidget {
         BmdButton(
             label: "I'm ready",
             identifier: 'capture_ready',
-            onPressed: onReady),
+            onPressed: onReady,),
       ],
     );
   }
@@ -167,7 +167,7 @@ class _Positioning extends StatelessWidget {
 
 class _LiveCamera extends StatelessWidget {
   const _LiveCamera(
-      {required this.init, required this.source, required this.onCapture});
+      {required this.init, required this.source, required this.onCapture,});
   final Future<void>? init;
   final CaptureSource source;
   final Future<void> Function() onCapture;
@@ -256,7 +256,7 @@ class _QualityResult extends StatelessWidget {
         if (error != null) ...[
           const SizedBox(height: 8),
           Text(error!,
-              style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              style: TextStyle(color: Theme.of(context).colorScheme.error),),
         ],
         const Spacer(),
         if (passes)

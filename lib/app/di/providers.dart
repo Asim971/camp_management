@@ -107,8 +107,9 @@ final mediaEncryptorProvider = Provider<MediaEncryptor>((ref) {
 
 final faceQualityCheckerProvider = Provider<FaceQualityChecker>((ref) {
   final config = ref.watch(appConfigProvider);
-  if (config.e2e)
+  if (config.e2e) {
     return E2EQualityChecker(failFirst: config.e2eQuality == 'fail');
+  }
   return const PassthroughQualityChecker(); // TODO(T-2.2.2): ML Kit impl
 });
 
@@ -145,8 +146,10 @@ final importRepositoryProvider = Provider<ImportRepository>(
 );
 
 /// Emits `true` whenever the device regains any connectivity, driving an
-/// automatic queue drain.
-final connectivityStreamProvider = StreamProvider<bool>(
+/// automatic queue drain. Exposed as a plain `Stream` (not a `StreamProvider`)
+/// because the sync engine consumes the stream directly and nothing renders it
+/// as an `AsyncValue`.
+final connectivityStreamProvider = Provider<Stream<bool>>(
   (ref) => Connectivity().onConnectivityChanged.map(
         (results) => results.any((r) => r != ConnectivityResult.none),
       ),
@@ -161,7 +164,7 @@ final syncEngineProvider = Provider<SyncEngine>((ref) {
       final results = await Connectivity().checkConnectivity();
       return results.any((r) => r != ConnectivityResult.none);
     },
-    connectivityStream: ref.watch(connectivityStreamProvider.stream),
+    connectivityStream: ref.watch(connectivityStreamProvider),
   );
   ref.onDispose(engine.dispose);
   return engine;

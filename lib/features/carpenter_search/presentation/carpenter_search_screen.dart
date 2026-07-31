@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -92,7 +94,7 @@ class _CarpenterSearchScreenState extends ConsumerState<CarpenterSearchScreen> {
       builder: (_) => _ConfirmSheet(c: c),
     );
     if ((confirmed ?? false) && mounted) {
-      context.push('/capture/${widget.sessionId}/${c.id}');
+      unawaited(context.push('/capture/${widget.sessionId}/${c.id}'));
     }
   }
 }
@@ -127,7 +129,7 @@ class _ResultTile extends StatelessWidget {
               Tooltip(
                 message: 'Similar name in results — confirm carefully',
                 child: Icon(Icons.warning_amber,
-                    size: 16, color: Theme.of(context).colorScheme.error),
+                    size: 16, color: Theme.of(context).colorScheme.error,),
               ),
             ],
           ],
@@ -179,10 +181,10 @@ class _ConfirmSheetState extends State<_ConfirmSheet> {
           const SizedBox(height: 12),
           Text(c.name,
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium),
+              style: Theme.of(context).textTheme.titleMedium,),
           const SizedBox(height: 4),
           Text('${c.displayId} · ${c.territory} · phone •${c.phoneSuffix}',
-              textAlign: TextAlign.center),
+              textAlign: TextAlign.center,),
           const SizedBox(height: 16),
           // Second identity cue is mandatory before capture (§8.9).
           Semantics(
