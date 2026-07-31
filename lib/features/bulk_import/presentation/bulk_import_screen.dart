@@ -1,4 +1,4 @@
-import 'package:file_picker/file_picker.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -29,14 +29,16 @@ class BulkImportScreen extends ConsumerWidget {
         children: [
           _UploadPanel(
             onPick: () async {
-              final picked = await FilePicker.platform.pickFiles(
-                withData: true,
-                type: FileType.custom,
-                allowedExtensions: ['csv'],
+              const csvGroup = XTypeGroup(
+                label: 'CSV',
+                extensions: <String>['csv'],
+                mimeTypes: <String>['text/csv'],
               );
-              final file = picked?.files.firstOrNull;
-              if (file?.bytes != null) {
-                await c.uploadDryRun(file!.bytes!, file.name);
+              final file = await openFile(
+                acceptedTypeGroups: <XTypeGroup>[csvGroup],
+              );
+              if (file != null) {
+                await c.uploadDryRun(await file.readAsBytes(), file.name);
               }
             },
           ),
