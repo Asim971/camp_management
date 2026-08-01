@@ -6,7 +6,6 @@
 build/
 .pub-cache/
 .pub/
-pubspec.lock
 android/local.properties
 android/.gradle/
 android/.kotlin/
