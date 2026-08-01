@@ -6,6 +6,13 @@
 ///     --dart-define=MEDIA_HOST=https://dev.media.example
 enum Flavor { dev, stg, prod }
 
+/// Maps a `FLAVOR` dart-define to its enum. An unrecognized name falls back to
+/// [Flavor.dev] — failing closed toward the dev API rather than production.
+Flavor parseFlavor(String name) => Flavor.values.firstWhere(
+      (f) => f.name == name,
+      orElse: () => Flavor.dev,
+    );
+
 class AppConfig {
   const AppConfig({
     required this.flavor,
@@ -32,10 +39,7 @@ class AppConfig {
   static AppConfig fromEnvironment() {
     const flavorName = String.fromEnvironment('FLAVOR', defaultValue: 'dev');
     return AppConfig(
-      flavor: Flavor.values.firstWhere(
-        (f) => f.name == flavorName,
-        orElse: () => Flavor.dev,
-      ),
+      flavor: parseFlavor(flavorName),
       apiBaseUrl: const String.fromEnvironment(
         'API_BASE_URL',
         defaultValue: 'https://dev.api.example/campaign',

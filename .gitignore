@@ -33,6 +33,9 @@ Thumbs.db
 
 # Secrets / env
 *.env
+# tool/scripts/flavors.env is the tracked, non-secret single source of truth
+# for flavor -> API URL mapping (no credentials) — see tool/scripts/run.ps1.
+!tool/scripts/flavors.env
 android/key.properties
 android/app/upload-keystore.jks
 
