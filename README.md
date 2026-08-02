@@ -8,7 +8,8 @@ Flutter application for campaign lifecycle management and carpenter attendance v
 
 ## Quick start
 
-> Verified on **Flutter 3.44.8 / Dart 3.12.2** (min Flutter ≥ 3.35). Both the
+> Verified on **Flutter 3.44.8 / Dart 3.12.2** (min Flutter ≥ 3.44 — the
+> resolved lockfile's `file_selector_android` floor). Both the
 > `web/` and `android/` runners are committed. Android additionally needs a JDK
 > and the Android SDK; web and `flutter test` do not.
 

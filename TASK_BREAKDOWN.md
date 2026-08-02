@@ -28,8 +28,8 @@
 |----|------|-----|------|---------------------|
 | T-0.1.1 | `flutter create` with web + android platforms; adopt scaffold in this repo | S | — | ✅ web + android; runs on Chrome and Android emulator |
 | T-0.1.2 | Configure flavors (dev/stg/prod) + `--dart-define` env (API base, media host) | M | 0.1.1 | ✅ Gradle flavors with distinct app IDs + `tool/scripts/run.ps1` |
-| T-0.1.3 | `analysis_options.yaml` (strict lints), format + import-order rules | S | 0.1.1 | ✅ `analyze --fatal-infos` exits 0; CI enforcement arrives with T-0.1.4 |
-| T-0.1.4 | CI pipeline: analyze → test → build web + apk; artifact upload | M | 0.1.3 | not started — `.github/workflows/ci.yml` with `gate` + `e2e` jobs is the next task |
+| T-0.1.3 | `analysis_options.yaml` (strict lints), format + import-order rules | S | 0.1.1 | ✅ `analyze --fatal-infos` exits 0; `dart format --set-exit-if-changed` and `flutter analyze` both run in CI's `gate` job on every PR |
+| T-0.1.4 | CI pipeline: analyze → test → build web + apk; artifact upload | M | 0.1.3 | ✅ `.github/workflows/ci.yml` `gate` job runs on every PR and is green (format → gen-l10n → codegen → analyze → test → build web → build apk-dev). There is no `e2e` job — Maestro/emulator E2E (Task 8) and a nightly suite (Task 9) were both cancelled, not deferred. The `gate` check is **not marked required** in branch protection, so a red PR is not mechanically blocked from merging; branch protection was never enabled (Task 6 was skipped by explicit instruction). |
 | T-0.1.5 | Codegen wiring (`build_runner`, freezed, riverpod_generator, drift, l10n) | M | 0.1.1 | ✅ freezed + json_serializable + drift + gen-l10n. Riverpod codegen dropped — see ARCHITECTURE §6 amendment |
 
 ### Epic P0.2 — Design system & tokens ⭐
@@ -121,7 +121,7 @@
 ### Epic P1.6 — Bulk Import (W-07)
 | ID | Task | Est | → | Notes |
 |----|------|-----|---|-------|
-| T-1.6.1 | Template download + file upload (file_picker, csv) | M | FR-004 | — |
+| T-1.6.1 | Template download + file upload (file_selector, csv) | M | FR-004 | — |
 | T-1.6.2 | Dry-run summary + row-level validation table (valid/warning/dup/needs-profile/error) | L | FR-005 | per-row outcome, no generic fail |
 | T-1.6.3 | Idempotent commit of valid rows + masked result download | M | FR-004 | replay-safe |
 | T-1.6.4 | Job lifecycle states (uploading→…→partial/completed/failed) | M | — | §8.7 |

@@ -160,14 +160,14 @@ Mock empty → assert empty copy; mock error → assert "Couldn't load campaigns
 
 ```bash
 # local run (Android emulator, E2E build installed)
-maestro test .maestro/flows/field_offline_capture.yaml
+maestro test --env APP_ID=com.acsl.campaign.dev .maestro/flows/field_offline_capture.yaml
 # whole suite
-maestro test .maestro/
+maestro test --env APP_ID=com.acsl.campaign.dev .maestro/
 ```
 
 Build the E2E app first:
 ```bash
-flutter build apk --debug \
+flutter build apk --flavor dev --debug \
   --dart-define=E2E=true \
   --dart-define=LOCALE=en \
   --dart-define=API_BASE_URL=http://10.0.2.2:8080
@@ -185,8 +185,20 @@ Selection uses two tags: `pr-smoke` marks the 2 flows (`field_online_capture`,
 `crm_case_decision`) run on every PR, and `android` marks the 7 flows run nightly on the
 emulator. `campaign_list_smoke` carries neither — it's a web flow that needs the mock
 server restarted with different `MOCK_CAMPAIGNS` values, so it can't run in the Android
-job. Whether Maestro actually interpolates `${APP_ID}` inside `appId` is not yet verified
-here; the CI E2E job (Task 8) is what confirms it.
+job.
+
+**Note on this being cancelled work:** neither an emulator E2E job (Task 8) nor a nightly
+suite (Task 9) will be built — both were cancelled, not deferred, so nothing in CI runs
+any of this automatically; the commands above are for manual/local use only. What is
+confirmed rather than assumed: Maestro **does** support `appId: ${APP_ID}` and resolves it
+from a value supplied via `maestro test --env APP_ID=…` (or the short form `-e`) — this is
+documented Maestro env-injection behavior, not something specific to this repo. Two
+caveats worth keeping in mind if this is ever run: the value must arrive through
+`--env`/`-e`; a bare shell environment variable does not reach a flow unless it is
+prefixed `MAESTRO_`. And there is an open upstream Maestro bug where **web** platform
+detection reads `appId` before env expansion runs, which would affect
+`campaign_list_smoke.yaml` — the one web flow here, already excluded from the tag-based
+selection above for unrelated reasons.
 
 ---
 

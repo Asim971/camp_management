@@ -32,7 +32,7 @@ flutter run -d chrome \
   --dart-define=API_BASE_URL=http://localhost:8080
 
 # Android emulator (host is 10.0.2.2 from inside the emulator)
-flutter run -d emulator-5554 \
+flutter run -d emulator-5554 --flavor dev \
   --dart-define=E2E=true \
   --dart-define=API_BASE_URL=http://10.0.2.2:8080
 ```
@@ -63,8 +63,8 @@ this server.
 
 Build the E2E app against the mock, then run flows (Android for offline):
 ```bash
-flutter build apk --debug \
+flutter build apk --flavor dev --debug \
   --dart-define=E2E=true --dart-define=LOCALE=en \
   --dart-define=API_BASE_URL=http://10.0.2.2:8080
-maestro test .maestro/
+maestro test --env APP_ID=com.acsl.campaign.dev .maestro/
 ```
