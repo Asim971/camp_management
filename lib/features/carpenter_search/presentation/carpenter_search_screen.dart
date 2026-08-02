@@ -128,8 +128,11 @@ class _ResultTile extends StatelessWidget {
               const SizedBox(width: 6),
               Tooltip(
                 message: 'Similar name in results — confirm carefully',
-                child: Icon(Icons.warning_amber,
-                    size: 16, color: Theme.of(context).colorScheme.error,),
+                child: Icon(
+                  Icons.warning_amber,
+                  size: 16,
+                  color: Theme.of(context).colorScheme.error,
+                ),
               ),
             ],
           ],
@@ -179,12 +182,16 @@ class _ConfirmSheetState extends State<_ConfirmSheet> {
             ),
           ),
           const SizedBox(height: 12),
-          Text(c.name,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium,),
+          Text(
+            c.name,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: 4),
-          Text('${c.displayId} · ${c.territory} · phone •${c.phoneSuffix}',
-              textAlign: TextAlign.center,),
+          Text(
+            '${c.displayId} · ${c.territory} · phone •${c.phoneSuffix}',
+            textAlign: TextAlign.center,
+          ),
           const SizedBox(height: 16),
           // Second identity cue is mandatory before capture (§8.9).
           Semantics(

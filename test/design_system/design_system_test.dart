@@ -150,7 +150,10 @@ void main() {
     ];
 
     testWidgets('renders every link, in order', (tester) async {
-      await _pump(tester, const SizedBox(width: 900, child: LineageRail(nodes: chain)));
+      await _pump(
+        tester,
+        const SizedBox(width: 900, child: LineageRail(nodes: chain)),
+      );
       for (final node in chain) {
         expect(find.text(node.label), findsOneWidget);
       }
@@ -278,8 +281,10 @@ void main() {
         ),
       );
 
-      expect(find.textContaining('cannot approve a campaign they created'),
-          findsOneWidget,);
+      expect(
+        find.textContaining('cannot approve a campaign they created'),
+        findsOneWidget,
+      );
       expect(find.text('Reference SEC-403'), findsOneWidget);
     });
   });

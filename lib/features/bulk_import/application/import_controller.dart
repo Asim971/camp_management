@@ -4,14 +4,18 @@ import '../../../app/di/providers.dart';
 import '../../../domain/import/import_job.dart';
 
 class ImportState {
-  const ImportState(
-      {this.job = const AsyncData(null), this.committing = false,});
+  const ImportState({
+    this.job = const AsyncData(null),
+    this.committing = false,
+  });
   final AsyncValue<ImportJob?> job;
   final bool committing;
 
   ImportState copyWith({AsyncValue<ImportJob?>? job, bool? committing}) =>
       ImportState(
-          job: job ?? this.job, committing: committing ?? this.committing,);
+        job: job ?? this.job,
+        committing: committing ?? this.committing,
+      );
 }
 
 /// Bulk Import (W-07): upload → dry run → review rows → commit valid rows.

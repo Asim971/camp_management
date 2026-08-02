@@ -45,16 +45,21 @@ class BulkImportScreen extends ConsumerWidget {
           const SizedBox(height: 16),
           state.job.when(
             loading: () => const Center(
-                child: Padding(
-              padding: EdgeInsets.all(24),
-              child: CircularProgressIndicator(),
-            ),),
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: CircularProgressIndicator(),
+              ),
+            ),
             error: (_, __) => const Text(
-                'Import failed to process. Check the file and retry.',),
+              'Import failed to process. Check the file and retry.',
+            ),
             data: (job) => job == null
                 ? const _Hint()
                 : _Results(
-                    job: job, committing: state.committing, onCommit: c.commit,),
+                    job: job,
+                    committing: state.committing,
+                    onCommit: c.commit,
+                  ),
           ),
         ],
       ),

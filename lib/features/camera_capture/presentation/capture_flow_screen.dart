@@ -63,10 +63,12 @@ class _CaptureFlowScreenState extends ConsumerState<CaptureFlowScreen> {
             CaptureStep.purposeNotice => _PurposeNotice(
                 onAccept: (lang) => controller.acceptNotice(lang),
               ),
-            CaptureStep.positioning => _Positioning(onReady: () {
-                controller.beginCamera();
-                _cameraInit ??= _initCamera();
-              },),
+            CaptureStep.positioning => _Positioning(
+                onReady: () {
+                  controller.beginCamera();
+                  _cameraInit ??= _initCamera();
+                },
+              ),
             CaptureStep.liveCamera => _LiveCamera(
                 init: _cameraInit,
                 source: _source,
@@ -157,17 +159,21 @@ class _Positioning extends StatelessWidget {
         ),
         const Spacer(),
         BmdButton(
-            label: "I'm ready",
-            identifier: 'capture_ready',
-            onPressed: onReady,),
+          label: "I'm ready",
+          identifier: 'capture_ready',
+          onPressed: onReady,
+        ),
       ],
     );
   }
 }
 
 class _LiveCamera extends StatelessWidget {
-  const _LiveCamera(
-      {required this.init, required this.source, required this.onCapture,});
+  const _LiveCamera({
+    required this.init,
+    required this.source,
+    required this.onCapture,
+  });
   final Future<void>? init;
   final CaptureSource source;
   final Future<void> Function() onCapture;
@@ -255,8 +261,10 @@ class _QualityResult extends StatelessWidget {
           ),
         if (error != null) ...[
           const SizedBox(height: 8),
-          Text(error!,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),),
+          Text(
+            error!,
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
         ],
         const Spacer(),
         if (passes)

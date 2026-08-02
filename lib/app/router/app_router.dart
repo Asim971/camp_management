@@ -118,7 +118,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/search/:sessionId',
         builder: (_, state) => CarpenterSearchScreen(
-            sessionId: state.pathParameters['sessionId']!,),
+          sessionId: state.pathParameters['sessionId']!,
+        ),
       ),
       GoRoute(
         path: '/capture/:sessionId/:carpenterId',

@@ -85,7 +85,9 @@ class _EvidenceZone extends StatelessWidget {
           children: [
             Expanded(
               child: _EvidenceImage(
-                  label: 'Captured', url: vcase.capturedImageUrl,),
+                label: 'Captured',
+                url: vcase.capturedImageUrl,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -265,7 +267,8 @@ class _DecisionPanelState extends ConsumerState<_DecisionPanel> {
       case DecisionResult.error:
         messenger.showSnackBar(
           const SnackBar(
-              content: Text("Couldn't record the decision. Try again."),),
+            content: Text("Couldn't record the decision. Try again."),
+          ),
         );
     }
   }

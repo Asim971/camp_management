@@ -29,7 +29,9 @@ class StatusChip extends StatelessWidget {
       CampaignStatus.approved || CampaignStatus.completed => StatusTone.success,
       CampaignStatus.returned || CampaignStatus.paused => StatusTone.warning,
       CampaignStatus.cancelled => StatusTone.error,
-      CampaignStatus.active || CampaignStatus.pendingApproval => StatusTone.info,
+      CampaignStatus.active ||
+      CampaignStatus.pendingApproval =>
+        StatusTone.info,
       CampaignStatus.draft => StatusTone.neutral,
     };
     final icon = switch (s) {
@@ -111,7 +113,9 @@ class StatusChip extends StatelessWidget {
   /// failed check means "review required", never "fraud detected" (§2.1).
   factory StatusChip.integrity(IntegrityFlag f, {required String label}) {
     final tone = switch (f) {
-      IntegrityFlag.suspectedSpoof || IntegrityFlag.duplicate => StatusTone.error,
+      IntegrityFlag.suspectedSpoof ||
+      IntegrityFlag.duplicate =>
+        StatusTone.error,
       IntegrityFlag.noReference ||
       IntegrityFlag.poorQuality ||
       IntegrityFlag.geofenceException =>

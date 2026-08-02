@@ -63,13 +63,17 @@ class _PlanSummary extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(children: [
-          Expanded(
-            child: Text(campaign.name,
-                style: Theme.of(context).textTheme.titleLarge,),
-          ),
-          StatusChip(label: campaign.status.name, tone: StatusTone.info),
-        ],),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                campaign.name,
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+            ),
+            StatusChip(label: campaign.status.name, tone: StatusTone.info),
+          ],
+        ),
         const SizedBox(height: 12),
         _row(context, 'Type', campaign.type),
         _row(context, 'Owner', campaign.ownerId),
@@ -83,13 +87,16 @@ class _PlanSummary extends StatelessWidget {
 
   Widget _row(BuildContext context, String k, String v) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          SizedBox(
-            width: 120,
-            child: Text(k, style: Theme.of(context).textTheme.labelMedium),
-          ),
-          Expanded(child: Text(v.isEmpty ? '—' : v)),
-        ],),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 120,
+              child: Text(k, style: Theme.of(context).textTheme.labelMedium),
+            ),
+            Expanded(child: Text(v.isEmpty ? '—' : v)),
+          ],
+        ),
       );
 }
 
@@ -142,11 +149,17 @@ class _DecisionPanelState extends ConsumerState<_DecisionPanel> {
             .showSnackBar(const SnackBar(content: Text('Decision recorded')));
         context.go('/campaigns');
       case ApprovalResult.conflict:
-        messenger.showSnackBar(const SnackBar(
-            content: Text('Campaign changed since you opened it. Reloaded.'),),);
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Campaign changed since you opened it. Reloaded.'),
+          ),
+        );
       case ApprovalResult.error:
-        messenger.showSnackBar(const SnackBar(
-            content: Text("Couldn't record the decision. Try again."),),);
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text("Couldn't record the decision. Try again."),
+          ),
+        );
     }
   }
 

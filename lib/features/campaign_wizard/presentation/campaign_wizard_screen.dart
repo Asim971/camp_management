@@ -88,11 +88,13 @@ class _StepHeader extends StatelessWidget {
             backgroundColor: i <= current
                 ? Theme.of(context).colorScheme.primary
                 : Theme.of(context).colorScheme.surfaceContainerHighest,
-            child: Text('${i + 1}',
-                style: TextStyle(
-                  color: i <= current ? Colors.white : null,
-                  fontSize: 12,
-                ),),
+            child: Text(
+              '${i + 1}',
+              style: TextStyle(
+                color: i <= current ? Colors.white : null,
+                fontSize: 12,
+              ),
+            ),
           ),
           const SizedBox(width: 6),
           Text(labels[i], style: Theme.of(context).textTheme.labelMedium),
@@ -121,11 +123,13 @@ class _ErrorSummary extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           for (final e in errors)
-            Row(children: [
-              Icon(Icons.error_outline, size: 16, color: scheme.error),
-              const SizedBox(width: 6),
-              Expanded(child: Text(e)),
-            ],),
+            Row(
+              children: [
+                Icon(Icons.error_outline, size: 16, color: scheme.error),
+                const SizedBox(width: 6),
+                Expanded(child: Text(e)),
+              ],
+            ),
         ],
       ),
     );
@@ -245,9 +249,11 @@ class _AudienceStep extends StatelessWidget {
               FilterChip(
                 label: Text(a),
                 selected: d.audienceTypes.contains(a),
-                onSelected: (on) => c.edit((x) => x.copyWith(
-                      audienceTypes: _toggle(x.audienceTypes, a, on),
-                    ),),
+                onSelected: (on) => c.edit(
+                  (x) => x.copyWith(
+                    audienceTypes: _toggle(x.audienceTypes, a, on),
+                  ),
+                ),
               ),
           ],
         ),
@@ -261,9 +267,11 @@ class _AudienceStep extends StatelessWidget {
               FilterChip(
                 label: Text(t),
                 selected: d.territoryIds.contains(t),
-                onSelected: (on) => c.edit((x) => x.copyWith(
-                      territoryIds: _toggle(x.territoryIds, t, on),
-                    ),),
+                onSelected: (on) => c.edit(
+                  (x) => x.copyWith(
+                    territoryIds: _toggle(x.territoryIds, t, on),
+                  ),
+                ),
               ),
           ],
         ),
@@ -328,9 +336,11 @@ class _SessionsStep extends StatelessWidget {
                               c.updateSession(s.copyWith(startAt: dt));
                             }
                           },
-                          child: Text(s.startAt == null
-                              ? 'Start time'
-                              : 'Start: ${s.startAt}',),
+                          child: Text(
+                            s.startAt == null
+                                ? 'Start time'
+                                : 'Start: ${s.startAt}',
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -343,7 +353,8 @@ class _SessionsStep extends StatelessWidget {
                             }
                           },
                           child: Text(
-                              s.endAt == null ? 'End time' : 'End: ${s.endAt}',),
+                            s.endAt == null ? 'End time' : 'End: ${s.endAt}',
+                          ),
                         ),
                       ),
                       IconButton(
@@ -433,16 +444,20 @@ class _ReviewStep extends StatelessWidget {
         _row('Target', '${d.target}'),
         _row('Approver', d.approverId ?? '—'),
         const SizedBox(height: 12),
-        Row(children: [
-          Icon(
-            d.isValid ? Icons.check_circle_outline : Icons.error_outline,
-            color: d.isValid ? null : Theme.of(context).colorScheme.error,
-          ),
-          const SizedBox(width: 8),
-          Text(d.isValid
-              ? 'Ready to submit for approval'
-              : 'Some steps are incomplete',),
-        ],),
+        Row(
+          children: [
+            Icon(
+              d.isValid ? Icons.check_circle_outline : Icons.error_outline,
+              color: d.isValid ? null : Theme.of(context).colorScheme.error,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              d.isValid
+                  ? 'Ready to submit for approval'
+                  : 'Some steps are incomplete',
+            ),
+          ],
+        ),
       ],
     );
   }

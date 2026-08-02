@@ -31,7 +31,8 @@ class CampaignRepositoryImpl implements CampaignRepository {
       final data = res.data!;
       final items = (data['items'] as List)
           .map(
-              (e) => CampaignDto.fromJson(e as Map<String, dynamic>).toDomain(),)
+            (e) => CampaignDto.fromJson(e as Map<String, dynamic>).toDomain(),
+          )
           .toList();
       return Ok(Paged(items: items, total: data['total'] as int));
     } catch (e) {

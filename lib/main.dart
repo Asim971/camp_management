@@ -27,6 +27,8 @@ Future<void> main() async {
 
   runApp(
     UncontrolledProviderScope(
-        container: container, child: const AcslCampaignApp(),),
+      container: container,
+      child: const AcslCampaignApp(),
+    ),
   );
 }

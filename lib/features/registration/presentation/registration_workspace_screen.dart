@@ -43,11 +43,13 @@ class RegistrationWorkspaceScreen extends ConsumerWidget {
                 SizedBox(width: 360, child: basket),
               ],
             )
-          : ListView(children: [
-              SizedBox(height: 420, child: search),
-              const SizedBox(height: 16),
-              basket,
-            ],),
+          : ListView(
+              children: [
+                SizedBox(height: 420, child: search),
+                const SizedBox(height: 16),
+                basket,
+              ],
+            ),
     );
   }
 }
@@ -100,11 +102,15 @@ class _SearchPanel extends ConsumerWidget {
                         ),
                         trailing: blocked
                             ? const StatusChip(
-                                label: 'Ineligible', tone: StatusTone.warning,)
+                                label: 'Ineligible',
+                                tone: StatusTone.warning,
+                              )
                             : IconButton(
-                                icon: Icon(inBasket
-                                    ? Icons.check
-                                    : Icons.add_circle_outline,),
+                                icon: Icon(
+                                  inBasket
+                                      ? Icons.check
+                                      : Icons.add_circle_outline,
+                                ),
                                 onPressed: inBasket
                                     ? null
                                     : () => c.addToBasket(person),
@@ -157,11 +163,13 @@ Future<void> _showRequestDialog(
         mainAxisSize: MainAxisSize.min,
         children: [
           TextField(
-              controller: name,
-              decoration: const InputDecoration(labelText: 'Full name'),),
+            controller: name,
+            decoration: const InputDecoration(labelText: 'Full name'),
+          ),
           TextField(
-              controller: phone,
-              decoration: const InputDecoration(labelText: 'Phone'),),
+            controller: phone,
+            decoration: const InputDecoration(labelText: 'Phone'),
+          ),
           const SizedBox(height: 8),
           const Text(
             'Creates a Sales Eco request. The participant shows as '
@@ -171,7 +179,9 @@ Future<void> _showRequestDialog(
       ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(ctx), child: const Text('Cancel'),),
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel'),
+        ),
         FilledButton(
           onPressed: () {
             ref
@@ -201,8 +211,10 @@ class _BasketPanel extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Registration basket (${items.length})',
-                style: Theme.of(context).textTheme.titleMedium,),
+            Text(
+              'Registration basket (${items.length})',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 8),
             if (items.isEmpty)
               const Padding(

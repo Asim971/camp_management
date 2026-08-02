@@ -157,7 +157,8 @@ class _Node extends StatelessWidget {
         : _Connector(state: node.state, color: color, bmd: bmd, axis: axis);
 
     return Semantics(
-      label: '${node.label}, $semantics${node.meta == null ? '' : ', ${node.meta}'}',
+      label:
+          '${node.label}, $semantics${node.meta == null ? '' : ', ${node.meta}'}',
       excludeSemantics: true,
       child: axis == Axis.horizontal
           ? Column(
@@ -200,8 +201,7 @@ class _Node extends StatelessWidget {
     );
   }
 
-  static Color _colorFor(LineageState state, BmdTokens bmd) =>
-      switch (state) {
+  static Color _colorFor(LineageState state, BmdTokens bmd) => switch (state) {
         LineageState.done => bmd.success,
         LineageState.current => bmd.info,
         LineageState.pending => bmd.borderStrong,
@@ -228,7 +228,8 @@ class _Marker extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: isPending ? surface : color,
-        border: isPending ? Border.all(color: bmd.borderStrong, width: 2) : null,
+        border:
+            isPending ? Border.all(color: bmd.borderStrong, width: 2) : null,
         boxShadow: [
           BoxShadow(color: surface, spreadRadius: 2),
           if (state == LineageState.current)

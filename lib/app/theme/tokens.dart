@@ -278,8 +278,7 @@ class BmdTokens extends ThemeExtension<BmdTokens> {
   /// Categorical slots are assigned in fixed order and never cycled. Past the
   /// last slot, fold into "Other" or facet — a generated hue would not have
   /// been through the CVD gates.
-  Color seriesAt(int index) =>
-      index < series.length ? series[index] : neutral;
+  Color seriesAt(int index) => index < series.length ? series[index] : neutral;
 
   @override
   BmdTokens copyWith({

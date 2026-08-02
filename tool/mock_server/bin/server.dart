@@ -27,7 +27,8 @@ void main() async {
   final port = int.parse(Platform.environment['PORT'] ?? '8080');
   final server = await io.serve(handler, InternetAddress.anyIPv4, port);
   stdout.writeln('Mock server on http://${server.address.host}:${server.port}');
-  stdout.writeln('Campaign fixture: ${Platform.environment['MOCK_CAMPAIGNS'] ?? 'rows'}');
+  stdout.writeln(
+      'Campaign fixture: ${Platform.environment['MOCK_CAMPAIGNS'] ?? 'rows'}');
 }
 
 // ---------------------------------------------------------------------------
@@ -73,7 +74,8 @@ Router _buildRouter(_Store store) {
   r.get('/campaigns', (Request req) {
     final fixture = Platform.environment['MOCK_CAMPAIGNS'] ?? 'rows';
     if (fixture == 'error') return _json({'error': 'boom'}, status: 500);
-    final items = fixture == 'empty' ? <Map>[] : store.campaigns.values.toList();
+    final items =
+        fixture == 'empty' ? <Map>[] : store.campaigns.values.toList();
     return _json({'items': items, 'total': items.length});
   });
 
@@ -337,7 +339,9 @@ class _Store {
         'readinessOk': true,
       };
     }
-    return _sessions.values.where((s) => s['campaignId'] == campaignId).toList();
+    return _sessions.values
+        .where((s) => s['campaignId'] == campaignId)
+        .toList();
   }
 
   Map<String, dynamic>? sessionAction(String id, String action) {
