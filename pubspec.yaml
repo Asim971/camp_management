@@ -4,8 +4,8 @@ publish_to: "none"
 version: 0.1.0+1
 
 environment:
-  sdk: ">=3.4.0 <4.0.0"
-  flutter: ">=3.35.0"
+  sdk: ">=3.12.0 <4.0.0"
+  flutter: ">=3.44.0"
 
 dependencies:
   flutter:
@@ -71,6 +71,7 @@ dev_dependencies:
   drift_dev: ^2.18.0
   mocktail: ^1.0.4
   golden_toolkit: ^0.15.0
+  file_selector_platform_interface: ^2.7.0 # to fake the file dialog in widget tests
 
 flutter:
   uses-material-design: true

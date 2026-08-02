@@ -33,11 +33,19 @@ class SyncEngineImpl implements SyncEngine {
     Stream<bool>? connectivityStream,
     BackoffPolicy backoff = const BackoffPolicy(),
     DateTime Function() now = DateTime.now,
+    // Field names are deliberately private (`_db`) while constructor params
+    // stay public-looking (`db`) for a clean call-site API — so these can't
+    // become initializing formals without renaming the public parameters.
+    // ignore: prefer_initializing_formals
   })  : _db = db,
+        // ignore: prefer_initializing_formals
         _uploader = uploader,
+        // ignore: prefer_initializing_formals
         _isOnline = isOnline,
         _evidence = evidenceStore ?? createEvidenceStore(),
+        // ignore: prefer_initializing_formals
         _backoff = backoff,
+        // ignore: prefer_initializing_formals
         _now = now {
     // Drain automatically when connectivity is regained.
     _connSub = connectivityStream?.listen((online) {

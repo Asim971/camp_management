@@ -10,6 +10,11 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# The gate executes PR-supplied code (checkout + build); default to read-only
+# so a compromised or malicious PR can't use the job's token to write back.
+permissions:
+  contents: read
+
 env:
   FLUTTER_VERSION: 3.44.8
 
@@ -65,9 +70,11 @@ jobs:
           name: web-build
           path: build/web
           retention-days: 7
+          if-no-files-found: error
 
       - uses: actions/upload-artifact@v4
         with:
           name: apk-dev-debug
           path: build/app/outputs/flutter-apk/app-dev-debug.apk
           retention-days: 7
+          if-no-files-found: error
