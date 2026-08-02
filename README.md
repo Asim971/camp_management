@@ -1,30 +1,41 @@
 # ACSL Carpenter Campaign Management
 
+[![CI](https://github.com/Asim971/camp_management/actions/workflows/ci.yml/badge.svg)](https://github.com/Asim971/camp_management/actions/workflows/ci.yml)
+
 Flutter application for campaign lifecycle management and carpenter attendance verification — a native extension of the **BMD Sales Ecosystem**. One codebase targets the mobile field app (Android/iOS), the web campaign admin, the CRM verification console, and management analytics.
 
 > **Design & requirements:** [`design/`](design/README.md) (the built design system — foundations, components and all 17 screens) · [`ARCHITECTURE_Flutter.md`](ARCHITECTURE_Flutter.md) · [`TASK_BREAKDOWN.md`](TASK_BREAKDOWN.md) · [`Campaign_Management_Carpenter_Attendance_Verification_PRD.md`](Campaign_Management_Carpenter_Attendance_Verification_PRD.md) · [`ACSL_Carpenter_Campaign_Management_UI_UX_Design_Guideline_v1_0.md`](ACSL_Carpenter_Campaign_Management_UI_UX_Design_Guideline_v1_0.md)
 
 ## Quick start
 
-> Verified on **Flutter 3.44.8 / Dart 3.12.2** (min Flutter ≥ 3.22). The `web/`
-> runner is committed; run `flutter create . --platforms=android` if you also
-> need the Android runner (it won't overwrite `lib/`).
+> Verified on **Flutter 3.44.8 / Dart 3.12.2** (min Flutter ≥ 3.35). Both the
+> `web/` and `android/` runners are committed. Android additionally needs a JDK
+> and the Android SDK; web and `flutter test` do not.
 
 ```bash
-flutter pub get
-dart run build_runner build --delete-conflicting-outputs   # freezed / json / drift / riverpod
-flutter gen-l10n                              # generate AppL10n from lib/l10n/*.arb
-flutter run -d chrome \
-  --dart-define=FLAVOR=dev \
-  --dart-define=API_BASE_URL=https://dev.api.example/campaign \
-  --dart-define=MEDIA_HOST=https://dev.media.example
+flutter pub get --enforce-lockfile   # lockfile is committed; fail loudly on drift
+flutter gen-l10n                     # generate AppL10n from lib/l10n/*.arb
+dart run build_runner build --delete-conflicting-outputs   # freezed / json / drift
+flutter analyze --fatal-infos
+```
+
+Generated code is gitignored, so **this order matters** — analyze fails on a
+clean clone until `gen-l10n` and `build_runner` have run.
+
+Run the app through the flavor wrapper, which keeps the Gradle flavor and the
+dart-defines in sync (they are independent, and mismatching them installs a dev
+app pointed at production):
+
+```powershell
+./tool/scripts/run.ps1 -Flavor dev -Device chrome   # web
+./tool/scripts/run.ps1 -Flavor dev                 # Android emulator
 ```
 
 > **Note:** production auth isn't wired yet, so a plain `flutter run` lands on the
 > login placeholder. For a working demo use **E2E mode + the mock server** — see
 > ["Run it end-to-end"](#run-it-end-to-end-with-the-mock-backend) below.
 
-Codegen must run before the first build: `freezed`/`json_serializable` (models), `drift_dev` (offline DB), `riverpod_generator` (if you adopt annotated providers), and `gen-l10n` (localization).
+Codegen must run before the first build: `freezed`/`json_serializable` (models), `drift_dev` (offline DB), and `gen-l10n` (localization). Providers are hand-written — there is no Riverpod code generation (see `ARCHITECTURE_Flutter.md` §6).
 
 ## Project layout
 
@@ -69,7 +80,7 @@ all backed by the mock. See [`tool/mock_server/README.md`](tool/mock_server/READ
 
 ## Status
 
-**Verified:** `flutter analyze` clean of errors and warnings · `flutter test` 30/30 pass
+**Verified:** `flutter analyze --fatal-infos` clean · `flutter test` 33/33 pass
 (incl. the offline sync-engine harness and the design-system rule tests) ·
 `flutter build web` succeeds · runs end-to-end against the mock server (campaign
 list/detail render live data, RBAC guard and responsive shell confirmed in-browser).
@@ -120,4 +131,4 @@ Per-module status: [`lib/features/README.md`](lib/features/README.md). Full task
   `sqlite3.wasm` + the drift worker dropped into `web/` (mobile is unaffected).
 - **ML Kit quality:** capture uses a passthrough/E2E checker; the on-device face-quality
   impl (T-2.2.2) is unbuilt.
-- **Android/iOS:** needs a JDK + Android SDK (not required for web or `flutter test`).
+- **iOS:** no runner committed (gitignored by policy); Android is the field target.

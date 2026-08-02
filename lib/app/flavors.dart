@@ -4,6 +4,12 @@
 ///   flutter run --dart-define=FLAVOR=dev \
 ///     --dart-define=API_BASE_URL=https://dev.api.example/campaign \
 ///     --dart-define=MEDIA_HOST=https://dev.media.example
+///
+/// `tool/scripts/flavors.env` holds the same dev/stg/prod URLs for the
+/// run.ps1 wrapper. The defaults below exist only because a bare
+/// `flutter test`/`flutter run` supplies no `--dart-define`; keep both
+/// files in sync or `run.ps1` and a bare `flutter run` will silently
+/// point at different hosts.
 enum Flavor { dev, stg, prod }
 
 /// Maps a `FLAVOR` dart-define to its enum. An unrecognized name falls back to

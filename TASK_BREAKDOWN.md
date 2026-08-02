@@ -8,9 +8,9 @@
 
 **Legend:** 🔒 = blocked by an external dependency (API/infra/legal). ⭐ = reusable across surfaces (build once, early). ✅ = scaffolded in the repo.
 
-> **Implemented so far** (verified: analyze clean, `flutter test` 15/15, `flutter build web` OK, runs end-to-end vs the mock server):
+> **Implemented so far** (verified: analyze clean, `flutter test` 33/33, `flutter build web` OK, runs end-to-end vs the mock server):
 > - **P0 foundation** — config, BMD tokens→theme, typed status vocabulary + `StatusChip`, `BmdButton`, virtualized `BmdDataTable`, responsive adaptive shell, `Result`/`Failure`, Dio client + auth interceptor, Drift offline DB, RBAC + guarded GoRouter, Riverpod DI, en/bn l10n.
-> - **Offline `SyncEngine`** (T-2.1.1–5) — backoff + platform-isolated evidence store + deterministic test harness.
+> - **Offline `SyncEngine`** (T-2.1.1–2, 2.1.4–5) — backoff + platform-isolated evidence store + deterministic test harness. Background upload via `workmanager` (T-2.1.3) is **not implemented**: the dependency is declared in `pubspec.yaml` but nothing in `lib/` imports it.
 > - **Field (P2)** — carpenter search (M-02), camera capture (M-03), offline queue (M-04).
 > - **CRM (P3)** — verification case (C-02).
 > - **Campaign admin (P1)** — list (W-02), wizard (W-03), approval (W-04), detail+sessions (W-05), registration (W-06), bulk import (W-07).
@@ -24,13 +24,13 @@
 *Exit: running app shell (web + mobile), component gallery, golden baselines, CI green.*
 
 ### Epic P0.1 — Project & tooling ⭐
-| ID | Task | Est | Deps | Done when |
-|----|------|-----|------|-----------|
-| T-0.1.1 | `flutter create` with web + android platforms; adopt scaffold in this repo | S | — | `flutter run` launches on Chrome + Android emulator |
-| T-0.1.2 | Configure flavors (dev/stg/prod) + `--dart-define` env (API base, media host) | M | 0.1.1 | Each flavor points at a distinct base URL |
-| T-0.1.3 | `analysis_options.yaml` (strict lints), format + import-order rules | S | 0.1.1 | `flutter analyze` clean on CI |
-| T-0.1.4 | CI pipeline: analyze → test → build web + apk; artifact upload | M | 0.1.3 | PR blocks on red CI |
-| T-0.1.5 | Codegen wiring (`build_runner`, freezed, riverpod_generator, drift, l10n) | M | 0.1.1 | `dart run build_runner build` succeeds |
+| ID | Task | Est | Deps | Status (2026-07-30) |
+|----|------|-----|------|---------------------|
+| T-0.1.1 | `flutter create` with web + android platforms; adopt scaffold in this repo | S | — | ✅ web + android; runs on Chrome and Android emulator |
+| T-0.1.2 | Configure flavors (dev/stg/prod) + `--dart-define` env (API base, media host) | M | 0.1.1 | ✅ Gradle flavors with distinct app IDs + `tool/scripts/run.ps1` |
+| T-0.1.3 | `analysis_options.yaml` (strict lints), format + import-order rules | S | 0.1.1 | ✅ enforced in CI with `--fatal-infos` |
+| T-0.1.4 | CI pipeline: analyze → test → build web + apk; artifact upload | M | 0.1.3 | ✅ `.github/workflows/ci.yml` (`gate` + `e2e`) |
+| T-0.1.5 | Codegen wiring (`build_runner`, freezed, riverpod_generator, drift, l10n) | M | 0.1.1 | ✅ freezed + json_serializable + drift + gen-l10n. Riverpod codegen dropped — see ARCHITECTURE §6 amendment |
 
 ### Epic P0.2 — Design system & tokens ⭐
 | ID | Task | Est | Deps | Design |

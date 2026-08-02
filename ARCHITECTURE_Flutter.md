@@ -163,7 +163,14 @@ Direct mapping from design guideline §7 (each keeps its PRD traceability):
 
 ## 6. State Management
 
-**Choice: Riverpod (v2, code-gen)** as the single state solution.
+**Choice: Riverpod (v2, manual providers)** as the single state solution.
+
+> **Amended 2026-07-30 (Epic P0.1):** the original plan specified code-gen
+> (`riverpod_generator`). In practice all ~30 providers are hand-written and the
+> generator was never adopted, so its dependencies were removed rather than left
+> declared-but-unused. Revisit code-gen when parameterized (`family`) providers
+> become painful enough to justify migrating; the layering above is unaffected
+> either way.
 
 | Why | Detail |
 |-----|--------|
@@ -174,7 +181,7 @@ Direct mapping from design guideline §7 (each keeps its PRD traceability):
 
 **Pattern per feature:** `XxxState` (immutable, `freezed`) + `XxxNotifier` (`AsyncNotifier`) + UI consuming `ref.watch`. Side-effectful actions (approve, submit, capture) return `Result` and emit audit events.
 
-> Alternative considered: BLoC. Rejected only to reduce boilerplate; Riverpod covers the same guarantees with codegen. Either is defensible — the layering above is state-library-agnostic.
+> Alternative considered: BLoC. Rejected only to reduce boilerplate; Riverpod covers the same guarantees. Either is defensible — the layering above is state-library-agnostic.
 
 ---
 
@@ -323,7 +330,7 @@ Concrete mitigations for the known Flutter-Web weaknesses flagged in §2:
 
 | Concern | Package(s) |
 |---------|-----------|
-| State/DI | `flutter_riverpod`, `riverpod_generator` |
+| State/DI | `flutter_riverpod` |
 | Routing | `go_router` |
 | Models | `freezed`, `json_serializable` |
 | Network | `dio`, `retry` |
@@ -334,7 +341,7 @@ Concrete mitigations for the known Flutter-Web weaknesses flagged in §2:
 | Crypto | `cryptography` |
 | L10n | `flutter_localizations`, `intl` |
 | Charts (analytics) | `fl_chart` (funnel/line/bar; stacked/treemap via custom) |
-| Files/import | `file_picker`, `csv` |
+| Files/import | `file_selector`, `csv` |
 | Testing | `mocktail`, `integration_test`, `golden_toolkit` |
 
 *Pin versions and vet each for null-safety + web support before lock.*
