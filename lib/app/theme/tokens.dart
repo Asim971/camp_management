@@ -116,29 +116,17 @@ abstract final class BmdElevation {
 
   /// Cards and sticky bars.
   static const List<BoxShadow> level1 = [
-    BoxShadow(
-      color: Color(0x142B3674),
-      offset: Offset(0, 1),
-      blurRadius: 2,
-    ),
+    BoxShadow(color: Color(0x142B3674), offset: Offset(0, 1), blurRadius: 2),
   ];
 
   /// Menus, popovers and side sheets.
   static const List<BoxShadow> level2 = [
-    BoxShadow(
-      color: Color(0x1F2B3674),
-      offset: Offset(0, 4),
-      blurRadius: 12,
-    ),
+    BoxShadow(color: Color(0x1F2B3674), offset: Offset(0, 4), blurRadius: 12),
   ];
 
   /// Dialogs only.
   static const List<BoxShadow> level3 = [
-    BoxShadow(
-      color: Color(0x292B3674),
-      offset: Offset(0, 12),
-      blurRadius: 28,
-    ),
+    BoxShadow(color: Color(0x292B3674), offset: Offset(0, 12), blurRadius: 28),
   ];
 }
 
@@ -329,8 +317,8 @@ class BmdTokens extends ThemeExtension<BmdTokens> {
   BmdTokens lerp(covariant BmdTokens? other, double t) {
     if (other == null) return this;
     List<Color> lerpAll(List<Color> a, List<Color> b) => [
-          for (var i = 0; i < a.length; i++) Color.lerp(a[i], b[i], t)!,
-        ];
+      for (var i = 0; i < a.length; i++) Color.lerp(a[i], b[i], t)!,
+    ];
     return BmdTokens(
       success: Color.lerp(success, other.success, t)!,
       warning: Color.lerp(warning, other.warning, t)!,

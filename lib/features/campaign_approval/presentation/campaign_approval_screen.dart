@@ -86,18 +86,18 @@ class _PlanSummary extends StatelessWidget {
   }
 
   Widget _row(BuildContext context, String k, String v) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 120,
-              child: Text(k, style: Theme.of(context).textTheme.labelMedium),
-            ),
-            Expanded(child: Text(v.isEmpty ? '—' : v)),
-          ],
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 120,
+          child: Text(k, style: Theme.of(context).textTheme.labelMedium),
         ),
-      );
+        Expanded(child: Text(v.isEmpty ? '—' : v)),
+      ],
+    ),
+  );
 }
 
 class _DecisionPanel extends ConsumerStatefulWidget {
@@ -145,8 +145,9 @@ class _DecisionPanelState extends ConsumerState<_DecisionPanel> {
     final messenger = ScaffoldMessenger.of(context);
     switch (result) {
       case ApprovalResult.done:
-        messenger
-            .showSnackBar(const SnackBar(content: Text('Decision recorded')));
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Decision recorded')),
+        );
         context.go('/campaigns');
       case ApprovalResult.conflict:
         messenger.showSnackBar(
@@ -224,8 +225,9 @@ class _DecisionPanelState extends ConsumerState<_DecisionPanel> {
               maxLines: 4,
               onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
-                labelText:
-                    _reasonRequired ? 'Reason (required)' : 'Reason (optional)',
+                labelText: _reasonRequired
+                    ? 'Reason (required)'
+                    : 'Reason (optional)',
               ),
             ),
             const SizedBox(height: 12),
@@ -241,8 +243,8 @@ class _DecisionPanelState extends ConsumerState<_DecisionPanel> {
   }
 
   String _label(CampaignDecision d) => switch (d) {
-        CampaignDecision.approve => 'Approve',
-        CampaignDecision.returnForCorrection => 'Return for correction',
-        CampaignDecision.reject => 'Reject',
-      };
+    CampaignDecision.approve => 'Approve',
+    CampaignDecision.returnForCorrection => 'Return for correction',
+    CampaignDecision.reject => 'Reject',
+  };
 }

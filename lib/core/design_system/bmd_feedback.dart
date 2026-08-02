@@ -44,7 +44,8 @@ class BmdBanner extends StatelessWidget {
       BannerTone.error => (bmd.error, bmd.tintError),
       BannerTone.neutral => (bmd.textSecondary, bmd.tintNeutral),
     };
-    final resolvedIcon = icon ??
+    final resolvedIcon =
+        icon ??
         switch (tone) {
           BannerTone.info => Icons.info_outline,
           BannerTone.warning => Icons.warning_amber_outlined,
@@ -76,8 +77,9 @@ class BmdBanner extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: theme.textTheme.labelLarge
-                        ?.copyWith(color: bmd.textPrimary),
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: bmd.textPrimary,
+                    ),
                   ),
                   if (body != null) ...[
                     const SizedBox(height: 2),
@@ -125,7 +127,8 @@ class OfflineBar extends StatelessWidget {
 
     return Semantics(
       liveRegion: true,
-      label: '$pendingCount captures waiting to upload. '
+      label:
+          '$pendingCount captures waiting to upload. '
           'Last successful sync $lastSyncLabel.',
       excludeSemantics: true,
       child: Container(
@@ -209,12 +212,12 @@ class BmdState extends StatelessWidget {
     Widget? action,
     Key? key,
   }) : this(
-          title: title,
-          body: body,
-          icon: icon ?? Icons.inbox_outlined,
-          action: action,
-          key: key,
-        );
+         title: title,
+         body: body,
+         icon: icon ?? Icons.inbox_outlined,
+         action: action,
+         key: key,
+       );
 
   const BmdState.error({
     required String title,
@@ -223,14 +226,14 @@ class BmdState extends StatelessWidget {
     String? reference,
     Key? key,
   }) : this(
-          title: title,
-          body: body,
-          icon: Icons.error_outline,
-          tone: BmdStateTone.error,
-          action: action,
-          reference: reference,
-          key: key,
-        );
+         title: title,
+         body: body,
+         icon: Icons.error_outline,
+         tone: BmdStateTone.error,
+         action: action,
+         reference: reference,
+         key: key,
+       );
 
   /// Names the rule that blocked the user, plus a reference that keeps the
   /// resulting support ticket short.
@@ -241,14 +244,14 @@ class BmdState extends StatelessWidget {
     String? reference,
     Key? key,
   }) : this(
-          title: title,
-          body: body,
-          icon: Icons.lock_outline,
-          tone: BmdStateTone.denied,
-          action: action,
-          reference: reference,
-          key: key,
-        );
+         title: title,
+         body: body,
+         icon: Icons.lock_outline,
+         tone: BmdStateTone.denied,
+         action: action,
+         reference: reference,
+         key: key,
+       );
 
   final String title;
   final String body;

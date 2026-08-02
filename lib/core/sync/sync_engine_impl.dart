@@ -25,28 +25,23 @@ import 'sync_uploader.dart';
 /// [now] and [isOnline] are injected so the engine is deterministic under test
 /// (see test/core/sync_engine_test.dart) with no real clock or network.
 class SyncEngineImpl implements SyncEngine {
+  // `this._field` initializing formals still expose a PUBLIC call-site name
+  // (Dart strips the leading underscore for the named-parameter label), so
+  // `SyncEngineImpl(db: ..., uploader: ..., isOnline: ..., backoff: ...,
+  // now: ...)` at every call site (lib/app/di/providers.dart,
+  // test/core/sync_engine_test.dart) is unaffected by this — verified with a
+  // throwaway `dart analyze` repro before applying this. `evidenceStore`
+  // stays a manual initializer below: its field is `_evidence`, a different
+  // name, and its value is a fallback expression, not a plain passthrough.
   SyncEngineImpl({
-    required AppDatabase db,
-    required SyncUploader uploader,
-    required Future<bool> Function() isOnline,
+    required this._db,
+    required this._uploader,
+    required this._isOnline,
     EvidenceStore? evidenceStore,
     Stream<bool>? connectivityStream,
-    BackoffPolicy backoff = const BackoffPolicy(),
-    DateTime Function() now = DateTime.now,
-    // Field names are deliberately private (`_db`) while constructor params
-    // stay public-looking (`db`) for a clean call-site API — so these can't
-    // become initializing formals without renaming the public parameters.
-    // ignore: prefer_initializing_formals
-  })  : _db = db,
-        // ignore: prefer_initializing_formals
-        _uploader = uploader,
-        // ignore: prefer_initializing_formals
-        _isOnline = isOnline,
-        _evidence = evidenceStore ?? createEvidenceStore(),
-        // ignore: prefer_initializing_formals
-        _backoff = backoff,
-        // ignore: prefer_initializing_formals
-        _now = now {
+    this._backoff = const BackoffPolicy(),
+    this._now = DateTime.now,
+  }) : _evidence = evidenceStore ?? createEvidenceStore() {
     // Drain automatically when connectivity is regained.
     _connSub = connectivityStream?.listen((online) {
       if (online) unawaited(drain());
@@ -71,7 +66,9 @@ class SyncEngineImpl implements SyncEngine {
   @override
   Future<Result<void>> enqueue(SyncTaskSpec spec) async {
     try {
-      await _db.into(_db.syncTasks).insert(
+      await _db
+          .into(_db.syncTasks)
+          .insert(
             SyncTasksCompanion.insert(
               id: spec.idempotencyKey,
               type: spec.type,
@@ -92,10 +89,11 @@ class SyncEngineImpl implements SyncEngine {
     _draining = true;
     try {
       if (!await _isOnline()) return;
-      final tasks = await (_db.select(_db.syncTasks)
-            ..where((t) => t.status.equals(_pending))
-            ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
-          .get();
+      final tasks =
+          await (_db.select(_db.syncTasks)
+                ..where((t) => t.status.equals(_pending))
+                ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
+              .get();
 
       for (final task in tasks) {
         if (!_isDue(task)) continue;
@@ -149,8 +147,7 @@ class SyncEngineImpl implements SyncEngine {
       FailureKind.network ||
       FailureKind.timeout ||
       FailureKind.server ||
-      FailureKind.offlineQueued =>
-        true,
+      FailureKind.offlineQueued => true,
       _ => false, // validation/forbidden/unauthorized → terminal
     };
 
@@ -204,9 +201,9 @@ class SyncEngineImpl implements SyncEngine {
   @override
   Future<Result<void>> discard(String taskId, {required String reason}) async {
     // Permission-gated + controlled at the call site (§8.11). Purge evidence.
-    final task = await (_db.select(_db.syncTasks)
-          ..where((t) => t.id.equals(taskId)))
-        .getSingleOrNull();
+    final task = await (_db.select(
+      _db.syncTasks,
+    )..where((t) => t.id.equals(taskId))).getSingleOrNull();
     if (task != null) await _purgeEvidence(task);
     await (_db.delete(_db.syncTasks)..where((t) => t.id.equals(taskId))).go();
     return const Ok(null);
@@ -216,9 +213,7 @@ class SyncEngineImpl implements SyncEngine {
   Stream<List<SyncTaskView>> statusStream() {
     final query = _db.select(_db.syncTasks)
       ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]);
-    return query.watch().map(
-          (rows) => rows.map(_toView).toList(),
-        );
+    return query.watch().map((rows) => rows.map(_toView).toList());
   }
 
   SyncTaskView _toView(SyncTask t) {
@@ -228,7 +223,9 @@ class SyncEngineImpl implements SyncEngine {
       final payload = jsonDecode(t.payloadJson) as Map<String, Object?>;
       sessionId = payload['sessionId'] as String?;
       carpenterId = payload['carpenterId'] as String?;
-    } catch (_) {/* payload without those keys */}
+    } catch (_) {
+      /* payload without those keys */
+    }
     return SyncTaskView(
       id: t.id,
       type: t.type,

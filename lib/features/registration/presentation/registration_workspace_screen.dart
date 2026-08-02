@@ -22,8 +22,9 @@ class RegistrationWorkspaceScreen extends ConsumerWidget {
       registrationControllerProvider(campaignId).select((s) => s.message),
       (_, msg) {
         if (msg != null) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text(msg)));
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(msg)));
         }
       },
     );

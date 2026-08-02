@@ -35,8 +35,9 @@ class SessionRepositoryImpl implements SessionRepository {
 
   Future<Result<CampaignSession>> _action(String id, String action) async {
     try {
-      final res =
-          await _dio.post<Map<String, dynamic>>('/sessions/$id/$action');
+      final res = await _dio.post<Map<String, dynamic>>(
+        '/sessions/$id/$action',
+      );
       return Ok(_fromJson(res.data!));
     } catch (e) {
       return Err(mapDioError(e));
@@ -44,22 +45,22 @@ class SessionRepositoryImpl implements SessionRepository {
   }
 
   CampaignSession _fromJson(Map<String, dynamic> j) => CampaignSession(
-        id: j['id'] as String,
-        campaignId: j['campaignId'] as String,
-        venue: j['venue'] as String,
-        status: SessionStatus.values.firstWhere(
-          (s) => s.name == j['status'],
-          orElse: () => SessionStatus.upcoming,
-        ),
-        startAt: j['startAt'] == null
-            ? null
-            : DateTime.parse(j['startAt'] as String),
-        endAt: j['endAt'] == null ? null : DateTime.parse(j['endAt'] as String),
-        capacity: (j['capacity'] as int?) ?? 0,
-        registeredCount: (j['registeredCount'] as int?) ?? 0,
-        pendingSyncCount: (j['pendingSyncCount'] as int?) ?? 0,
-        reviewCount: (j['reviewCount'] as int?) ?? 0,
-        approvedCount: (j['approvedCount'] as int?) ?? 0,
-        readinessOk: (j['readinessOk'] as bool?) ?? true,
-      );
+    id: j['id'] as String,
+    campaignId: j['campaignId'] as String,
+    venue: j['venue'] as String,
+    status: SessionStatus.values.firstWhere(
+      (s) => s.name == j['status'],
+      orElse: () => SessionStatus.upcoming,
+    ),
+    startAt: j['startAt'] == null
+        ? null
+        : DateTime.parse(j['startAt'] as String),
+    endAt: j['endAt'] == null ? null : DateTime.parse(j['endAt'] as String),
+    capacity: (j['capacity'] as int?) ?? 0,
+    registeredCount: (j['registeredCount'] as int?) ?? 0,
+    pendingSyncCount: (j['pendingSyncCount'] as int?) ?? 0,
+    reviewCount: (j['reviewCount'] as int?) ?? 0,
+    approvedCount: (j['approvedCount'] as int?) ?? 0,
+    readinessOk: (j['readinessOk'] as bool?) ?? true,
+  );
 }

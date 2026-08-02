@@ -54,8 +54,9 @@ class AuthController extends Notifier<Session?> {
   // TODO(T-0.4.1): wire login/refresh against the auth service contract.
 }
 
-final authControllerProvider =
-    NotifierProvider<AuthController, Session?>(AuthController.new);
+final authControllerProvider = NotifierProvider<AuthController, Session?>(
+  AuthController.new,
+);
 
 final dioProvider = Provider<Dio>((ref) {
   final config = ref.watch(appConfigProvider);
@@ -151,8 +152,8 @@ final importRepositoryProvider = Provider<ImportRepository>(
 /// as an `AsyncValue`.
 final connectivityStreamProvider = Provider<Stream<bool>>(
   (ref) => Connectivity().onConnectivityChanged.map(
-        (results) => results.any((r) => r != ConnectivityResult.none),
-      ),
+    (results) => results.any((r) => r != ConnectivityResult.none),
+  ),
 );
 
 final syncEngineProvider = Provider<SyncEngine>((ref) {

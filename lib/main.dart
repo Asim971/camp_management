@@ -22,7 +22,9 @@ Future<void> main() async {
         container.read(appDatabaseProvider),
         seed: config.e2eSeed,
       );
-    } catch (_) {/* seeding is non-critical for the demo */}
+    } catch (_) {
+      /* seeding is non-critical for the demo */
+    }
   }
 
   runApp(

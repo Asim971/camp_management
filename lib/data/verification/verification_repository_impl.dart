@@ -80,36 +80,36 @@ class VerificationRepositoryImpl implements VerificationRepository {
       );
 
   VerificationCase _case(Map<String, dynamic> j) => VerificationCase(
-        attendanceId: j['attendanceId'] as String,
-        version: j['version'] as int,
-        status: AttendanceStatus.crmReview,
-        carpenterName: j['carpenterName'] as String,
-        carpenterIdMasked: j['carpenterIdMasked'] as String,
-        campaignName: j['campaignName'] as String,
-        sessionName: j['sessionName'] as String,
-        capturedAt: DateTime.parse(j['capturedAt'] as String),
-        capturedImageUrl: j['capturedImageUrl'] as String,
-        referenceImageUrl: j['referenceImageUrl'] as String?,
-        machine: MachineResult(
-          band: _band(j['band'] as String?),
-          referenceSource: _refSource(j['referenceSource'] as String?),
-          padReview: (j['padReview'] as bool?) ?? false,
-          lowQuality: (j['lowQuality'] as bool?) ?? false,
-          reasons: ((j['reasons'] as List?) ?? []).cast<String>(),
-        ),
-      );
+    attendanceId: j['attendanceId'] as String,
+    version: j['version'] as int,
+    status: AttendanceStatus.crmReview,
+    carpenterName: j['carpenterName'] as String,
+    carpenterIdMasked: j['carpenterIdMasked'] as String,
+    campaignName: j['campaignName'] as String,
+    sessionName: j['sessionName'] as String,
+    capturedAt: DateTime.parse(j['capturedAt'] as String),
+    capturedImageUrl: j['capturedImageUrl'] as String,
+    referenceImageUrl: j['referenceImageUrl'] as String?,
+    machine: MachineResult(
+      band: _band(j['band'] as String?),
+      referenceSource: _refSource(j['referenceSource'] as String?),
+      padReview: (j['padReview'] as bool?) ?? false,
+      lowQuality: (j['lowQuality'] as bool?) ?? false,
+      reasons: ((j['reasons'] as List?) ?? []).cast<String>(),
+    ),
+  );
 
   MatchBand _band(String? s) => switch (s) {
-        'high' => MatchBand.high,
-        'medium' => MatchBand.medium,
-        'low' => MatchBand.low,
-        _ => MatchBand.noReference,
-      };
+    'high' => MatchBand.high,
+    'medium' => MatchBand.medium,
+    'low' => MatchBand.low,
+    _ => MatchBand.noReference,
+  };
 
   ReferenceSource _refSource(String? s) => switch (s) {
-        'verifiedProfilePhoto' => ReferenceSource.verifiedProfilePhoto,
-        'authorizedNidPhoto' => ReferenceSource.authorizedNidPhoto,
-        'approvedBaselinePhoto' => ReferenceSource.approvedBaselinePhoto,
-        _ => ReferenceSource.unavailable,
-      };
+    'verifiedProfilePhoto' => ReferenceSource.verifiedProfilePhoto,
+    'authorizedNidPhoto' => ReferenceSource.authorizedNidPhoto,
+    'approvedBaselinePhoto' => ReferenceSource.approvedBaselinePhoto,
+    _ => ReferenceSource.unavailable,
+  };
 }

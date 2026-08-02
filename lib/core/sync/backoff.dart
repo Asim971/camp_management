@@ -27,8 +27,10 @@ class BackoffPolicy {
   /// [jitterSeed] (0.0–1.0).
   Duration delayFor(int retryCount, {double jitterSeed = 0.5}) {
     final expMs = base.inMilliseconds * math.pow(2, retryCount);
-    final cappedMs =
-        math.min(expMs.toDouble(), maxDelay.inMilliseconds.toDouble());
+    final cappedMs = math.min(
+      expMs.toDouble(),
+      maxDelay.inMilliseconds.toDouble(),
+    );
     final spread = cappedMs * jitterFraction;
     final offset =
         (jitterSeed.clamp(0.0, 1.0) * 2 - 1) * spread; // [-spread, spread]

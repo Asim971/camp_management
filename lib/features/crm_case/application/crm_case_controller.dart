@@ -43,16 +43,13 @@ class CrmCaseController
       expectedVersion: current.version,
     );
 
-    return result.fold(
-      (_) => DecisionResult.submitted,
-      (failure) {
-        if (failure.kind == FailureKind.conflict) {
-          ref.invalidateSelf(); // another reviewer decided → reload fresh
-          return DecisionResult.conflict;
-        }
-        return DecisionResult.error;
-      },
-    );
+    return result.fold((_) => DecisionResult.submitted, (failure) {
+      if (failure.kind == FailureKind.conflict) {
+        ref.invalidateSelf(); // another reviewer decided → reload fresh
+        return DecisionResult.conflict;
+      }
+      return DecisionResult.error;
+    });
   }
 }
 

@@ -36,7 +36,9 @@ Future<void> seedE2EData(AppDatabase db, {String seed = ''}) async {
     },
   ];
 
-  await db.into(db.cachedReferences).insertOnConflictUpdate(
+  await db
+      .into(db.cachedReferences)
+      .insertOnConflictUpdate(
         CachedReferencesCompanion.insert(
           key: 'session:$sessionId:registrations',
           valueJson: jsonEncode(roster),
@@ -47,7 +49,9 @@ Future<void> seedE2EData(AppDatabase db, {String seed = ''}) async {
   // One pending item — only when requested (SEED=queue), so capture flows that
   // assert an exact pending count aren't polluted.
   if (seed.contains('queue')) {
-    await db.into(db.syncTasks).insert(
+    await db
+        .into(db.syncTasks)
+        .insert(
           SyncTasksCompanion.insert(
             id: 'seed-pending-1',
             type: 'attendance',

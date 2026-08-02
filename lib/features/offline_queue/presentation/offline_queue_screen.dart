@@ -51,7 +51,8 @@ class OfflineQueueScreen extends ConsumerWidget {
               loading: () => const _QueueSkeleton(),
               error: (_, __) => BmdState.error(
                 title: "Couldn't read the sync queue",
-                body: 'Your captures are still saved on this device. Reopening '
+                body:
+                    'Your captures are still saved on this device. Reopening '
                     'the app will not lose them.',
                 action: FilledButton(
                   onPressed: () => ref.invalidate(syncQueueProvider),
@@ -62,7 +63,8 @@ class OfflineQueueScreen extends ConsumerWidget {
               data: (items) => items.isEmpty
                   ? const BmdState.empty(
                       title: 'Everything is synced',
-                      body: 'Nothing is waiting to upload. Captures you take '
+                      body:
+                          'Nothing is waiting to upload. Captures you take '
                           'from here will appear in this queue until they '
                           'reach the server.',
                       icon: Icons.cloud_done_outlined,
@@ -123,7 +125,8 @@ class _ReassuranceFooter extends StatelessWidget {
       child: BmdBanner(
         tone: BannerTone.info,
         title: 'Every photo here is saved on this device',
-        body: 'They upload on their own when a network returns. Do not '
+        body:
+            'They upload on their own when a network returns. Do not '
             'photograph anyone again.',
       ),
     );
@@ -135,19 +138,21 @@ class _QueueTile extends ConsumerWidget {
   final SyncTaskView item;
 
   ({String label, StatusTone tone}) _status(String s) => switch (s) {
-        'pendingSync' => (label: 'Pending sync', tone: StatusTone.warning),
-        'matchProcessing' => (label: 'Match processing', tone: StatusTone.info),
-        'paused' => (label: 'Paused', tone: StatusTone.neutral),
-        'failed' => (label: 'Upload failed', tone: StatusTone.error),
-        _ => (label: s, tone: StatusTone.neutral),
-      };
+    'pendingSync' => (label: 'Pending sync', tone: StatusTone.warning),
+    'matchProcessing' => (label: 'Match processing', tone: StatusTone.info),
+    'paused' => (label: 'Paused', tone: StatusTone.neutral),
+    'failed' => (label: 'Upload failed', tone: StatusTone.error),
+    _ => (label: s, tone: StatusTone.neutral),
+  };
 
   /// The chain of custody for this record. Capture is always solid and green:
   /// the photo exists, whatever the upload is doing.
   List<LineageNode> _lineage() {
     const counted = LineageNode(label: 'Counted', state: LineageState.pending);
-    const crmPending =
-        LineageNode(label: 'CRM decision', state: LineageState.pending);
+    const crmPending = LineageNode(
+      label: 'CRM decision',
+      state: LineageState.pending,
+    );
     const captured = LineageNode(
       label: 'Captured',
       state: LineageState.done,
@@ -156,48 +161,48 @@ class _QueueTile extends ConsumerWidget {
 
     return switch (item.status) {
       'pendingSync' => [
-          captured,
-          LineageNode(
-            label: 'Waiting to upload',
-            state: LineageState.current,
-            meta: item.retryCount == 0
-                ? 'no retries yet'
-                : 'retry ${item.retryCount}',
-          ),
-          crmPending,
-          counted,
-        ],
+        captured,
+        LineageNode(
+          label: 'Waiting to upload',
+          state: LineageState.current,
+          meta: item.retryCount == 0
+              ? 'no retries yet'
+              : 'retry ${item.retryCount}',
+        ),
+        crmPending,
+        counted,
+      ],
       'matchProcessing' => [
-          captured,
-          const LineageNode(label: 'Uploaded', state: LineageState.done),
-          const LineageNode(
-            label: 'Matching',
-            state: LineageState.current,
-            meta: 'advisory only',
-          ),
-          crmPending,
-          counted,
-        ],
+        captured,
+        const LineageNode(label: 'Uploaded', state: LineageState.done),
+        const LineageNode(
+          label: 'Matching',
+          state: LineageState.current,
+          meta: 'advisory only',
+        ),
+        crmPending,
+        counted,
+      ],
       'failed' => [
-          captured,
-          LineageNode(
-            label: 'Upload failed',
-            state: LineageState.failed,
-            meta: '${item.retryCount} attempts · needs support, not a retake',
-          ),
-          crmPending,
-          counted,
-        ],
+        captured,
+        LineageNode(
+          label: 'Upload failed',
+          state: LineageState.failed,
+          meta: '${item.retryCount} attempts · needs support, not a retake',
+        ),
+        crmPending,
+        counted,
+      ],
       'paused' => [
-          captured,
-          const LineageNode(
-            label: 'Upload paused',
-            state: LineageState.blocked,
-            meta: 'resume to continue',
-          ),
-          crmPending,
-          counted,
-        ],
+        captured,
+        const LineageNode(
+          label: 'Upload paused',
+          state: LineageState.blocked,
+          meta: 'resume to continue',
+        ),
+        crmPending,
+        counted,
+      ],
       _ => [captured, crmPending, counted],
     };
   }
@@ -244,8 +249,9 @@ class _QueueTile extends ConsumerWidget {
                   children: [
                     Text(
                       'Carpenter ${item.carpenterId ?? '—'}',
-                      style: theme.textTheme.labelLarge
-                          ?.copyWith(color: theme.bmd.textPrimary),
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: theme.bmd.textPrimary,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(

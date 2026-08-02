@@ -19,8 +19,7 @@ class _FakeFileSelectorPlatform extends FileSelectorPlatform {
     List<XTypeGroup>? acceptedTypeGroups,
     String? initialDirectory,
     String? confirmButtonText,
-  }) async =>
-      fileToReturn;
+  }) async => fileToReturn;
 }
 
 /// Records what `uploadDryRun` was called with instead of hitting the
@@ -71,9 +70,9 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'Choose file'));
       await tester.pumpAndSettle();
 
-      final controller = container.read(
-        importControllerProvider(campaignId).notifier,
-      ) as _FakeImportController;
+      final controller =
+          container.read(importControllerProvider(campaignId).notifier)
+              as _FakeImportController;
 
       expect(controller.receivedFilename, 'participants.csv');
       expect(controller.receivedBytes, isNotNull);
@@ -111,9 +110,9 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'Choose file'));
       await tester.pumpAndSettle();
 
-      final controller = container.read(
-        importControllerProvider(campaignId).notifier,
-      ) as _FakeImportController;
+      final controller =
+          container.read(importControllerProvider(campaignId).notifier)
+              as _FakeImportController;
 
       expect(controller.receivedBytes, isNull);
       expect(controller.receivedFilename, isNull);

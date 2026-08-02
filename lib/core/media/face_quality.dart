@@ -18,12 +18,12 @@ class FaceQuality {
 
   /// Ordered problems to surface, most blocking first (empty == good capture).
   List<QualityIssue> get issues => [
-        if (faceCount == 0) QualityIssue.noFace,
-        if (faceCount > 1) QualityIssue.multipleFaces,
-        if (!isSharp) QualityIssue.blur,
-        if (!isWellLit) QualityIssue.poorLight,
-        if (!isUpright) QualityIssue.orientation,
-      ];
+    if (faceCount == 0) QualityIssue.noFace,
+    if (faceCount > 1) QualityIssue.multipleFaces,
+    if (!isSharp) QualityIssue.blur,
+    if (!isWellLit) QualityIssue.poorLight,
+    if (!isUpright) QualityIssue.orientation,
+  ];
 }
 
 enum QualityIssue { noFace, multipleFaces, blur, poorLight, orientation }
@@ -41,11 +41,11 @@ class PassthroughQualityChecker implements FaceQualityChecker {
 
   @override
   Future<FaceQuality> check(List<int> imageBytes) async => const FaceQuality(
-        faceCount: 1,
-        isSharp: true,
-        isWellLit: true,
-        isUpright: true,
-      );
+    faceCount: 1,
+    isSharp: true,
+    isWellLit: true,
+    isUpright: true,
+  );
 }
 
 /// E2E-only checker. When [failFirst] is set (QUALITY=fail), the first capture

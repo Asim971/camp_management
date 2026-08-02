@@ -7,13 +7,13 @@ import 'package:flutter_test/flutter_test.dart';
 /// pins the campaign lifecycle state machine (§9.1).
 void main() {
   Campaign campaignWith(CampaignStatus status) => Campaign(
-        id: 'c1',
-        name: 'Pilot',
-        type: 'seminar',
-        organizationId: 'org1',
-        status: status,
-        ownerId: 'u1',
-      );
+    id: 'c1',
+    name: 'Pilot',
+    type: 'seminar',
+    organizationId: 'org1',
+    status: status,
+    ownerId: 'u1',
+  );
 
   group('Campaign.canTransitionTo', () {
     test('draft can only be submitted for approval', () {
@@ -32,13 +32,15 @@ void main() {
 
     test('terminal states cannot transition', () {
       expect(
-        campaignWith(CampaignStatus.completed)
-            .canTransitionTo(CampaignStatus.active),
+        campaignWith(
+          CampaignStatus.completed,
+        ).canTransitionTo(CampaignStatus.active),
         isFalse,
       );
       expect(
-        campaignWith(CampaignStatus.cancelled)
-            .canTransitionTo(CampaignStatus.draft),
+        campaignWith(
+          CampaignStatus.cancelled,
+        ).canTransitionTo(CampaignStatus.draft),
         isFalse,
       );
     });

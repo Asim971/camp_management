@@ -29,10 +29,7 @@ class ImportController extends AutoDisposeFamilyNotifier<ImportState, String> {
         .read(importRepositoryProvider)
         .uploadDryRun(arg, bytes: bytes, filename: filename);
     state = state.copyWith(
-      job: res.fold(
-        AsyncData.new,
-        (f) => AsyncError(f, StackTrace.current),
-      ),
+      job: res.fold(AsyncData.new, (f) => AsyncError(f, StackTrace.current)),
     );
   }
 
@@ -43,10 +40,7 @@ class ImportController extends AutoDisposeFamilyNotifier<ImportState, String> {
     final res = await ref.read(importRepositoryProvider).commit(job.id);
     state = state.copyWith(
       committing: false,
-      job: res.fold(
-        AsyncData.new,
-        (f) => AsyncError(f, StackTrace.current),
-      ),
+      job: res.fold(AsyncData.new, (f) => AsyncError(f, StackTrace.current)),
     );
   }
 }

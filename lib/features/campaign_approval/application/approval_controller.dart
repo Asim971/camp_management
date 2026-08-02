@@ -37,21 +37,16 @@ class ApprovalController
       return ApprovalResult.error;
     }
 
-    final result = await ref.read(campaignRepositoryProvider).decide(
-          campaign.id,
-          decision: decision,
-          reason: reason,
-        );
-    return result.fold(
-      (_) => ApprovalResult.done,
-      (failure) {
-        if (failure.kind == FailureKind.conflict) {
-          ref.invalidateSelf();
-          return ApprovalResult.conflict;
-        }
-        return ApprovalResult.error;
-      },
-    );
+    final result = await ref
+        .read(campaignRepositoryProvider)
+        .decide(campaign.id, decision: decision, reason: reason);
+    return result.fold((_) => ApprovalResult.done, (failure) {
+      if (failure.kind == FailureKind.conflict) {
+        ref.invalidateSelf();
+        return ApprovalResult.conflict;
+      }
+      return ApprovalResult.error;
+    });
   }
 }
 

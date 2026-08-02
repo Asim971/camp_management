@@ -11,30 +11,25 @@ import '../application/wizard_controller.dart';
 class CampaignWizardScreen extends ConsumerWidget {
   const CampaignWizardScreen({super.key});
 
-  static const _steps = [
-    'Basics',
-    'Audience',
-    'Sessions',
-    'Targets',
-    'Review',
-  ];
+  static const _steps = ['Basics', 'Audience', 'Sessions', 'Targets', 'Review'];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Navigate away once the campaign has been submitted for approval.
     ref.listen(wizardControllerProvider.select((s) => s.submittedId), (_, id) {
       if (id != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Submitted for approval')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Submitted for approval')));
         context.go('/campaigns');
       }
     });
 
     final state = ref.watch(wizardControllerProvider);
     final c = ref.read(wizardControllerProvider.notifier);
-    final errors =
-        state.showErrors ? state.draft.validate(state.step) : const <String>[];
+    final errors = state.showErrors
+        ? state.draft.validate(state.step)
+        : const <String>[];
 
     return AdaptiveScaffold(
       title: 'Create campaign',
@@ -268,9 +263,8 @@ class _AudienceStep extends StatelessWidget {
                 label: Text(t),
                 selected: d.territoryIds.contains(t),
                 onSelected: (on) => c.edit(
-                  (x) => x.copyWith(
-                    territoryIds: _toggle(x.territoryIds, t, on),
-                  ),
+                  (x) =>
+                      x.copyWith(territoryIds: _toggle(x.territoryIds, t, on)),
                 ),
               ),
           ],
@@ -406,8 +400,9 @@ class _TargetsStep extends StatelessWidget {
         const SizedBox(height: 16),
         TextFormField(
           initialValue: d.budgetReference ?? '',
-          decoration:
-              const InputDecoration(labelText: 'Budget reference (optional)'),
+          decoration: const InputDecoration(
+            labelText: 'Budget reference (optional)',
+          ),
           onChanged: (v) => c.edit((x) => x.copyWith(budgetReference: v)),
         ),
         const SizedBox(height: 16),
@@ -463,13 +458,13 @@ class _ReviewStep extends StatelessWidget {
   }
 
   Widget _row(String k, String v) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 3),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(width: 120, child: Text(k)),
-            Expanded(child: Text(v.isEmpty ? '—' : v)),
-          ],
-        ),
-      );
+    padding: const EdgeInsets.symmetric(vertical: 3),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(width: 120, child: Text(k)),
+        Expanded(child: Text(v.isEmpty ? '—' : v)),
+      ],
+    ),
+  );
 }

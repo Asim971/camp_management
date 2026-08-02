@@ -25,5 +25,5 @@ class CarpenterSearchController
 
 final carpenterSearchProvider = AsyncNotifierProvider.autoDispose
     .family<CarpenterSearchController, List<RegisteredCarpenter>, String>(
-  CarpenterSearchController.new,
-);
+      CarpenterSearchController.new,
+    );

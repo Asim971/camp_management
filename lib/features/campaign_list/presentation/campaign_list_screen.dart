@@ -77,24 +77,20 @@ class CampaignListScreen extends ConsumerWidget {
   }
 
   StatusTone _toneFor(CampaignStatus s) => switch (s) {
-        CampaignStatus.approved ||
-        CampaignStatus.completed =>
-          StatusTone.success,
-        CampaignStatus.returned || CampaignStatus.paused => StatusTone.warning,
-        CampaignStatus.cancelled => StatusTone.error,
-        CampaignStatus.active ||
-        CampaignStatus.pendingApproval =>
-          StatusTone.info,
-        CampaignStatus.draft => StatusTone.neutral,
-      };
+    CampaignStatus.approved || CampaignStatus.completed => StatusTone.success,
+    CampaignStatus.returned || CampaignStatus.paused => StatusTone.warning,
+    CampaignStatus.cancelled => StatusTone.error,
+    CampaignStatus.active || CampaignStatus.pendingApproval => StatusTone.info,
+    CampaignStatus.draft => StatusTone.neutral,
+  };
 }
 
 class _EmptyState extends StatelessWidget {
   const _EmptyState();
   @override
   Widget build(BuildContext context) => const Center(
-        child: Text('No campaigns in scope. Create one to get started.'),
-      );
+    child: Text('No campaigns in scope. Create one to get started.'),
+  );
 }
 
 class _ErrorState extends StatelessWidget {
@@ -102,13 +98,13 @@ class _ErrorState extends StatelessWidget {
   final VoidCallback onRetry;
   @override
   Widget build(BuildContext context) => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text("Couldn't load campaigns."),
-            const SizedBox(height: 8),
-            OutlinedButton(onPressed: onRetry, child: const Text('Retry')),
-          ],
-        ),
-      );
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Text("Couldn't load campaigns."),
+        const SizedBox(height: 8),
+        OutlinedButton(onPressed: onRetry, child: const Text('Retry')),
+      ],
+    ),
+  );
 }

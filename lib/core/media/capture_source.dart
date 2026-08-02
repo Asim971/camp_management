@@ -27,8 +27,11 @@ class CameraCaptureSource implements CaptureSource {
       (c) => c.lensDirection == CameraLensDirection.front,
       orElse: () => cameras.first,
     );
-    final controller =
-        CameraController(front, ResolutionPreset.medium, enableAudio: false);
+    final controller = CameraController(
+      front,
+      ResolutionPreset.medium,
+      enableAudio: false,
+    );
     await controller.initialize();
     _controller = controller;
   }
@@ -57,14 +60,14 @@ class FakeCaptureSource implements CaptureSource {
 
   @override
   Widget buildPreview() => ColoredBox(
-        color: Colors.black26,
-        child: Center(
-          child: Semantics(
-            identifier: 'e2e_camera_preview',
-            child: const Text('E2E camera'),
-          ),
-        ),
-      );
+    color: Colors.black26,
+    child: Center(
+      child: Semantics(
+        identifier: 'e2e_camera_preview',
+        child: const Text('E2E camera'),
+      ),
+    ),
+  );
 
   @override
   Future<List<int>> takePicture() async {

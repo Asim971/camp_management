@@ -20,12 +20,14 @@ class CampaignDetailController
     extends AutoDisposeFamilyAsyncNotifier<CampaignDetailData, String> {
   @override
   Future<CampaignDetailData> build(String campaignId) async {
-    final campaignRes =
-        await ref.read(campaignRepositoryProvider).getById(campaignId);
+    final campaignRes = await ref
+        .read(campaignRepositoryProvider)
+        .getById(campaignId);
     final campaign = campaignRes.fold((c) => c, (f) => throw f);
 
-    final sessionsRes =
-        await ref.read(sessionRepositoryProvider).listForCampaign(campaignId);
+    final sessionsRes = await ref
+        .read(sessionRepositoryProvider)
+        .listForCampaign(campaignId);
     final sessions = sessionsRes.fold((s) => s, (_) => <CampaignSession>[]);
 
     return CampaignDetailData(campaign: campaign, sessions: sessions);
@@ -49,5 +51,5 @@ class CampaignDetailController
 
 final campaignDetailProvider = AsyncNotifierProvider.autoDispose
     .family<CampaignDetailController, CampaignDetailData, String>(
-  CampaignDetailController.new,
-);
+      CampaignDetailController.new,
+    );

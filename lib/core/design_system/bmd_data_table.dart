@@ -79,8 +79,9 @@ class _BmdDataTableState<T> extends State<BmdDataTable<T>> {
   }
 
   void _toggleAll(bool? on) {
-    final next =
-        (on ?? false) ? widget.rows.map(widget.rowId).toSet() : <String>{};
+    final next = (on ?? false)
+        ? widget.rows.map(widget.rowId).toSet()
+        : <String>{};
     widget.onSelectionChanged?.call(next);
   }
 
@@ -93,7 +94,8 @@ class _BmdDataTableState<T> extends State<BmdDataTable<T>> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final allSelected = widget.rows.isNotEmpty &&
+    final allSelected =
+        widget.rows.isNotEmpty &&
         widget.selectedIds.length == widget.rows.length;
 
     return DecoratedBox(
@@ -191,8 +193,9 @@ class _BmdDataTableState<T> extends State<BmdDataTable<T>> {
                 SizedBox(
                   width: col.width,
                   child: Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: BmdSpace.s3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: BmdSpace.s3,
+                    ),
                     child: Align(
                       alignment: col.numeric
                           ? Alignment.centerRight

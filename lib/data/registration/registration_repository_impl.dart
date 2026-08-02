@@ -27,7 +27,9 @@ class RegistrationRepositoryImpl implements RegistrationRepository {
         '/sessions/$sessionId/registrations',
       );
       final items = res.data!['items'] as List;
-      await _db.into(_db.cachedReferences).insertOnConflictUpdate(
+      await _db
+          .into(_db.cachedReferences)
+          .insertOnConflictUpdate(
             CachedReferencesCompanion.insert(
               key: _cacheKey(sessionId),
               valueJson: jsonEncode(items),
@@ -45,14 +47,15 @@ class RegistrationRepositoryImpl implements RegistrationRepository {
     String sessionId,
     String query,
   ) async {
-    final row = await (_db.select(_db.cachedReferences)
-          ..where((t) => t.key.equals(_cacheKey(sessionId))))
-        .getSingleOrNull();
+    final row = await (_db.select(
+      _db.cachedReferences,
+    )..where((t) => t.key.equals(_cacheKey(sessionId)))).getSingleOrNull();
     if (row == null) return const [];
 
     final q = query.trim().toLowerCase();
-    final all = (jsonDecode(row.valueJson) as List)
-        .map((e) => _fromJson(e as Map<String, dynamic>));
+    final all = (jsonDecode(row.valueJson) as List).map(
+      (e) => _fromJson(e as Map<String, dynamic>),
+    );
 
     return all.where((c) {
       if (q.isEmpty) return true;
@@ -113,19 +116,19 @@ class RegistrationRepositoryImpl implements RegistrationRepository {
   }
 
   RegisteredCarpenter _fromJson(Map<String, dynamic> j) => RegisteredCarpenter(
-        id: j['id'] as String,
-        name: j['name'] as String,
-        displayId: j['displayId'] as String,
-        phoneSuffix: j['phoneSuffix'] as String,
-        territory: j['territory'] as String,
-        dealerContext: j['dealerContext'] as String?,
-        thumbnailUrl: j['thumbnailUrl'] as String?,
-        eligible: (j['eligible'] as bool?) ?? true,
-        attendanceState: _attendance(j['attendanceState'] as String?),
-      );
+    id: j['id'] as String,
+    name: j['name'] as String,
+    displayId: j['displayId'] as String,
+    phoneSuffix: j['phoneSuffix'] as String,
+    territory: j['territory'] as String,
+    dealerContext: j['dealerContext'] as String?,
+    thumbnailUrl: j['thumbnailUrl'] as String?,
+    eligible: (j['eligible'] as bool?) ?? true,
+    attendanceState: _attendance(j['attendanceState'] as String?),
+  );
 
   AttendanceStatus _attendance(String? s) => AttendanceStatus.values.firstWhere(
-        (a) => a.name == s,
-        orElse: () => AttendanceStatus.notCaptured,
-      );
+    (a) => a.name == s,
+    orElse: () => AttendanceStatus.notCaptured,
+  );
 }

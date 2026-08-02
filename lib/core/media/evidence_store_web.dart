@@ -15,7 +15,9 @@ class WebEvidenceStore implements EvidenceStore {
       throw UnsupportedError('Attendance capture is mobile-only');
 
   @override
-  Future<void> deleteIfExists(String path) async {/* no-op on web */}
+  Future<void> deleteIfExists(String path) async {
+    /* no-op on web */
+  }
 }
 
 EvidenceStore makeEvidenceStore() => const WebEvidenceStore();

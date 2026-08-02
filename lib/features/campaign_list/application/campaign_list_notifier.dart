@@ -34,5 +34,5 @@ class CampaignListNotifier extends AsyncNotifier<Paged<Campaign>> {
 
 final campaignListProvider =
     AsyncNotifierProvider<CampaignListNotifier, Paged<Campaign>>(
-  CampaignListNotifier.new,
-);
+      CampaignListNotifier.new,
+    );

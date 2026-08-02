@@ -30,8 +30,7 @@ class StatusChip extends StatelessWidget {
       CampaignStatus.returned || CampaignStatus.paused => StatusTone.warning,
       CampaignStatus.cancelled => StatusTone.error,
       CampaignStatus.active ||
-      CampaignStatus.pendingApproval =>
-        StatusTone.info,
+      CampaignStatus.pendingApproval => StatusTone.info,
       CampaignStatus.draft => StatusTone.neutral,
     };
     final icon = switch (s) {
@@ -53,11 +52,9 @@ class StatusChip extends StatelessWidget {
       RegistrationStatus.registered => StatusTone.info,
       RegistrationStatus.pendingProfileSync => StatusTone.warning,
       RegistrationStatus.ineligible ||
-      RegistrationStatus.cancelled =>
-        StatusTone.error,
+      RegistrationStatus.cancelled => StatusTone.error,
       RegistrationStatus.invited ||
-      RegistrationStatus.waitlisted =>
-        StatusTone.neutral,
+      RegistrationStatus.waitlisted => StatusTone.neutral,
     };
     final icon = switch (s) {
       RegistrationStatus.invited => Icons.mail_outline,
@@ -75,8 +72,7 @@ class StatusChip extends StatelessWidget {
       AttendanceStatus.rejected => StatusTone.error,
       AttendanceStatus.returned => StatusTone.warning,
       AttendanceStatus.crmReview ||
-      AttendanceStatus.matchProcessing =>
-        StatusTone.info,
+      AttendanceStatus.matchProcessing => StatusTone.info,
       AttendanceStatus.pendingSync => StatusTone.warning,
       AttendanceStatus.notCaptured => StatusTone.neutral,
     };
@@ -114,12 +110,10 @@ class StatusChip extends StatelessWidget {
   factory StatusChip.integrity(IntegrityFlag f, {required String label}) {
     final tone = switch (f) {
       IntegrityFlag.suspectedSpoof ||
-      IntegrityFlag.duplicate =>
-        StatusTone.error,
+      IntegrityFlag.duplicate => StatusTone.error,
       IntegrityFlag.noReference ||
       IntegrityFlag.poorQuality ||
-      IntegrityFlag.geofenceException =>
-        StatusTone.warning,
+      IntegrityFlag.geofenceException => StatusTone.warning,
       IntegrityFlag.manualOverride => StatusTone.info,
     };
     final icon = switch (f) {
@@ -141,20 +135,20 @@ class StatusChip extends StatelessWidget {
   final bool large;
 
   static IconData _iconFor(StatusTone t) => switch (t) {
-        StatusTone.success => Icons.check_circle_outline,
-        StatusTone.warning => Icons.schedule,
-        StatusTone.error => Icons.error_outline,
-        StatusTone.info => Icons.autorenew,
-        StatusTone.neutral => Icons.circle_outlined,
-      };
+    StatusTone.success => Icons.check_circle_outline,
+    StatusTone.warning => Icons.schedule,
+    StatusTone.error => Icons.error_outline,
+    StatusTone.info => Icons.autorenew,
+    StatusTone.neutral => Icons.circle_outlined,
+  };
 
   ({Color fg, Color bg}) _colors(BmdTokens bmd) => switch (tone) {
-        StatusTone.success => (fg: bmd.success, bg: bmd.tintSuccess),
-        StatusTone.warning => (fg: bmd.warning, bg: bmd.tintWarning),
-        StatusTone.error => (fg: bmd.error, bg: bmd.tintError),
-        StatusTone.info => (fg: bmd.info, bg: bmd.tintInfo),
-        StatusTone.neutral => (fg: bmd.textSecondary, bg: bmd.tintNeutral),
-      };
+    StatusTone.success => (fg: bmd.success, bg: bmd.tintSuccess),
+    StatusTone.warning => (fg: bmd.warning, bg: bmd.tintWarning),
+    StatusTone.error => (fg: bmd.error, bg: bmd.tintError),
+    StatusTone.info => (fg: bmd.info, bg: bmd.tintInfo),
+    StatusTone.neutral => (fg: bmd.textSecondary, bg: bmd.tintNeutral),
+  };
 
   @override
   Widget build(BuildContext context) {

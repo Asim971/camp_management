@@ -15,14 +15,14 @@ Session buildE2ESession(String role) {
   final permissions = switch (appRole) {
     AppRole.fieldUser => {Permission.attendanceCapture},
     AppRole.crmVerifier => {
-        Permission.verificationDecide,
-        Permission.sensitiveMediaView,
-      },
+      Permission.verificationDecide,
+      Permission.sensitiveMediaView,
+    },
     AppRole.campaignCreator => {
-        Permission.campaignCreate,
-        Permission.bulkImport,
-        Permission.export,
-      },
+      Permission.campaignCreate,
+      Permission.bulkImport,
+      Permission.export,
+    },
     AppRole.admin => Permission.values.toSet(),
     _ => <Permission>{},
   };

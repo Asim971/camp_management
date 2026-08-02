@@ -38,11 +38,7 @@ enum LineageState {
 
 @immutable
 class LineageNode {
-  const LineageNode({
-    required this.label,
-    required this.state,
-    this.meta,
-  });
+  const LineageNode({required this.label, required this.state, this.meta});
 
   /// The step's own name. Always rendered — this is the greyscale channel.
   final String label;
@@ -64,7 +60,7 @@ class LineageRail extends StatelessWidget {
   /// either way: nodes may be merged where a surface does not need the full
   /// chain, but the order is never rearranged and a link is never skipped.
   const LineageRail.vertical({required List<LineageNode> nodes, Key? key})
-      : this(nodes: nodes, axis: Axis.vertical, key: key);
+    : this(nodes: nodes, axis: Axis.vertical, key: key);
 
   final List<LineageNode> nodes;
   final Axis axis;
@@ -165,7 +161,12 @@ class _Node extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Row(children: [marker, Expanded(child: connector)]),
+                Row(
+                  children: [
+                    marker,
+                    Expanded(child: connector),
+                  ],
+                ),
                 const SizedBox(height: BmdSpace.s1),
                 Padding(
                   padding: const EdgeInsets.only(right: BmdSpace.s2),
@@ -202,12 +203,12 @@ class _Node extends StatelessWidget {
   }
 
   static Color _colorFor(LineageState state, BmdTokens bmd) => switch (state) {
-        LineageState.done => bmd.success,
-        LineageState.current => bmd.info,
-        LineageState.pending => bmd.borderStrong,
-        LineageState.failed => bmd.error,
-        LineageState.blocked => bmd.warning,
-      };
+    LineageState.done => bmd.success,
+    LineageState.current => bmd.info,
+    LineageState.pending => bmd.borderStrong,
+    LineageState.failed => bmd.error,
+    LineageState.blocked => bmd.warning,
+  };
 }
 
 class _Marker extends StatelessWidget {
@@ -228,8 +229,9 @@ class _Marker extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: isPending ? surface : color,
-        border:
-            isPending ? Border.all(color: bmd.borderStrong, width: 2) : null,
+        border: isPending
+            ? Border.all(color: bmd.borderStrong, width: 2)
+            : null,
         boxShadow: [
           BoxShadow(color: surface, spreadRadius: 2),
           if (state == LineageState.current)

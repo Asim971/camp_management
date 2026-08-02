@@ -60,8 +60,9 @@ void main() {
       expect(BmdTokens.light.seriesAt(0), BmdColor.primary600);
     });
 
-    testWidgets('the theme carries the tokens for the active brightness',
-        (tester) async {
+    testWidgets('the theme carries the tokens for the active brightness', (
+      tester,
+    ) async {
       late BmdTokens seen;
       await _pump(
         tester,
@@ -78,8 +79,9 @@ void main() {
   });
 
   group('StatusChip', () {
-    testWidgets('every status family renders an icon, never colour alone',
-        (tester) async {
+    testWidgets('every status family renders an icon, never colour alone', (
+      tester,
+    ) async {
       final chips = <StatusChip>[
         for (final s in CampaignStatus.values)
           StatusChip.campaign(s, label: s.name),
@@ -104,8 +106,9 @@ void main() {
       }
     });
 
-    testWidgets('green is reserved for outcomes, not for registering',
-        (tester) async {
+    testWidgets('green is reserved for outcomes, not for registering', (
+      tester,
+    ) async {
       // Registering is an intention. Spending green on it makes a dashboard of
       // registrations read as a dashboard of success.
       final registered = StatusChip.registration(
@@ -159,8 +162,9 @@ void main() {
       }
     });
 
-    testWidgets('a pending step and a failed step are announced differently',
-        (tester) async {
+    testWidgets('a pending step and a failed step are announced differently', (
+      tester,
+    ) async {
       // The whole component exists to keep these apart: capture success is not
       // upload success, and "hasn't happened" is not "went wrong".
       await _pump(
@@ -211,8 +215,9 @@ void main() {
       }
     });
 
-    testWidgets('the vertical variant keeps the same semantics',
-        (tester) async {
+    testWidgets('the vertical variant keeps the same semantics', (
+      tester,
+    ) async {
       await _pump(
         tester,
         const SizedBox(width: 320, child: LineageRail.vertical(nodes: chain)),
@@ -224,8 +229,9 @@ void main() {
   });
 
   group('KpiCard', () {
-    testWidgets('carries denominator, source and freshness on the card',
-        (tester) async {
+    testWidgets('carries denominator, source and freshness on the card', (
+      tester,
+    ) async {
       await _pump(
         tester,
         const SizedBox(
@@ -250,8 +256,9 @@ void main() {
   });
 
   group('Feedback', () {
-    testWidgets('the offline bar reports upload state, never recapture',
-        (tester) async {
+    testWidgets('the offline bar reports upload state, never recapture', (
+      tester,
+    ) async {
       await _pump(
         tester,
         const SizedBox(
@@ -266,15 +273,17 @@ void main() {
       expect(semantics.toLowerCase(), isNot(contains('recapture')));
     });
 
-    testWidgets('a denied state names the rule and carries a reference',
-        (tester) async {
+    testWidgets('a denied state names the rule and carries a reference', (
+      tester,
+    ) async {
       await _pump(
         tester,
         const SizedBox(
           width: 480,
           child: BmdState.denied(
             title: "You don't have access to campaign approval",
-            body: 'Approval is limited to the Campaign Approver role, and an '
+            body:
+                'Approval is limited to the Campaign Approver role, and an '
                 'approver cannot approve a campaign they created.',
             reference: 'Reference SEC-403',
           ),

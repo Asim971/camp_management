@@ -15,23 +15,23 @@ class DevLauncherScreen extends StatelessWidget {
     (
       id: 'dev_open_search',
       label: 'Carpenter search',
-      route: '/search/SESSION_E2E'
+      route: '/search/SESSION_E2E',
     ),
     (
       id: 'dev_open_capture',
       label: 'Capture',
-      route: '/capture/SESSION_E2E/CARP_E2E'
+      route: '/capture/SESSION_E2E/CARP_E2E',
     ),
     (id: 'dev_open_queue', label: 'Sync queue', route: '/queue'),
     (
       id: 'dev_open_crm_case',
       label: 'CRM case',
-      route: '/verification/cases/CASE_E2E'
+      route: '/verification/cases/CASE_E2E',
     ),
     (
       id: 'dev_open_crm_case_conflict',
       label: 'CRM case (conflict)',
-      route: '/verification/cases/CASE_CONFLICT'
+      route: '/verification/cases/CASE_CONFLICT',
     ),
   ];
 

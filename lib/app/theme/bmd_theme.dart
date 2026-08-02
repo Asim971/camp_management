@@ -16,39 +16,43 @@ ThemeData bmdTheme({Brightness brightness = Brightness.light}) {
   final isDark = brightness == Brightness.dark;
   final bmd = isDark ? BmdTokens.dark : BmdTokens.light;
 
-  final scheme = ColorScheme.fromSeed(
-    seedColor: BmdColor.primary600,
-    brightness: brightness,
-  ).copyWith(
-    primary: BmdColor.primary600,
-    onPrimary: Colors.white,
-    primaryContainer: isDark ? BmdColor.darkNavy50 : BmdColor.red50,
-    onPrimaryContainer: BmdColor.primary600,
-    secondary: BmdColor.ink700,
-    error: bmd.error,
-    onError: isDark ? BmdColor.darkSurfaceBase : Colors.white,
-    errorContainer: bmd.tintError,
-    onErrorContainer: bmd.error,
-    surface: isDark ? BmdColor.darkSurfaceElevated : BmdColor.surfaceElevated,
-    onSurface: bmd.textPrimary,
-    onSurfaceVariant: bmd.textSecondary,
-    surfaceContainerLowest:
-        isDark ? BmdColor.darkSurfaceBase : BmdColor.surfaceBase,
-    surfaceContainerLow: isDark ? BmdColor.darkNavy50 : BmdColor.navy50,
-    surfaceContainerHighest: bmd.surfaceSunken,
-    outline: isDark ? BmdColor.darkBorderDefault : BmdColor.borderDefault,
-    outlineVariant: bmd.borderStrong,
-  );
+  final scheme =
+      ColorScheme.fromSeed(
+        seedColor: BmdColor.primary600,
+        brightness: brightness,
+      ).copyWith(
+        primary: BmdColor.primary600,
+        onPrimary: Colors.white,
+        primaryContainer: isDark ? BmdColor.darkNavy50 : BmdColor.red50,
+        onPrimaryContainer: BmdColor.primary600,
+        secondary: BmdColor.ink700,
+        error: bmd.error,
+        onError: isDark ? BmdColor.darkSurfaceBase : Colors.white,
+        errorContainer: bmd.tintError,
+        onErrorContainer: bmd.error,
+        surface: isDark
+            ? BmdColor.darkSurfaceElevated
+            : BmdColor.surfaceElevated,
+        onSurface: bmd.textPrimary,
+        onSurfaceVariant: bmd.textSecondary,
+        surfaceContainerLowest: isDark
+            ? BmdColor.darkSurfaceBase
+            : BmdColor.surfaceBase,
+        surfaceContainerLow: isDark ? BmdColor.darkNavy50 : BmdColor.navy50,
+        surfaceContainerHighest: bmd.surfaceSunken,
+        outline: isDark ? BmdColor.darkBorderDefault : BmdColor.borderDefault,
+        outlineVariant: bmd.borderStrong,
+      );
 
   const fontFamily = 'Inter';
   const fallback = ['NotoSansBengali'];
 
   final base = ThemeData(brightness: brightness).textTheme.apply(
-        fontFamily: fontFamily,
-        fontFamilyFallback: fallback,
-        bodyColor: bmd.textPrimary,
-        displayColor: bmd.textHeading,
-      );
+    fontFamily: fontFamily,
+    fontFamilyFallback: fallback,
+    bodyColor: bmd.textPrimary,
+    displayColor: bmd.textHeading,
+  );
 
   // Guideline §4.3. Desktop values; the mobile step-down is applied by the
   // responsive layer rather than by swapping the whole theme.
@@ -226,8 +230,9 @@ ThemeData bmdTheme({Brightness brightness = Brightness.light}) {
       selectedLabelTextStyle: textTheme.labelLarge?.copyWith(
         color: BmdColor.primary600,
       ),
-      unselectedLabelTextStyle:
-          textTheme.labelLarge?.copyWith(color: bmd.textSecondary),
+      unselectedLabelTextStyle: textTheme.labelLarge?.copyWith(
+        color: bmd.textSecondary,
+      ),
     ),
     navigationBarTheme: NavigationBarThemeData(
       height: 64,

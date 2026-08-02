@@ -133,24 +133,21 @@ class _OverviewTab extends StatelessWidget {
   }
 
   Widget _kpi(BuildContext context, String label, int value) => SizedBox(
-        width: 160,
-        child: Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: Theme.of(context).textTheme.labelMedium),
-                const SizedBox(height: 6),
-                Text(
-                  '$value',
-                  style: Theme.of(context).textTheme.headlineMedium,
-                ),
-              ],
-            ),
-          ),
+    width: 160,
+    child: Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: Theme.of(context).textTheme.labelMedium),
+            const SizedBox(height: 6),
+            Text('$value', style: Theme.of(context).textTheme.headlineMedium),
+          ],
         ),
-      );
+      ),
+    ),
+  );
 }
 
 class _SessionsTab extends ConsumerWidget {

@@ -17,15 +17,15 @@ enum CampaignStatus {
   cancelled;
 
   String get wireValue => switch (this) {
-        draft => 'DRAFT',
-        pendingApproval => 'PENDING_APPROVAL',
-        returned => 'RETURNED',
-        approved => 'APPROVED',
-        active => 'ACTIVE',
-        paused => 'PAUSED',
-        completed => 'COMPLETED',
-        cancelled => 'CANCELLED',
-      };
+    draft => 'DRAFT',
+    pendingApproval => 'PENDING_APPROVAL',
+    returned => 'RETURNED',
+    approved => 'APPROVED',
+    active => 'ACTIVE',
+    paused => 'PAUSED',
+    completed => 'COMPLETED',
+    cancelled => 'CANCELLED',
+  };
 
   String get l10nKey => 'campaignStatus_$name';
 }

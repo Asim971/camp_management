@@ -36,17 +36,16 @@ class WizardState {
     bool? showErrors,
     String? submittedId,
     String? error,
-  }) =>
-      WizardState(
-        step: step ?? this.step,
-        draft: draft ?? this.draft,
-        savedId: savedId ?? this.savedId,
-        saving: saving ?? this.saving,
-        submitting: submitting ?? this.submitting,
-        showErrors: showErrors ?? this.showErrors,
-        submittedId: submittedId ?? this.submittedId,
-        error: error,
-      );
+  }) => WizardState(
+    step: step ?? this.step,
+    draft: draft ?? this.draft,
+    savedId: savedId ?? this.savedId,
+    saving: saving ?? this.saving,
+    submitting: submitting ?? this.submitting,
+    showErrors: showErrors ?? this.showErrors,
+    submittedId: submittedId ?? this.submittedId,
+    error: error,
+  );
 }
 
 /// Drives the 5-step Create Campaign wizard (W-03). Holds the draft, validates
@@ -62,23 +61,25 @@ class WizardController extends AutoDisposeNotifier<WizardState> {
       state = state.copyWith(draft: mutate(state.draft), showErrors: false);
 
   void addSession() => edit(
-        (d) => d.copyWith(
-          sessions: [...d.sessions, CampaignSessionDraft(id: _uuid.v4())],
-        ),
-      );
+    (d) => d.copyWith(
+      sessions: [
+        ...d.sessions,
+        CampaignSessionDraft(id: _uuid.v4()),
+      ],
+    ),
+  );
 
   void removeSession(String id) => edit(
-        (d) => d.copyWith(
-          sessions: d.sessions.where((s) => s.id != id).toList(),
-        ),
-      );
+    (d) => d.copyWith(sessions: d.sessions.where((s) => s.id != id).toList()),
+  );
 
   void updateSession(CampaignSessionDraft session) => edit(
-        (d) => d.copyWith(
-          sessions:
-              d.sessions.map((s) => s.id == session.id ? session : s).toList(),
-        ),
-      );
+    (d) => d.copyWith(
+      sessions: d.sessions
+          .map((s) => s.id == session.id ? session : s)
+          .toList(),
+    ),
+  );
 
   void back() {
     if (state.step > 0) state = state.copyWith(step: state.step - 1);
@@ -142,5 +143,5 @@ class WizardController extends AutoDisposeNotifier<WizardState> {
 
 final wizardControllerProvider =
     AutoDisposeNotifierProvider<WizardController, WizardState>(
-  WizardController.new,
-);
+      WizardController.new,
+    );

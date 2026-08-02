@@ -103,11 +103,11 @@ class _EvidenceZone extends StatelessWidget {
   }
 
   String _refLabel(ReferenceSource s) => switch (s) {
-        ReferenceSource.verifiedProfilePhoto => 'Verified profile photo',
-        ReferenceSource.authorizedNidPhoto => 'Authorized NID photo',
-        ReferenceSource.approvedBaselinePhoto => 'Approved baseline photo',
-        ReferenceSource.unavailable => 'No reference available',
-      };
+    ReferenceSource.verifiedProfilePhoto => 'Verified profile photo',
+    ReferenceSource.authorizedNidPhoto => 'Authorized NID photo',
+    ReferenceSource.approvedBaselinePhoto => 'Approved baseline photo',
+    ReferenceSource.unavailable => 'No reference available',
+  };
 }
 
 class _EvidenceImage extends StatelessWidget {
@@ -202,25 +202,25 @@ class _ContextZone extends StatelessWidget {
   }
 
   Widget _kv(BuildContext context, String k, String v) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 3),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 96,
-              child: Text(k, style: Theme.of(context).textTheme.labelMedium),
-            ),
-            Expanded(child: Text(v)),
-          ],
+    padding: const EdgeInsets.symmetric(vertical: 3),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 96,
+          child: Text(k, style: Theme.of(context).textTheme.labelMedium),
         ),
-      );
+        Expanded(child: Text(v)),
+      ],
+    ),
+  );
 
   String _band(MatchBand b) => switch (b) {
-        MatchBand.high => 'High',
-        MatchBand.medium => 'Medium',
-        MatchBand.low => 'Low',
-        MatchBand.noReference => 'No reference',
-      };
+    MatchBand.high => 'High',
+    MatchBand.medium => 'Medium',
+    MatchBand.low => 'Low',
+    MatchBand.noReference => 'No reference',
+  };
 }
 
 class _DecisionPanel extends ConsumerStatefulWidget {
@@ -255,8 +255,9 @@ class _DecisionPanelState extends ConsumerState<_DecisionPanel> {
     final messenger = ScaffoldMessenger.of(context);
     switch (result) {
       case DecisionResult.submitted:
-        messenger
-            .showSnackBar(const SnackBar(content: Text('Decision recorded')));
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Decision recorded')),
+        );
         unawaited(Navigator.of(context).maybePop());
       case DecisionResult.conflict:
         messenger.showSnackBar(
@@ -338,9 +339,9 @@ class _DecisionPanelState extends ConsumerState<_DecisionPanel> {
   }
 
   String _label(VerificationOutcome o) => switch (o) {
-        VerificationOutcome.approved => 'Approve',
-        VerificationOutcome.rejected => 'Reject',
-        VerificationOutcome.returnForRecapture => 'Return for recapture',
-        VerificationOutcome.escalated => 'Escalate',
-      };
+    VerificationOutcome.approved => 'Approve',
+    VerificationOutcome.rejected => 'Reject',
+    VerificationOutcome.returnForRecapture => 'Return for recapture',
+    VerificationOutcome.escalated => 'Escalate',
+  };
 }

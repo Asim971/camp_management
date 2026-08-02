@@ -40,17 +40,13 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: '/login',
-        builder: (_, __) => const PlaceholderScreen(
-          title: 'Sign in',
-          screenId: 'AUTH',
-        ),
+        builder: (_, __) =>
+            const PlaceholderScreen(title: 'Sign in', screenId: 'AUTH'),
       ),
       GoRoute(
         path: '/forbidden',
-        builder: (_, __) => const PlaceholderScreen(
-          title: 'Access denied',
-          screenId: 'RBAC',
-        ),
+        builder: (_, __) =>
+            const PlaceholderScreen(title: 'Access denied', screenId: 'RBAC'),
       ),
       // Test-only deep-link launcher (only reachable in E2E builds).
       GoRoute(path: '/dev', builder: (_, __) => const DevLauncherScreen()),
@@ -73,9 +69,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: ':id',
-            builder: (_, state) => CampaignDetailScreen(
-              campaignId: state.pathParameters['id']!,
-            ),
+            builder: (_, state) =>
+                CampaignDetailScreen(campaignId: state.pathParameters['id']!),
             routes: [
               GoRoute(
                 path: 'approve',
@@ -91,9 +86,8 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
               GoRoute(
                 path: 'import',
-                builder: (_, state) => BulkImportScreen(
-                  campaignId: state.pathParameters['id']!,
-                ),
+                builder: (_, state) =>
+                    BulkImportScreen(campaignId: state.pathParameters['id']!),
               ),
             ],
           ),
@@ -128,10 +122,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           carpenterId: state.pathParameters['carpenterId']!,
         ),
       ),
-      GoRoute(
-        path: '/queue',
-        builder: (_, __) => const OfflineQueueScreen(),
-      ),
+      GoRoute(path: '/queue', builder: (_, __) => const OfflineQueueScreen()),
       GoRoute(
         path: '/analytics',
         builder: (_, __) => const PlaceholderScreen(

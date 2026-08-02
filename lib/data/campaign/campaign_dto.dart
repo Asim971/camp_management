@@ -44,20 +44,20 @@ class CampaignDto {
   final int verifiedAttendance;
 
   Campaign toDomain() => Campaign(
-        id: id,
-        name: name,
-        type: type,
-        organizationId: organizationId,
-        status: _statusFromWire(status),
-        ownerId: ownerId,
-        startAt: startAt,
-        endAt: endAt,
-        venue: venue,
-        objective: objective,
-        territoryIds: territoryIds,
-        targetAudience: targetAudience,
-        verifiedAttendance: verifiedAttendance,
-      );
+    id: id,
+    name: name,
+    type: type,
+    organizationId: organizationId,
+    status: _statusFromWire(status),
+    ownerId: ownerId,
+    startAt: startAt,
+    endAt: endAt,
+    venue: venue,
+    objective: objective,
+    territoryIds: territoryIds,
+    targetAudience: targetAudience,
+    verifiedAttendance: verifiedAttendance,
+  );
 
   static CampaignStatus _statusFromWire(String wire) =>
       CampaignStatus.values.firstWhere(

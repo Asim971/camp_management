@@ -57,23 +57,23 @@ class BmdButton extends StatelessWidget {
       height: height,
       child: switch (variant) {
         BmdButtonVariant.primary => FilledButton(
-            onPressed: onTap,
-            child: child,
-          ),
+          onPressed: onTap,
+          child: child,
+        ),
         BmdButtonVariant.tonal => FilledButton.tonal(
-            onPressed: onTap,
-            child: child,
-          ),
+          onPressed: onTap,
+          child: child,
+        ),
         BmdButtonVariant.outlined => OutlinedButton(
-            onPressed: onTap,
-            child: child,
-          ),
+          onPressed: onTap,
+          child: child,
+        ),
         BmdButtonVariant.text => TextButton(onPressed: onTap, child: child),
         BmdButtonVariant.danger => FilledButton(
-            onPressed: onTap,
-            style: FilledButton.styleFrom(backgroundColor: BmdColor.error),
-            child: child,
-          ),
+          onPressed: onTap,
+          style: FilledButton.styleFrom(backgroundColor: BmdColor.error),
+          child: child,
+        ),
       },
     );
   }

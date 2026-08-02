@@ -21,13 +21,12 @@ class RegistrationState {
     Map<String, RegisteredCarpenter>? basket,
     bool? registering,
     String? message,
-  }) =>
-      RegistrationState(
-        results: results ?? this.results,
-        basket: basket ?? this.basket,
-        registering: registering ?? this.registering,
-        message: message,
-      );
+  }) => RegistrationState(
+    results: results ?? this.results,
+    basket: basket ?? this.basket,
+    registering: registering ?? this.registering,
+    message: message,
+  );
 }
 
 /// Registration Workspace (W-06). Resolves participants to Sales Eco master
@@ -45,8 +44,9 @@ class RegistrationController
       return;
     }
     state = state.copyWith(results: const AsyncLoading());
-    final res =
-        await ref.read(registrationRepositoryProvider).searchMaster(query);
+    final res = await ref
+        .read(registrationRepositoryProvider)
+        .searchMaster(query);
     state = state.copyWith(
       results: res.fold(
         AsyncData.new,
@@ -98,5 +98,5 @@ class RegistrationController
 
 final registrationControllerProvider = NotifierProvider.autoDispose
     .family<RegistrationController, RegistrationState, String>(
-  RegistrationController.new,
-);
+      RegistrationController.new,
+    );

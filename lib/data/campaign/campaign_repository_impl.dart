@@ -77,31 +77,32 @@ class CampaignRepositoryImpl implements CampaignRepository {
   }
 
   Map<String, dynamic> _draftToJson(CampaignDraft d) => {
-        'name': d.name,
-        'type': d.type,
-        'objective': d.objective,
-        'audienceTypes': d.audienceTypes,
-        'territoryIds': d.territoryIds,
-        'target': d.target,
-        'budgetReference': d.budgetReference,
-        'approverId': d.approverId,
-        'geofenceEnabled': d.geofenceEnabled,
-        'sessions': [
-          for (final s in d.sessions)
-            {
-              'venue': s.venue,
-              'capacity': s.capacity,
-              'startAt': s.startAt?.toIso8601String(),
-              'endAt': s.endAt?.toIso8601String(),
-            },
-        ],
-      };
+    'name': d.name,
+    'type': d.type,
+    'objective': d.objective,
+    'audienceTypes': d.audienceTypes,
+    'territoryIds': d.territoryIds,
+    'target': d.target,
+    'budgetReference': d.budgetReference,
+    'approverId': d.approverId,
+    'geofenceEnabled': d.geofenceEnabled,
+    'sessions': [
+      for (final s in d.sessions)
+        {
+          'venue': s.venue,
+          'capacity': s.capacity,
+          'startAt': s.startAt?.toIso8601String(),
+          'endAt': s.endAt?.toIso8601String(),
+        },
+    ],
+  };
 
   @override
   Future<Result<Campaign>> submitForApproval(String id) async {
     try {
-      final res =
-          await _dio.post<Map<String, dynamic>>('/campaigns/$id/submit');
+      final res = await _dio.post<Map<String, dynamic>>(
+        '/campaigns/$id/submit',
+      );
       return Ok(CampaignDto.fromJson(res.data!).toDomain());
     } catch (e) {
       return Err(mapDioError(e));

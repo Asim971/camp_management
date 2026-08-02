@@ -32,7 +32,7 @@ enum CaptureStep {
   positioning,
   liveCamera,
   qualityResult,
-  captured
+  captured,
 }
 
 class CaptureState {
@@ -59,15 +59,14 @@ class CaptureState {
     bool? submitting,
     String? error,
     String? attendanceId,
-  }) =>
-      CaptureState(
-        step: step ?? this.step,
-        noticeLanguage: noticeLanguage ?? this.noticeLanguage,
-        quality: quality ?? this.quality,
-        submitting: submitting ?? this.submitting,
-        error: error,
-        attendanceId: attendanceId ?? this.attendanceId,
-      );
+  }) => CaptureState(
+    step: step ?? this.step,
+    noticeLanguage: noticeLanguage ?? this.noticeLanguage,
+    quality: quality ?? this.quality,
+    submitting: submitting ?? this.submitting,
+    error: error,
+    attendanceId: attendanceId ?? this.attendanceId,
+  );
 }
 
 /// Drives the capture flow and the submit pipeline. Submit is the valuable,
@@ -86,8 +85,10 @@ class CaptureController
   CaptureState build(CaptureArgs arg) => const CaptureState();
 
   void acceptNotice(String language) {
-    state =
-        state.copyWith(step: CaptureStep.positioning, noticeLanguage: language);
+    state = state.copyWith(
+      step: CaptureStep.positioning,
+      noticeLanguage: language,
+    );
     // TODO(T-0.5.2): persist consent notice version + language + timestamp.
   }
 
@@ -119,8 +120,9 @@ class CaptureController
 
       // 1) encrypt at rest, 2) persist to private evidence dir.
       final cipher = await ref.read(mediaEncryptorProvider).encrypt(bytes);
-      final path =
-          await ref.read(evidenceStoreProvider).write('$id.enc', cipher);
+      final path = await ref
+          .read(evidenceStoreProvider)
+          .write('$id.enc', cipher);
 
       final qualityJson = jsonEncode({
         'faceCount': quality.faceCount,
@@ -131,7 +133,9 @@ class CaptureController
 
       // 3) durable draft (survives restart).
       final db = ref.read(appDatabaseProvider);
-      await db.into(db.attendanceDrafts).insert(
+      await db
+          .into(db.attendanceDrafts)
+          .insert(
             AttendanceDraftsCompanion.insert(
               id: id,
               sessionId: arg.sessionId,
@@ -144,7 +148,9 @@ class CaptureController
           );
 
       // 4) enqueue for sync (idempotent).
-      await ref.read(syncEngineProvider).enqueue(
+      await ref
+          .read(syncEngineProvider)
+          .enqueue(
             SyncTaskSpec(
               idempotencyKey: id,
               type: 'attendance',
@@ -173,5 +179,5 @@ class CaptureController
 
 final captureControllerProvider = NotifierProvider.autoDispose
     .family<CaptureController, CaptureState, CaptureArgs>(
-  CaptureController.new,
-);
+      CaptureController.new,
+    );

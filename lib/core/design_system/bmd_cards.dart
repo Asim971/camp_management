@@ -116,8 +116,9 @@ class KpiCard extends StatelessWidget {
                   const SizedBox(width: 2),
                   Text(
                     delta!,
-                    style: theme.textTheme.labelMedium
-                        ?.copyWith(color: _deltaColor(bmd)),
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: _deltaColor(bmd),
+                    ),
                   ),
                   if (deltaContext != null) ...[
                     const SizedBox(width: BmdSpace.s2),
@@ -144,10 +145,10 @@ class KpiCard extends StatelessWidget {
   }
 
   Color _deltaColor(BmdTokens bmd) => switch (deltaDirection) {
-        KpiDelta.up => bmd.success,
-        KpiDelta.down => bmd.error,
-        KpiDelta.flat => bmd.textFaint,
-      };
+    KpiDelta.up => bmd.success,
+    KpiDelta.down => bmd.error,
+    KpiDelta.flat => bmd.textFaint,
+  };
 }
 
 /// Direction of a KPI comparison. Note this is the direction of *movement*,

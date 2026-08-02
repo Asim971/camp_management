@@ -108,9 +108,9 @@ class _Hint extends StatelessWidget {
   const _Hint();
   @override
   Widget build(BuildContext context) => const Padding(
-        padding: EdgeInsets.all(24),
-        child: Center(child: Text('No import yet. Choose a file to dry-run.')),
-      );
+    padding: EdgeInsets.all(24),
+    child: Center(child: Text('No import yet. Choose a file to dry-run.')),
+  );
 }
 
 class _Results extends StatelessWidget {
@@ -124,25 +124,22 @@ class _Results extends StatelessWidget {
   final Future<void> Function() onCommit;
 
   ({String label, StatusTone tone}) _outcome(ImportRowOutcome o) => switch (o) {
-        ImportRowOutcome.valid => (label: 'Valid', tone: StatusTone.success),
-        ImportRowOutcome.warning => (
-            label: 'Warning',
-            tone: StatusTone.warning
-          ),
-        ImportRowOutcome.duplicate => (
-            label: 'Duplicate',
-            tone: StatusTone.warning
-          ),
-        ImportRowOutcome.needsProfile => (
-            label: 'Needs profile',
-            tone: StatusTone.info
-          ),
-        ImportRowOutcome.unauthorized => (
-            label: 'Unauthorized',
-            tone: StatusTone.error
-          ),
-        ImportRowOutcome.error => (label: 'Error', tone: StatusTone.error),
-      };
+    ImportRowOutcome.valid => (label: 'Valid', tone: StatusTone.success),
+    ImportRowOutcome.warning => (label: 'Warning', tone: StatusTone.warning),
+    ImportRowOutcome.duplicate => (
+      label: 'Duplicate',
+      tone: StatusTone.warning,
+    ),
+    ImportRowOutcome.needsProfile => (
+      label: 'Needs profile',
+      tone: StatusTone.info,
+    ),
+    ImportRowOutcome.unauthorized => (
+      label: 'Unauthorized',
+      tone: StatusTone.error,
+    ),
+    ImportRowOutcome.error => (label: 'Error', tone: StatusTone.error),
+  };
 
   @override
   Widget build(BuildContext context) {

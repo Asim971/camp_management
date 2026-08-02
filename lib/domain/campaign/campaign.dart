@@ -28,19 +28,19 @@ class Campaign with _$Campaign {
   /// Lifecycle guard — the client mirrors the server's allowed transitions
   /// (§9.1) so illegal actions are disabled, not merely rejected on submit.
   bool canTransitionTo(CampaignStatus next) => switch (status) {
-        CampaignStatus.draft => next == CampaignStatus.pendingApproval,
-        CampaignStatus.pendingApproval => {
-            CampaignStatus.approved,
-            CampaignStatus.returned,
-            CampaignStatus.cancelled,
-          }.contains(next),
-        CampaignStatus.returned => next == CampaignStatus.pendingApproval,
-        CampaignStatus.approved => next == CampaignStatus.active,
-        CampaignStatus.active => {
-            CampaignStatus.paused,
-            CampaignStatus.completed,
-          }.contains(next),
-        CampaignStatus.paused => next == CampaignStatus.active,
-        CampaignStatus.completed || CampaignStatus.cancelled => false,
-      };
+    CampaignStatus.draft => next == CampaignStatus.pendingApproval,
+    CampaignStatus.pendingApproval => {
+      CampaignStatus.approved,
+      CampaignStatus.returned,
+      CampaignStatus.cancelled,
+    }.contains(next),
+    CampaignStatus.returned => next == CampaignStatus.pendingApproval,
+    CampaignStatus.approved => next == CampaignStatus.active,
+    CampaignStatus.active => {
+      CampaignStatus.paused,
+      CampaignStatus.completed,
+    }.contains(next),
+    CampaignStatus.paused => next == CampaignStatus.active,
+    CampaignStatus.completed || CampaignStatus.cancelled => false,
+  };
 }

@@ -14,10 +14,8 @@ enum Flavor { dev, stg, prod }
 
 /// Maps a `FLAVOR` dart-define to its enum. An unrecognized name falls back to
 /// [Flavor.dev] — failing closed toward the dev API rather than production.
-Flavor parseFlavor(String name) => Flavor.values.firstWhere(
-      (f) => f.name == name,
-      orElse: () => Flavor.dev,
-    );
+Flavor parseFlavor(String name) =>
+    Flavor.values.firstWhere((f) => f.name == name, orElse: () => Flavor.dev);
 
 class AppConfig {
   const AppConfig({

@@ -54,8 +54,8 @@ class _FakeVerificationRepository implements VerificationRepository {
 /// `Semantics(identifier: …)` convention Maestro flows key off, per
 /// TESTING_MAESTRO.md §3.1).
 Finder _byIdentifier(String id) => find.byWidgetPredicate(
-      (w) => w is Semantics && w.properties.identifier == id,
-    );
+  (w) => w is Semantics && w.properties.identifier == id,
+);
 
 void main() {
   testWidgets(
@@ -76,19 +76,18 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            verificationRepositoryProvider.overrideWithValue(repo),
-          ],
-          child: const MaterialApp(
-            home: CrmCaseScreen(attendanceId: 'ATT-1'),
-          ),
+          overrides: [verificationRepositoryProvider.overrideWithValue(repo)],
+          child: const MaterialApp(home: CrmCaseScreen(attendanceId: 'ATT-1')),
         ),
       );
       await tester.pumpAndSettle();
 
       final submitFinder = find.widgetWithText(FilledButton, 'Submit decision');
-      expect(tester.widget<FilledButton>(submitFinder).onPressed, isNull,
-          reason: 'no outcome and no reason yet');
+      expect(
+        tester.widget<FilledButton>(submitFinder).onPressed,
+        isNull,
+        reason: 'no outcome and no reason yet',
+      );
 
       // Tap the "Approve" radio tile via its stable Semantics identifier —
       // the same id Maestro flows use (crm_outcome_approved).
@@ -97,14 +96,20 @@ void main() {
       await tester.tap(approveFinder);
       await tester.pump();
 
-      expect(tester.widget<FilledButton>(submitFinder).onPressed, isNull,
-          reason: 'outcome chosen but reason is still empty');
+      expect(
+        tester.widget<FilledButton>(submitFinder).onPressed,
+        isNull,
+        reason: 'outcome chosen but reason is still empty',
+      );
 
       await tester.enterText(find.byType(TextField), 'Matches profile photo.');
       await tester.pump();
 
-      expect(tester.widget<FilledButton>(submitFinder).onPressed, isNotNull,
-          reason: 'both an outcome and a non-empty reason are now set');
+      expect(
+        tester.widget<FilledButton>(submitFinder).onPressed,
+        isNotNull,
+        reason: 'both an outcome and a non-empty reason are now set',
+      );
 
       await tester.tap(submitFinder);
       await tester.pumpAndSettle();
@@ -127,12 +132,8 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            verificationRepositoryProvider.overrideWithValue(repo),
-          ],
-          child: const MaterialApp(
-            home: CrmCaseScreen(attendanceId: 'ATT-2'),
-          ),
+          overrides: [verificationRepositoryProvider.overrideWithValue(repo)],
+          child: const MaterialApp(home: CrmCaseScreen(attendanceId: 'ATT-2')),
         ),
       );
       await tester.pumpAndSettle();

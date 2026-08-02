@@ -60,8 +60,9 @@ void main() {
     await engine.enqueue(spec('t2'));
     await engine.drain();
 
-    final row = await (db.select(db.syncTasks)..where((t) => t.id.equals('t2')))
-        .getSingle();
+    final row = await (db.select(
+      db.syncTasks,
+    )..where((t) => t.id.equals('t2'))).getSingle();
     expect(row.status, 'matchProcessing');
   });
 
@@ -75,8 +76,9 @@ void main() {
     await engine.enqueue(spec('t3'));
     await engine.drain();
 
-    final row = await (db.select(db.syncTasks)..where((t) => t.id.equals('t3')))
-        .getSingle();
+    final row = await (db.select(
+      db.syncTasks,
+    )..where((t) => t.id.equals('t3'))).getSingle();
     expect(row.status, 'pendingSync'); // never lost, never processed
   });
 
@@ -90,8 +92,9 @@ void main() {
     await engine.enqueue(spec('t4'));
     await engine.drain();
 
-    final row = await (db.select(db.syncTasks)..where((t) => t.id.equals('t4')))
-        .getSingle();
+    final row = await (db.select(
+      db.syncTasks,
+    )..where((t) => t.id.equals('t4'))).getSingle();
     expect(row.status, 'pendingSync');
     expect(row.retryCount, 1);
     expect(row.lastError, isNotNull);
@@ -107,8 +110,9 @@ void main() {
     await engine.enqueue(spec('t5'));
     await engine.drain();
 
-    final row = await (db.select(db.syncTasks)..where((t) => t.id.equals('t5')))
-        .getSingle();
+    final row = await (db.select(
+      db.syncTasks,
+    )..where((t) => t.id.equals('t5'))).getSingle();
     expect(row.status, 'failed');
   });
 
@@ -122,8 +126,9 @@ void main() {
     await engine.enqueue(spec('t6'));
     await engine.drain();
 
-    final row = await (db.select(db.syncTasks)..where((t) => t.id.equals('t6')))
-        .getSingle();
+    final row = await (db.select(
+      db.syncTasks,
+    )..where((t) => t.id.equals('t6'))).getSingle();
     expect(row.status, 'matchProcessing');
   });
 
@@ -145,8 +150,9 @@ void main() {
 
     // Immediately drain again: not yet due (needs ~2s), so no second attempt.
     await engine.drain();
-    var row = await (db.select(db.syncTasks)..where((t) => t.id.equals('t7')))
-        .getSingle();
+    var row = await (db.select(
+      db.syncTasks,
+    )..where((t) => t.id.equals('t7'))).getSingle();
     expect(
       row.retryCount,
       1,
@@ -156,8 +162,9 @@ void main() {
     // Advance the clock past the backoff window and drain again → succeeds.
     clock = clock.add(const Duration(seconds: 10));
     await engine.drain();
-    row = await (db.select(db.syncTasks)..where((t) => t.id.equals('t7')))
-        .getSingle();
+    row = await (db.select(
+      db.syncTasks,
+    )..where((t) => t.id.equals('t7'))).getSingle();
     expect(row.status, 'matchProcessing');
   });
 }

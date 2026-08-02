@@ -44,26 +44,26 @@ class ImportRepositoryImpl implements ImportRepository {
   }
 
   ImportJob _fromJson(Map<String, dynamic> j) => ImportJob(
-        id: j['id'] as String,
-        campaignId: j['campaignId'] as String,
-        status: ImportStatus.values.firstWhere(
-          (s) => s.name == j['status'],
-          orElse: () => ImportStatus.dryRun,
-        ),
-        rows: [
-          for (final r in (j['rows'] as List? ?? []))
-            _rowFromJson(r as Map<String, dynamic>),
-        ],
-      );
+    id: j['id'] as String,
+    campaignId: j['campaignId'] as String,
+    status: ImportStatus.values.firstWhere(
+      (s) => s.name == j['status'],
+      orElse: () => ImportStatus.dryRun,
+    ),
+    rows: [
+      for (final r in (j['rows'] as List? ?? []))
+        _rowFromJson(r as Map<String, dynamic>),
+    ],
+  );
 
   ImportRow _rowFromJson(Map<String, dynamic> j) => ImportRow(
-        rowId: j['rowId'] as String,
-        name: (j['name'] as String?) ?? '',
-        outcome: ImportRowOutcome.values.firstWhere(
-          (o) => o.name == j['outcome'],
-          orElse: () => ImportRowOutcome.error,
-        ),
-        message: j['message'] as String?,
-        linkedCarpenterId: j['linkedCarpenterId'] as String?,
-      );
+    rowId: j['rowId'] as String,
+    name: (j['name'] as String?) ?? '',
+    outcome: ImportRowOutcome.values.firstWhere(
+      (o) => o.name == j['outcome'],
+      orElse: () => ImportRowOutcome.error,
+    ),
+    message: j['message'] as String?,
+    linkedCarpenterId: j['linkedCarpenterId'] as String?,
+  );
 }

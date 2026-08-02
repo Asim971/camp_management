@@ -54,35 +54,38 @@ class _CaptureFlowScreenState extends ConsumerState<CaptureFlowScreen> {
     final controller = ref.read(captureControllerProvider(_args).notifier);
 
     return Scaffold(
-      appBar:
-          AppBar(toolbarHeight: 56, title: const Text('Capture attendance')),
+      appBar: AppBar(
+        toolbarHeight: 56,
+        title: const Text('Capture attendance'),
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: switch (state.step) {
             CaptureStep.purposeNotice => _PurposeNotice(
-                onAccept: (lang) => controller.acceptNotice(lang),
-              ),
+              onAccept: (lang) => controller.acceptNotice(lang),
+            ),
             CaptureStep.positioning => _Positioning(
-                onReady: () {
-                  controller.beginCamera();
-                  _cameraInit ??= _initCamera();
-                },
-              ),
+              onReady: () {
+                controller.beginCamera();
+                _cameraInit ??= _initCamera();
+              },
+            ),
             CaptureStep.liveCamera => _LiveCamera(
-                init: _cameraInit,
-                source: _source,
-                onCapture: _capture,
-              ),
+              init: _cameraInit,
+              source: _source,
+              onCapture: _capture,
+            ),
             CaptureStep.qualityResult => _QualityResult(
-                quality: state.quality!,
-                submitting: state.submitting,
-                error: state.error,
-                onSubmit: controller.submit,
-                onRecapture: controller.recapture,
-              ),
-            CaptureStep.captured =>
-              _Captured(attendanceId: state.attendanceId!),
+              quality: state.quality!,
+              submitting: state.submitting,
+              error: state.error,
+              onSubmit: controller.submit,
+              onRecapture: controller.recapture,
+            ),
+            CaptureStep.captured => _Captured(
+              attendanceId: state.attendanceId!,
+            ),
           },
         ),
       ),
@@ -134,7 +137,9 @@ class _PurposeNoticeState extends State<_PurposeNotice> {
         BmdButton(
           label: 'Use manual route',
           variant: BmdButtonVariant.text,
-          onPressed: () {/* policy-gated manual path */},
+          onPressed: () {
+            /* policy-gated manual path */
+          },
         ),
       ],
     );
@@ -228,12 +233,12 @@ class _QualityResult extends StatelessWidget {
   final VoidCallback onRecapture;
 
   String _label(QualityIssue i) => switch (i) {
-        QualityIssue.noFace => 'No face detected',
-        QualityIssue.multipleFaces => 'More than one face detected',
-        QualityIssue.blur => 'Image is blurry',
-        QualityIssue.poorLight => 'Lighting is too low',
-        QualityIssue.orientation => 'Straighten the device',
-      };
+    QualityIssue.noFace => 'No face detected',
+    QualityIssue.multipleFaces => 'More than one face detected',
+    QualityIssue.blur => 'Image is blurry',
+    QualityIssue.poorLight => 'Lighting is too low',
+    QualityIssue.orientation => 'Straighten the device',
+  };
 
   @override
   Widget build(BuildContext context) {

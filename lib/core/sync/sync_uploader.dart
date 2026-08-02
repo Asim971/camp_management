@@ -18,7 +18,7 @@ abstract interface class SyncUploader {
 /// the media-service contract.
 class DioSyncUploader implements SyncUploader {
   DioSyncUploader(this._dio, {EvidenceStore? evidenceStore})
-      : _evidence = evidenceStore ?? createEvidenceStore();
+    : _evidence = evidenceStore ?? createEvidenceStore();
 
   final Dio _dio;
   final EvidenceStore _evidence;

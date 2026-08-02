@@ -117,8 +117,9 @@ class _ResultTile extends StatelessWidget {
       child: ListTile(
         enabled: !disabled,
         leading: CircleAvatar(
-          backgroundImage:
-              c.thumbnailUrl != null ? NetworkImage(c.thumbnailUrl!) : null,
+          backgroundImage: c.thumbnailUrl != null
+              ? NetworkImage(c.thumbnailUrl!)
+              : null,
           child: c.thumbnailUrl == null ? const Icon(Icons.person) : null,
         ),
         title: Row(
@@ -174,8 +175,9 @@ class _ConfirmSheetState extends State<_ConfirmSheet> {
           Center(
             child: CircleAvatar(
               radius: 40,
-              backgroundImage:
-                  c.thumbnailUrl != null ? NetworkImage(c.thumbnailUrl!) : null,
+              backgroundImage: c.thumbnailUrl != null
+                  ? NetworkImage(c.thumbnailUrl!)
+                  : null,
               child: c.thumbnailUrl == null
                   ? const Icon(Icons.person, size: 40)
                   : null,
@@ -209,8 +211,9 @@ class _ConfirmSheetState extends State<_ConfirmSheet> {
             child: Semantics(
               identifier: 'confirm_continue',
               child: FilledButton(
-                onPressed:
-                    _acknowledged ? () => Navigator.pop(context, true) : null,
+                onPressed: _acknowledged
+                    ? () => Navigator.pop(context, true)
+                    : null,
                 child: const Text('Continue to capture'),
               ),
             ),
