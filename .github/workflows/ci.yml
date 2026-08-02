@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A force-push should cancel the superseded run rather than queue behind it.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: 3.44.8
+
+jobs:
+  gate:
+    name: gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      # Flutter's Android build needs a JDK; the runner's default is not guaranteed.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      # --enforce-lockfile: fail on lockfile drift instead of silently resolving
+      # something newer. This is why pubspec.lock is committed.
+      - name: Resolve dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Check formatting
+        run: dart format --output=none --set-exit-if-changed .
+
+      # Generated code is gitignored, so it must be produced before analyze.
+      - name: Generate localizations
+        run: flutter gen-l10n
+
+      - name: Run code generation
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Analyze
+        run: flutter analyze --fatal-infos
+
+      - name: Test
+        run: flutter test
+
+      - name: Build web
+        run: flutter build web --release
+
+      - name: Build APK (dev flavor)
+        run: flutter build apk --flavor dev --debug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-build
+          path: build/web
+          retention-days: 7
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk-dev-debug
+          path: build/app/outputs/flutter-apk/app-dev-debug.apk
+          retention-days: 7
