@@ -1,7 +1,7 @@
 # Shared setup: clear state and launch the app in E2E mode as a Field User.
 # Relies on --dart-define=E2E=true auto-authenticating a fake session and
 # exposing the /dev deep-link launcher (see TESTING_MAESTRO.md §3.2).
-appId: com.acsl.campaign
+appId: ${APP_ID}
 ---
 - clearState
 - launchApp:

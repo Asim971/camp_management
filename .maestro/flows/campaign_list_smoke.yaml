@@ -1,7 +1,7 @@
 # W-02 smoke (web — Maestro web support is experimental; see plan §9.4).
 # Verifies the three designed data states render. Prereq: mock /campaigns with
 # toggleable fixtures (empty | error | rows) via the mock server.
-appId: com.acsl.campaign
+appId: ${APP_ID}
 tags:
   - web
   - smoke

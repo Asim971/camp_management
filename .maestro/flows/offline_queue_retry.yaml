@@ -1,10 +1,11 @@
 # M-04 recovery: a pending item can be retried, and Discard is guarded by a
 # confirmation dialog (destructive + controlled — §8.11).
 # Prereq: E2E seeds one pending sync item into the queue.
-appId: com.acsl.campaign
+appId: ${APP_ID}
 tags:
   - field
   - offline
+  - android
 ---
 # Launch inline with SEED=queue so exactly one pending item exists.
 - clearState

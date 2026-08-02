@@ -1,10 +1,11 @@
 # P-05 Offline attendance: capture while offline -> queued -> survives restart
 # -> syncs on reconnect. The highest-value field flow. Android only (airplane).
-appId: com.acsl.campaign
+appId: ${APP_ID}
 tags:
   - field
   - critical
   - offline
+  - android
 ---
 - runFlow: ../subflows/launch_as_field_user.yaml
 

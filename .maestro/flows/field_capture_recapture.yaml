@@ -1,9 +1,10 @@
 # P-04 quality path: a failing capture surfaces "Review required" with issues
 # and only offers Recapture (Submit hidden); a second, passing capture submits.
 # Prereq: E2E launched with QUALITY=fail, cycling to pass on the 2nd capture.
-appId: com.acsl.campaign
+appId: ${APP_ID}
 tags:
   - field
+  - android
 ---
 - clearState
 - launchApp:

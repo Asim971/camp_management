@@ -1,8 +1,9 @@
 # M-02: the mandatory second identity cue gates progress to capture, and
 # short queries return nothing. Guards against capturing the wrong carpenter.
-appId: com.acsl.campaign
+appId: ${APP_ID}
 tags:
   - field
+  - android
 ---
 - runFlow: ../subflows/launch_as_field_user.yaml
 - tapOn:

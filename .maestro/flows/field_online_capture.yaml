@@ -1,9 +1,11 @@
 # P-04 Online attendance: search -> confirm -> capture -> quality pass -> queued.
 # Prereqs: E2E build (fake camera + passing quality), seeded roster, mock upload.
-appId: com.acsl.campaign
+appId: ${APP_ID}
 tags:
   - field
   - critical
+  - android
+  - pr-smoke
 ---
 - runFlow: ../subflows/launch_as_field_user.yaml
 

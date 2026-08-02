@@ -1,5 +1,5 @@
 # Shared setup: clear state and launch in E2E mode as a CRM Verifier.
-appId: com.acsl.campaign
+appId: ${APP_ID}
 ---
 - clearState
 - launchApp:

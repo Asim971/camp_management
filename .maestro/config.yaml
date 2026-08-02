@@ -1,5 +1,5 @@
 # Maestro workspace config. See TESTING_MAESTRO.md for the full plan.
-appId: com.acsl.campaign
+appId: ${APP_ID}
 ---
 # Execution order is by file; flows are independent and each clears state.
 flows:

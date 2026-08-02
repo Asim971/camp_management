@@ -173,6 +173,21 @@ flutter build apk --debug \
   --dart-define=API_BASE_URL=http://10.0.2.2:8080
 ```
 
+**App ID and tags:** since the Android flavors (Task 2) gave `dev` its own application ID
+(`com.acsl.campaign.dev`), flows no longer carry a literal app ID — every `appId:` field
+reads `appId: ${APP_ID}` and must be supplied at run time:
+
+```bash
+maestro test --env APP_ID=com.acsl.campaign.dev --include-tags pr-smoke .maestro/
+```
+
+Selection uses two tags: `pr-smoke` marks the 2 flows (`field_online_capture`,
+`crm_case_decision`) run on every PR, and `android` marks the 7 flows run nightly on the
+emulator. `campaign_list_smoke` carries neither — it's a web flow that needs the mock
+server restarted with different `MOCK_CAMPAIGNS` values, so it can't run in the Android
+job. Whether Maestro actually interpolates `${APP_ID}` inside `appId` is not yet verified
+here; the CI E2E job (Task 8) is what confirms it.
+
 ---
 
 ## 8. Maintenance

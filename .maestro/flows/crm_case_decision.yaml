@@ -1,10 +1,12 @@
 # C-02: machine recommendation is shown as a separate advisory block, the
 # reason is mandatory, and a valid decision is recorded (part of P-06).
 # Prereq: mock /verification/cases/CASE_E2E + fixture images.
-appId: com.acsl.campaign
+appId: ${APP_ID}
 tags:
   - crm
   - critical
+  - android
+  - pr-smoke
 ---
 - runFlow: ../subflows/launch_as_crm.yaml
 - tapOn:
