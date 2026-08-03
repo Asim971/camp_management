@@ -3,6 +3,8 @@ import 'dart:math';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -88,7 +90,12 @@ final evidenceStoreProvider = Provider<EvidenceStore>(
 );
 
 final secureStorageProvider = Provider<FlutterSecureStorage>(
-  (ref) => const FlutterSecureStorage(),
+  // v10 defaults resetOnError to true, which silently deletes a value it cannot
+  // decrypt. For the evidence key that would orphan every queued capture with
+  // no signal, so opt out and handle the failure explicitly in
+  // loadOrCreateEvidenceKey.
+  (ref) =>
+      const FlutterSecureStorage(aOptions: AndroidOptions(resetOnError: false)),
 );
 
 /// Storage key for the evidence-encryption secret. Do not rename: renaming
@@ -102,7 +109,20 @@ const _evidenceKeyName = 'evidence_aes_key_v1';
 /// Extracted from [mediaEncryptorProvider] so the failure paths are testable:
 /// what happens here decides whether queued evidence stays decryptable.
 Future<List<int>> loadOrCreateEvidenceKey(FlutterSecureStorage storage) async {
-  final existing = await storage.read(key: _evidenceKeyName);
+  String? existing;
+  try {
+    existing = await storage.read(key: _evidenceKeyName);
+  } on PlatformException catch (error) {
+    // A key exists but cannot be decrypted - after the v10 cipher change, an OS
+    // keystore reset, or a restore onto a different device. Regenerating keeps
+    // capture working, but every piece of evidence encrypted under the previous
+    // key becomes undecryptable, so this must never look like a normal first
+    // run. A durable audit event belongs here once T-0.3.6 wires an AuditSink.
+    debugPrint(
+      'Evidence key could not be read ($error). Generating a new one; evidence '
+      'encrypted under the previous key can no longer be decrypted.',
+    );
+  }
   if (existing != null) return base64Decode(existing);
   final rng = Random.secure();
   final bytes = List<int>.generate(32, (_) => rng.nextInt(256));
