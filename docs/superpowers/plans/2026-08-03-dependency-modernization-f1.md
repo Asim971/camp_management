@@ -1,0 +1,553 @@
+# Dependency Modernization Piece F1 Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Bring `connectivity_plus` and `flutter_secure_storage` to their current majors — the only two native plugins not blocked by the built-in-Kotlin migration — and make the evidence-encryption-key failure path visible and tested while doing it.
+
+**Architecture:** Three commits. The `connectivity_plus` bump first, because it is expected to be constraint-only. Then a pure refactor that extracts the evidence-key loader into a named, testable function with one test proving existing keys are reused — still on `flutter_secure_storage` 9, so that test becomes a regression harness. Then the bump to 10, which changes the at-rest cipher, with a second test proving an unreadable key regenerates rather than crashing.
+
+> **Deliberate refinement of the spec.** Spec §3 describes **two** commits, bundling the `flutter_secure_storage` bump with its code change. This plan splits that into Tasks 2 and 3 — three commits total — for one concrete reason: the spec's second test ("an unreadable key regenerates") exercises a `PlatformException` catch that does not exist until the bump, so it *cannot* pass in a refactor-only commit. Splitting lets each test be written test-first against code that can actually satisfy it, and makes Task 2's test a regression harness the cipher change must survive rather than a test written alongside the thing it validates. Nothing else about the spec's scope changes.
+
+**Tech Stack:** Flutter 3.44.8 · Dart 3.12.2 · AGP 9.0.1 · Gradle wrapper 9.1.0 · Kotlin 2.3.20 · `mocktail` (existing dev dependency) · GitHub Actions `gate` job
+
+**Spec:** [`../specs/2026-08-03-dependency-modernization-f1-connectivity-secure-storage-design.md`](../specs/2026-08-03-dependency-modernization-f1-connectivity-secure-storage-design.md)
+
+## Global Constraints
+
+Every task's requirements implicitly include this section.
+
+- **Permitted files for this whole plan:** `pubspec.yaml`, `pubspec.lock`, `lib/app/di/providers.dart`, and one new test file `test/app/evidence_key_test.dart`. Any other modified file is a defect. Spec §8 done-criterion 6.
+- **`android/` must be untouched.** Spec §8 done-criterion 7.
+- **`pubspec.lock` is committed in the same commit as the pubspec change that caused it.** `flutter pub get --enforce-lockfile` must hold at *every* commit, not only at the end. Spec §8 done-criterion 2.
+- **No `minSdk`, `compileSdk`, `ndkVersion`, manifest or Gradle changes.** `android/app/build.gradle.kts` pins `minSdk = 24`, `compileSdk = 36`, `targetSdk = 36`, `ndkVersion = "28.2.13676358"`. If a bump demands a change, **STOP and report** — this is the rule that correctly halted `workmanager` 0.10.x.
+- **The APK build is mandatory in both bump tasks** (Tasks 1 and 3). Both packages are native plugins; the APK build is the only step that can catch a native regression.
+- `flutter analyze --fatal-infos` must exit 0 with `No issues found!`.
+- `dart format --output=none --set-exit-if-changed .` must exit 0.
+- **Test counts: 37 at start → 38 after Task 2 → 39 after Task 3.**
+- Recovery behaviour must not change: an unreadable evidence key is still regenerated so capture keeps working. Only its visibility changes. Spec decision F1-3.
+- **Do not rename the storage key.** It stays `evidence_aes_key_v1`. Spec decision F1-4.
+- **Do not route the signal to an audit event.** `lib/core/audit/audit.dart` is an interface only, has no suitable `AuditAction`, and is not wired into DI; that is task T-0.3.6. Spec decision F1-5.
+- Never `git add -A` or `git add .`. `.claude/` is intentionally untracked and must stay so.
+- Do not push. Task 4 handles that and requires fresh user authorization.
+- Branch is `feat/campaign-management-flutter-scaffold`; HEAD at plan time is `76f51df`. Do not create branches or PRs.
+- **Environment note:** this machine's Norton antivirus intercepts TLS and can break Gradle artifact downloads with `SSLHandshakeException`/PKIX errors when a bump pulls previously-uncached Gradle plugin artifacts. The authorized workaround — Norton's root certificate imported into a **scratch copy** of the JDK's `cacerts`, with `JAVA_OPTS`/`GRADLE_OPTS` pointed at it for the build shell only — is documented in `.superpowers/sdd/2026-08-03-dependency-modernization-a-unused-bumps/task-2-report.md`. Never modify the real JDK/JBR install, Android Studio, Norton configuration, Windows trust stores, or `android/`. Scratch files live in a temp directory and are cleaned up afterwards.
+
+---
+
+## File Structure
+
+| Path | Responsibility | Tasks |
+|---|---|---|
+| `pubspec.yaml` | Two constraint lines: `flutter_secure_storage` (line 36), `connectivity_plus` (line 44) | 1, 3 |
+| `pubspec.lock` | Resolved versions. Regenerated by `flutter pub get`, never hand-edited. | 1, 3 |
+| `lib/app/di/providers.dart` | Composition root. Holds every usage of both packages: the storage provider (line 90), the evidence-key loader (lines 94-107), and the two connectivity call sites (lines 154-155, 165-166). | 2, 3 |
+| `test/app/evidence_key_test.dart` | **New.** Tests for `loadOrCreateEvidenceKey`, alongside the existing `test/app/flavor_parsing_test.dart`. | 2, 3 |
+
+**Read-only reference (do not modify):** `android/app/build.gradle.kts` (SDK pins to verify, never edit), `lib/core/media/media_encryptor.dart` (defines `MediaEncryptor` / `AesGcmEncryptor`).
+
+---
+
+## Task 1: Bump `connectivity_plus` to ^7.3.1
+
+Expected to be constraint-only. The changelog documents no API breaks for 7.0.0; its breaking changes are build-tool floors (AGP ≥8.12.1, Gradle wrapper ≥8.13, Kotlin ≥2.2.0) which this project already exceeds at AGP 9.0.1, wrapper 9.1.0 and Kotlin 2.3.20.
+
+**Files:**
+- Modify: `pubspec.yaml:44`
+- Modify: `pubspec.lock` (regenerated)
+
+**Interfaces:**
+- Consumes: nothing (first task).
+- Produces: `connectivity_plus` at `^7.3.1`. Tasks 2 and 3 build on this lockfile state.
+
+- [ ] **Step 1: Record the SDK pins so you can prove they did not change**
+
+Run:
+```bash
+grep -nE "minSdk|compileSdk|targetSdk|ndkVersion" android/app/build.gradle.kts
+```
+Expected: `compileSdk = 36`, `ndkVersion = "28.2.13676358"`, `minSdk = 24`, `targetSdk = 36`. Note these; Step 5 re-reads them.
+
+- [ ] **Step 2: Edit the constraint**
+
+In `pubspec.yaml`, under the `# Offline / background` comment, change line 44 from:
+
+```yaml
+  connectivity_plus: ^6.0.3
+```
+
+to:
+
+```yaml
+  connectivity_plus: ^7.3.1
+```
+
+Leave `workmanager: ^0.9.0` on line 45 alone — it is deliberately held back (blocked on the built-in-Kotlin migration).
+
+- [ ] **Step 3: Resolve**
+
+```bash
+flutter pub get
+flutter pub get --enforce-lockfile
+grep -A3 '^  connectivity_plus:' pubspec.lock | grep version
+```
+Expected: both commands succeed; the lockfile records a `7.x` version satisfying `^7.3.1`.
+
+- [ ] **Step 4: Run the Dart-side chain**
+
+```bash
+dart format --output=none --set-exit-if-changed .
+flutter analyze --fatal-infos
+flutter test
+flutter build web --release
+```
+Expected: format exits 0 (a `Failed to resolve package URI "package:flutter_lints/flutter.yaml"` line may appear and is benign — the exit code is what matters), analyze prints `No issues found!`, `+37: All tests passed!`, web build ends `√ Built build\web`.
+
+**If analyze or the compile fails**, the changelog was incomplete and an API moved. Both call sites are in `lib/app/di/providers.dart` — `onConnectivityChanged.map(...)` at lines 154-155 and `checkConnectivity()` at lines 165-166. Adapt **only** those two sites. If the required change is larger than adapting them, **STOP and report**.
+
+- [ ] **Step 5: Build the APK — the step that tests a native bump**
+
+```bash
+flutter build apk --flavor dev --debug
+```
+Expected: succeeds, ending `√ Built build\app\outputs\flutter-apk\app-dev-debug.apk`.
+
+**Stop rule.** If Gradle demands a `minSdk`, `compileSdk`, `ndkVersion`, manifest or any `android/` change: **STOP and report the exact error. Do not absorb it.** If it fails with `SSLHandshakeException`/PKIX, that is the Norton issue — apply the authorized scratch-truststore workaround from the Global Constraints note.
+
+Then confirm the pins are unchanged:
+```bash
+grep -nE "minSdk|compileSdk|targetSdk|ndkVersion" android/app/build.gradle.kts
+```
+Expected: identical to Step 1.
+
+- [ ] **Step 6: Confirm scope**
+
+```bash
+git status --porcelain
+```
+Expected exactly:
+```
+ M pubspec.lock
+ M pubspec.yaml
+?? .claude/
+```
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add pubspec.yaml pubspec.lock
+git commit -m "build: bump connectivity_plus to ^7.3.1
+
+7.0.0's documented breaking changes are build-tool floors only - AGP >=8.12.1,
+Gradle wrapper >=8.13, Kotlin >=2.2.0 - all of which this project already
+exceeds (AGP 9.0.1, wrapper 9.1.0, Kotlin 2.3.20). Both call sites already use
+the List-based API introduced in v6, so no code change was needed.
+
+Native plugin, so verified with a dev-flavor APK build; the SDK pins are
+unchanged."
+```
+
+---
+
+## Task 2: Extract `loadOrCreateEvidenceKey` and prove key reuse
+
+A pure refactor, still on `flutter_secure_storage` 9. The point is to make the evidence-key path a named unit with a test, so that Task 3's cipher change lands against a regression harness rather than against an untested inline closure.
+
+**Files:**
+- Modify: `lib/app/di/providers.dart:94-107`
+- Create: `test/app/evidence_key_test.dart`
+
+**Interfaces:**
+- Consumes: the lockfile state from Task 1.
+- Produces: a top-level function `Future<List<int>> loadOrCreateEvidenceKey(FlutterSecureStorage storage)` in `lib/app/di/providers.dart`. Task 3 modifies its body and adds a second test to the same test file.
+
+- [ ] **Step 1: Write the failing test**
+
+Create `test/app/evidence_key_test.dart`:
+
+```dart
+import 'dart:convert';
+
+import 'package:acsl_campaign/app/di/providers.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+
+class _MockSecureStorage extends Mock implements FlutterSecureStorage {}
+
+void main() {
+  group('loadOrCreateEvidenceKey', () {
+    test('reuses an existing key instead of replacing it', () async {
+      // A key already in secure storage must come back byte-identical. If this
+      // ever regresses, every piece of evidence encrypted under the stored key
+      // becomes undecryptable.
+      final stored = List<int>.generate(32, (i) => i);
+      final storage = _MockSecureStorage();
+      when(
+        () => storage.read(key: any(named: 'key')),
+      ).thenAnswer((_) async => base64Encode(stored));
+
+      final key = await loadOrCreateEvidenceKey(storage);
+
+      expect(key, stored);
+      verifyNever(
+        () => storage.write(
+          key: any(named: 'key'),
+          value: any(named: 'value'),
+        ),
+      );
+    });
+  });
+}
+```
+
+- [ ] **Step 2: Run it and watch it fail**
+
+Run: `flutter test test/app/evidence_key_test.dart`
+Expected: FAIL at compile time — `loadOrCreateEvidenceKey` is not defined. It is currently an anonymous closure inside `mediaEncryptorProvider`.
+
+- [ ] **Step 3: Extract the function**
+
+In `lib/app/di/providers.dart`, replace lines 94-107 — currently:
+
+```dart
+/// 32-byte AES key for evidence encryption, generated once and held in secure
+/// storage (Keystore/Keychain-backed). Never logged or exported.
+final mediaEncryptorProvider = Provider<MediaEncryptor>((ref) {
+  final storage = ref.watch(secureStorageProvider);
+  return AesGcmEncryptor(() async {
+    const key = 'evidence_aes_key_v1';
+    final existing = await storage.read(key: key);
+    if (existing != null) return base64Decode(existing);
+    final rng = Random.secure();
+    final bytes = List<int>.generate(32, (_) => rng.nextInt(256));
+    await storage.write(key: key, value: base64Encode(bytes));
+    return bytes;
+  });
+});
+```
+
+with:
+
+```dart
+/// Storage key for the evidence-encryption secret. Do not rename: renaming
+/// abandons any key already on the device, and with it the ability to decrypt
+/// evidence encrypted under it.
+const _evidenceKeyName = 'evidence_aes_key_v1';
+
+/// Loads the 32-byte AES key used to encrypt attendance evidence, generating
+/// and persisting one on first run.
+///
+/// Extracted from [mediaEncryptorProvider] so the failure paths are testable:
+/// what happens here decides whether queued evidence stays decryptable.
+Future<List<int>> loadOrCreateEvidenceKey(FlutterSecureStorage storage) async {
+  final existing = await storage.read(key: _evidenceKeyName);
+  if (existing != null) return base64Decode(existing);
+  final rng = Random.secure();
+  final bytes = List<int>.generate(32, (_) => rng.nextInt(256));
+  await storage.write(key: _evidenceKeyName, value: base64Encode(bytes));
+  return bytes;
+}
+
+/// 32-byte AES key for evidence encryption, generated once and held in secure
+/// storage (Keystore/Keychain-backed). Never logged or exported.
+final mediaEncryptorProvider = Provider<MediaEncryptor>((ref) {
+  final storage = ref.watch(secureStorageProvider);
+  return AesGcmEncryptor(() => loadOrCreateEvidenceKey(storage));
+});
+```
+
+No import changes are needed: `dart:convert`, `dart:math` and `flutter_secure_storage` are already imported at lines 1, 2 and 7.
+
+- [ ] **Step 4: Run the test to verify it passes**
+
+Run: `flutter test test/app/evidence_key_test.dart`
+Expected: PASS, 1 test.
+
+- [ ] **Step 5: Run the full chain**
+
+```bash
+dart format --output=none --set-exit-if-changed .
+flutter analyze --fatal-infos
+flutter test
+flutter build web --release
+```
+Expected: format exits 0, analyze prints `No issues found!`, `+38: All tests passed!` (37 existing plus the new one), web build succeeds.
+
+**No APK build in this task.** It changes only Dart code with no native surface, and Task 3 carries the APK requirement for the bump it makes. Spec §6 requires the APK build per *bump* commit; this is a refactor.
+
+- [ ] **Step 6: Confirm scope and commit**
+
+```bash
+git status --porcelain
+```
+Expected exactly ` M lib/app/di/providers.dart`, `?? test/app/evidence_key_test.dart`, `?? .claude/`.
+
+```bash
+git add lib/app/di/providers.dart test/app/evidence_key_test.dart
+git commit -m "refactor: extract loadOrCreateEvidenceKey so its failure paths are testable
+
+The evidence-key loader was an anonymous closure inside mediaEncryptorProvider,
+which meant nothing could test what happens when the key is missing or
+unreadable - and that decision governs whether queued attendance evidence stays
+decryptable. Extracted to a named top-level function with a test proving an
+existing key is reused rather than replaced.
+
+Pure refactor: behaviour is unchanged and flutter_secure_storage stays at ^9.2.2.
+The test exists before the version bump on purpose, so it acts as a regression
+harness for the cipher change that bump brings."
+```
+
+---
+
+## Task 3: Bump `flutter_secure_storage` to ^10.3.1 and make the unreadable-key path visible
+
+The bump that carries real behavioural risk. 10.0.0 migrated from the deprecated Jetpack Crypto library to a custom cipher implementation, changed its default ciphers, and made `ResetOnError` default to true — so a value it cannot decrypt is silently deleted. The value in question is the AES key for attendance evidence.
+
+**Files:**
+- Modify: `pubspec.yaml:36`
+- Modify: `pubspec.lock` (regenerated)
+- Modify: `lib/app/di/providers.dart` (the storage provider at line 90, and `loadOrCreateEvidenceKey` from Task 2)
+- Modify: `test/app/evidence_key_test.dart` (add the second test)
+
+**Interfaces:**
+- Consumes: `Future<List<int>> loadOrCreateEvidenceKey(FlutterSecureStorage storage)` and the test file, both from Task 2.
+- Produces: the final state of piece F1. Nothing later depends on it.
+
+- [ ] **Step 1: Record the SDK pins**
+
+```bash
+grep -nE "minSdk|compileSdk|targetSdk|ndkVersion" android/app/build.gradle.kts
+```
+Expected: `compileSdk = 36`, `ndkVersion = "28.2.13676358"`, `minSdk = 24`, `targetSdk = 36`. Step 7 re-reads them.
+
+Note that 10.0.0 raises the Android minSdk floor from 19 to 23. This project is at 24, so it already satisfies that — no change is required or permitted.
+
+- [ ] **Step 2: Write the failing test for the unreadable-key path**
+
+Add this test inside the existing `group('loadOrCreateEvidenceKey', ...)` in `test/app/evidence_key_test.dart`, after the first test:
+
+```dart
+    test('regenerates when the stored key cannot be decrypted', () async {
+      // v10 changed the at-rest cipher, so a key written by v9 may be
+      // unreadable. Capture must keep working, so a fresh key is generated -
+      // but the exception must not escape and crash the capture path.
+      final storage = _MockSecureStorage();
+      when(() => storage.read(key: any(named: 'key'))).thenThrow(
+        PlatformException(code: 'decrypt_failed'),
+      );
+      when(
+        () => storage.write(
+          key: any(named: 'key'),
+          value: any(named: 'value'),
+        ),
+      ).thenAnswer((_) async {});
+
+      final key = await loadOrCreateEvidenceKey(storage);
+
+      expect(key, hasLength(32));
+      verify(
+        () => storage.write(
+          key: any(named: 'key'),
+          value: any(named: 'value'),
+        ),
+      ).called(1);
+    });
+```
+
+Add the import for `PlatformException` to the test file, keeping alphabetical order — `package:flutter/services.dart` sorts after `package:acsl_campaign/...` and before `package:flutter_secure_storage/...`:
+
+```dart
+import 'package:flutter/services.dart';
+```
+
+- [ ] **Step 3: Run it and watch it fail**
+
+Run: `flutter test test/app/evidence_key_test.dart`
+Expected: FAIL — the `PlatformException` propagates out of `loadOrCreateEvidenceKey` because nothing catches it yet.
+
+- [ ] **Step 4: Handle the unreadable-key case**
+
+In `lib/app/di/providers.dart`, change `loadOrCreateEvidenceKey`'s read so a decryption failure is caught, reported and distinguished from first run:
+
+```dart
+Future<List<int>> loadOrCreateEvidenceKey(FlutterSecureStorage storage) async {
+  String? existing;
+  try {
+    existing = await storage.read(key: _evidenceKeyName);
+  } on PlatformException catch (error) {
+    // A key exists but cannot be decrypted - after the v10 cipher change, an OS
+    // keystore reset, or a restore onto a different device. Regenerating keeps
+    // capture working, but every piece of evidence encrypted under the previous
+    // key becomes undecryptable, so this must never look like a normal first
+    // run. A durable audit event belongs here once T-0.3.6 wires an AuditSink.
+    debugPrint(
+      'Evidence key could not be read ($error). Generating a new one; evidence '
+      'encrypted under the previous key can no longer be decrypted.',
+    );
+  }
+  if (existing != null) return base64Decode(existing);
+  final rng = Random.secure();
+  final bytes = List<int>.generate(32, (_) => rng.nextInt(256));
+  await storage.write(key: _evidenceKeyName, value: base64Encode(bytes));
+  return bytes;
+}
+```
+
+Add both imports to `providers.dart`, keeping alphabetical order. They sort after `package:dio/dio.dart` (line 5) and before `package:flutter_riverpod/...` (line 6), because `/` sorts before `_`:
+
+```dart
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+```
+
+- [ ] **Step 5: Run the test to verify it passes**
+
+Run: `flutter test test/app/evidence_key_test.dart`
+Expected: PASS, 2 tests. Confirm the first test still passes too — it proves the reuse path survived the change.
+
+- [ ] **Step 6: Bump the dependency and opt out of the silent reset**
+
+In `pubspec.yaml`, under the `# Security` comment area, change line 36 from:
+
+```yaml
+  flutter_secure_storage: ^9.2.2
+```
+
+to:
+
+```yaml
+  flutter_secure_storage: ^10.3.1
+```
+
+Then resolve:
+```bash
+flutter pub get
+flutter pub get --enforce-lockfile
+grep -A3 '^  flutter_secure_storage:' pubspec.lock | grep version
+```
+Expected: both succeed; the lockfile records a `10.x` version.
+
+Now disable the silent reset on the storage provider at `lib/app/di/providers.dart:90`, currently:
+
+```dart
+final secureStorageProvider = Provider<FlutterSecureStorage>(
+  (ref) => const FlutterSecureStorage(),
+);
+```
+
+**Before writing this, verify the actual parameter name in the installed v10 API** — it is `aOptions` taking `AndroidOptions` in v9, and the changelog claims API stability without enumerating the constructor. Read the installed package's source under the pub cache, or use your IDE, and write the name you actually find. Guessing it is exactly how a plan's assumption becomes a compile error. If the v9 name is still correct, the result is:
+
+```dart
+final secureStorageProvider = Provider<FlutterSecureStorage>(
+  // v10 defaults resetOnError to true, which silently deletes a value it cannot
+  // decrypt. For the evidence key that would orphan every queued capture with
+  // no signal, so opt out and handle the failure explicitly in
+  // loadOrCreateEvidenceKey.
+  (ref) => const FlutterSecureStorage(
+    aOptions: AndroidOptions(resetOnError: false),
+  ),
+);
+```
+
+If `AndroidOptions` is not const-constructible in v10, drop the `const` on the `FlutterSecureStorage(...)` expression rather than fighting it, and note it in your report.
+
+- [ ] **Step 7: Run the full chain including the APK build**
+
+```bash
+dart format --output=none --set-exit-if-changed .
+flutter analyze --fatal-infos
+flutter test
+flutter build web --release
+flutter build apk --flavor dev --debug
+```
+Expected: format exits 0, analyze prints `No issues found!`, `+39: All tests passed!`, web build succeeds, APK build ends `√ Built build\app\outputs\flutter-apk\app-dev-debug.apk`.
+
+**Stop rule.** If Gradle demands a `minSdk`, `compileSdk`, manifest or any `android/` change: **STOP and report the exact error. Do not absorb it, and do not raise `minSdk`** — it targets a corporate Android fleet. If it fails with `SSLHandshakeException`/PKIX, apply the authorized scratch-truststore workaround.
+
+Then confirm the pins are unchanged:
+```bash
+grep -nE "minSdk|compileSdk|targetSdk|ndkVersion" android/app/build.gradle.kts
+```
+Expected: identical to Step 1.
+
+- [ ] **Step 8: Confirm scope and commit**
+
+```bash
+git status --porcelain
+```
+Expected exactly ` M lib/app/di/providers.dart`, ` M pubspec.lock`, ` M pubspec.yaml`, ` M test/app/evidence_key_test.dart`, `?? .claude/`.
+
+```bash
+git add pubspec.yaml pubspec.lock lib/app/di/providers.dart test/app/evidence_key_test.dart
+git commit -m "build: bump flutter_secure_storage to ^10.3.1, surfacing unreadable-key loss
+
+10.0.0 migrated off the deprecated Jetpack Crypto library to a custom cipher
+implementation and changed its default ciphers, so a value written by v9 may no
+longer be readable. It also defaults ResetOnError to true, which silently
+deletes what it cannot decrypt.
+
+The value at stake is the AES key for attendance evidence. Previously 'no key
+yet' and 'key exists but is unreadable' were indistinguishable - both silently
+minted a new key, orphaning any evidence encrypted under the old one with no
+signal at all. This disables the silent reset and reports the unreadable case
+explicitly. Recovery behaviour is deliberately unchanged: capture keeps working.
+
+No production data is at risk - the app is unshipped, unsigned and pre-pilot -
+which makes this the cheapest moment to absorb the cipher change. minSdk 19->23
+in v10 is already satisfied at 24.
+
+Verified with a dev-flavor APK build; the SDK pins are unchanged."
+```
+
+- [ ] **Step 9: Verify the whole piece against the spec's done criteria**
+
+```bash
+flutter pub get --enforce-lockfile
+dart format --output=none --set-exit-if-changed .
+flutter analyze --fatal-infos
+flutter test
+flutter build web --release
+grep -nE "^  connectivity_plus|^  flutter_secure_storage" pubspec.yaml
+grep -n "loadOrCreateEvidenceKey\|resetOnError" lib/app/di/providers.dart
+git diff --stat 76f51df..HEAD
+git status --porcelain android/
+```
+
+Expected: every command succeeds; `connectivity_plus: ^7.3.1` and `flutter_secure_storage: ^10.3.1`; `loadOrCreateEvidenceKey` and `resetOnError` both present; the diff showing **only** `pubspec.yaml`, `pubspec.lock`, `lib/app/di/providers.dart` and `test/app/evidence_key_test.dart`; and the `android/` status empty. A fifth file in that diff, or any `android/` entry, is a Global Constraints violation.
+
+---
+
+## Task 4: Push and confirm the CI gate (AUTHORIZATION REQUIRED)
+
+**Do not start this task without explicit user authorization to push.** Tasks 1-3 are local-only. Pushing sends these commits to `origin/feat/campaign-management-flutter-scaffold`, updating the open PR #1 against `main` and triggering a real GitHub Actions run.
+
+**Files:** none. This task changes no files.
+
+**Interfaces:**
+- Consumes: the three commits from Tasks 1-3.
+- Produces: a green `gate` run, satisfying spec done-criterion 5 in CI as well as locally.
+
+- [ ] **Step 1: Confirm authorization**
+
+Ask the user directly and wait. Authorization granted for an earlier piece of this epic does **not** carry over — it was scoped to that piece's commits.
+
+- [ ] **Step 2: Push**
+
+```bash
+git push origin feat/campaign-management-flutter-scaffold
+```
+Expected: succeeds, reporting a range ending at your Task 3 commit.
+
+- [ ] **Step 3: Watch the gate**
+
+```bash
+gh run list --limit 1
+gh run watch <run-id> --exit-status
+```
+Expected: the `gate` job succeeds. It runs `pub get --enforce-lockfile`, the format check, analyze, tests and both builds on a clean Linux checkout.
+
+**If a step passes locally but fails in CI**, the difference is the environment, not the change — a clean checkout has no `.dart_tool`, no Gradle cache and no pre-existing `build/`. Report the failing step and its log rather than re-running hopefully. This repo has already produced one such divergence: `dart format` behaved differently because a gitignored package config existed locally and not in CI.
+
+- [ ] **Step 4: Report the outcome**
+
+State the run ID, conclusion and duration. If green, spec done-criteria 1-7 are satisfied and piece F1 is complete. If red, report which step failed and stop — do not weaken the gate to get green.
