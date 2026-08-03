@@ -28,7 +28,8 @@ void main() async {
   final server = await io.serve(handler, InternetAddress.anyIPv4, port);
   stdout.writeln('Mock server on http://${server.address.host}:${server.port}');
   stdout.writeln(
-      'Campaign fixture: ${Platform.environment['MOCK_CAMPAIGNS'] ?? 'rows'}');
+    'Campaign fixture: ${Platform.environment['MOCK_CAMPAIGNS'] ?? 'rows'}',
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -42,7 +43,8 @@ const _corsHeaders = {
       'Origin, Content-Type, Authorization, If-Match, Idempotency-Key',
 };
 
-Middleware _cors() => (inner) => (req) async {
+Middleware _cors() =>
+    (inner) => (req) async {
       if (req.method == 'OPTIONS') {
         return Response.ok('', headers: _corsHeaders);
       }
@@ -51,10 +53,10 @@ Middleware _cors() => (inner) => (req) async {
     };
 
 Response _json(Object? body, {int status = 200}) => Response(
-      status,
-      body: jsonEncode(body),
-      headers: {'Content-Type': 'application/json'},
-    );
+  status,
+  body: jsonEncode(body),
+  headers: {'Content-Type': 'application/json'},
+);
 
 Future<Map<String, dynamic>> _body(Request req) async {
   final text = await req.readAsString();
@@ -74,8 +76,9 @@ Router _buildRouter(_Store store) {
   r.get('/campaigns', (Request req) {
     final fixture = Platform.environment['MOCK_CAMPAIGNS'] ?? 'rows';
     if (fixture == 'error') return _json({'error': 'boom'}, status: 500);
-    final items =
-        fixture == 'empty' ? <Map>[] : store.campaigns.values.toList();
+    final items = fixture == 'empty'
+        ? <Map>[]
+        : store.campaigns.values.toList();
     return _json({'items': items, 'total': items.length});
   });
 
@@ -127,11 +130,13 @@ Router _buildRouter(_Store store) {
   r.get('/carpenters', (Request req) {
     final q = (req.url.queryParameters['q'] ?? '').toLowerCase();
     final items = store.carpenters
-        .where((c) =>
-            q.isEmpty ||
-            (c['name'] as String).toLowerCase().contains(q) ||
-            (c['displayId'] as String).toLowerCase().contains(q) ||
-            (c['phoneSuffix'] as String).endsWith(q))
+        .where(
+          (c) =>
+              q.isEmpty ||
+              (c['name'] as String).toLowerCase().contains(q) ||
+              (c['displayId'] as String).toLowerCase().contains(q) ||
+              (c['phoneSuffix'] as String).endsWith(q),
+        )
         .toList();
     return _json({'items': items});
   });
@@ -275,22 +280,21 @@ class _Store {
     required String status,
     required int target,
     required int verified,
-  }) =>
-      {
-        'id': id,
-        'name': name,
-        'type': 'seminar',
-        'organizationId': 'ORG_E2E',
-        'status': status,
-        'ownerId': 'owner-123', // != approver, so approval is allowed
-        'startAt': null,
-        'endAt': null,
-        'venue': 'BMD Training Center',
-        'objective': 'Engage carpenters and verify attendance.',
-        'territoryIds': ['Dhaka North'],
-        'targetAudience': target,
-        'verifiedAttendance': verified,
-      };
+  }) => {
+    'id': id,
+    'name': name,
+    'type': 'seminar',
+    'organizationId': 'ORG_E2E',
+    'status': status,
+    'ownerId': 'owner-123', // != approver, so approval is allowed
+    'startAt': null,
+    'endAt': null,
+    'venue': 'BMD Training Center',
+    'objective': 'Engage carpenters and verify attendance.',
+    'territoryIds': ['Dhaka North'],
+    'targetAudience': target,
+    'verifiedAttendance': verified,
+  };
 
   Map<String, dynamic> createCampaign(Map<String, dynamic> draft) {
     final id = 'CAMP-${_seq++}';
@@ -377,42 +381,37 @@ class _Store {
   }
 
   Map<String, dynamic> dryRunJob(String campaignId) => {
-        'id': 'IMPORT-1',
-        'campaignId': campaignId,
-        'status': 'dryRun',
-        'rows': [
-          {'rowId': '1', 'name': 'Md. Karim', 'outcome': 'valid'},
-          {'rowId': '2', 'name': 'Karim Uddin', 'outcome': 'valid'},
-          {
-            'rowId': '3',
-            'name': 'Md. Karim',
-            'outcome': 'duplicate',
-            'message': 'Matches row 1 by phone',
-          },
-          {
-            'rowId': '4',
-            'name': '',
-            'outcome': 'error',
-            'message': 'Missing name',
-          },
-          {
-            'rowId': '5',
-            'name': 'New Person',
-            'outcome': 'needsProfile',
-            'message': 'No Sales Eco profile — request required',
-          },
-        ],
-      };
+    'id': 'IMPORT-1',
+    'campaignId': campaignId,
+    'status': 'dryRun',
+    'rows': [
+      {'rowId': '1', 'name': 'Md. Karim', 'outcome': 'valid'},
+      {'rowId': '2', 'name': 'Karim Uddin', 'outcome': 'valid'},
+      {
+        'rowId': '3',
+        'name': 'Md. Karim',
+        'outcome': 'duplicate',
+        'message': 'Matches row 1 by phone',
+      },
+      {'rowId': '4', 'name': '', 'outcome': 'error', 'message': 'Missing name'},
+      {
+        'rowId': '5',
+        'name': 'New Person',
+        'outcome': 'needsProfile',
+        'message': 'No Sales Eco profile — request required',
+      },
+    ],
+  };
 
   Map<String, dynamic> commitJob(String jobId) => {
-        'id': jobId,
-        'campaignId': 'CAMP-1',
-        'status': 'completed',
-        'rows': [
-          {'rowId': '1', 'name': 'Md. Karim', 'outcome': 'valid'},
-          {'rowId': '2', 'name': 'Karim Uddin', 'outcome': 'valid'},
-        ],
-      };
+    'id': jobId,
+    'campaignId': 'CAMP-1',
+    'status': 'completed',
+    'rows': [
+      {'rowId': '1', 'name': 'Md. Karim', 'outcome': 'valid'},
+      {'rowId': '2', 'name': 'Karim Uddin', 'outcome': 'valid'},
+    ],
+  };
 }
 
 /// 1×1 transparent PNG — enough for Image.network to load in E2E.

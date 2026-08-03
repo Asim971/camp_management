@@ -4,7 +4,13 @@ publish_to: "none"
 version: 0.1.0
 
 environment:
-  sdk: ">=3.4.0 <4.0.0"
+  # Match the root package's language version. dart_style picks its formatting
+  # style from the language version, so a lower floor here made
+  # `dart format --set-exit-if-changed` environment-dependent: locally this
+  # package's .dart_tool config resolved 3.4 (old style), while a fresh CI
+  # checkout has no config and fell back to 3.12 (new style), turning the gate
+  # red on a file that looked clean locally.
+  sdk: ">=3.12.0 <4.0.0"
 
 dependencies:
   shelf: ^1.4.1
