@@ -52,11 +52,11 @@ dependencies:
 
   # L10n / analytics
   intl: any
-  fl_chart: ^0.68.0
+  fl_chart: ^1.2.0
 
   # Files / import
   file_selector: ^1.1.0
-  csv: ^6.0.0
+  csv: ^8.0.0
 
 dev_dependencies:
   flutter_test:
