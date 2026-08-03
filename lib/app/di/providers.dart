@@ -91,19 +91,30 @@ final secureStorageProvider = Provider<FlutterSecureStorage>(
   (ref) => const FlutterSecureStorage(),
 );
 
+/// Storage key for the evidence-encryption secret. Do not rename: renaming
+/// abandons any key already on the device, and with it the ability to decrypt
+/// evidence encrypted under it.
+const _evidenceKeyName = 'evidence_aes_key_v1';
+
+/// Loads the 32-byte AES key used to encrypt attendance evidence, generating
+/// and persisting one on first run.
+///
+/// Extracted from [mediaEncryptorProvider] so the failure paths are testable:
+/// what happens here decides whether queued evidence stays decryptable.
+Future<List<int>> loadOrCreateEvidenceKey(FlutterSecureStorage storage) async {
+  final existing = await storage.read(key: _evidenceKeyName);
+  if (existing != null) return base64Decode(existing);
+  final rng = Random.secure();
+  final bytes = List<int>.generate(32, (_) => rng.nextInt(256));
+  await storage.write(key: _evidenceKeyName, value: base64Encode(bytes));
+  return bytes;
+}
+
 /// 32-byte AES key for evidence encryption, generated once and held in secure
 /// storage (Keystore/Keychain-backed). Never logged or exported.
 final mediaEncryptorProvider = Provider<MediaEncryptor>((ref) {
   final storage = ref.watch(secureStorageProvider);
-  return AesGcmEncryptor(() async {
-    const key = 'evidence_aes_key_v1';
-    final existing = await storage.read(key: key);
-    if (existing != null) return base64Decode(existing);
-    final rng = Random.secure();
-    final bytes = List<int>.generate(32, (_) => rng.nextInt(256));
-    await storage.write(key: key, value: base64Encode(bytes));
-    return bytes;
-  });
+  return AesGcmEncryptor(() => loadOrCreateEvidenceKey(storage));
 });
 
 final faceQualityCheckerProvider = Provider<FaceQualityChecker>((ref) {
