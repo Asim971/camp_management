@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/theme/tokens.dart';
 import '../../../core/design_system/bmd_button.dart';
 import '../../../core/design_system/bmd_field.dart';
+import '../../../core/design_system/bmd_overlays.dart';
 import '../../../core/design_system/status_chip.dart';
 import '../../../core/responsive/adaptive_scaffold.dart';
 import '../../../core/responsive/breakpoints.dart';
@@ -141,7 +142,7 @@ class _EmptySearch extends ConsumerWidget {
           BmdButton(
             label: 'Request new profile',
             variant: BmdButtonVariant.outlined,
-            onPressed: () => _showRequestDialog(context, ref, campaignId),
+            onPressed: () => _showRequestProfileSheet(context, ref, campaignId),
           ),
         ],
       ),
@@ -149,52 +150,54 @@ class _EmptySearch extends ConsumerWidget {
   }
 }
 
-Future<void> _showRequestDialog(
+Future<void> _showRequestProfileSheet(
   BuildContext context,
   WidgetRef ref,
   String campaignId,
 ) async {
   final name = TextEditingController();
   final phone = TextEditingController();
-  await showDialog<void>(
+
+  await showBmdSideSheet<void>(
     context: context,
-    builder: (ctx) => AlertDialog(
-      title: const Text('Request new Sales Eco profile'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          BmdField(label: 'Full name', controller: name, required: true),
-          const SizedBox(height: BmdSpace.s3),
-          BmdField(
-            label: 'Phone',
-            controller: phone,
-            keyboardType: TextInputType.phone,
-            required: true,
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Creates a Sales Eco request. The participant shows as '
-            '"Pending profile sync" until reconciliation — no local record is created.',
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(ctx),
-          child: const Text('Cancel'),
+    title: 'Request new Sales Eco profile',
+    builder: (_) => Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        BmdField(label: 'Full name', controller: name, required: true),
+        const SizedBox(height: BmdSpace.s3),
+        BmdField(
+          label: 'Phone',
+          controller: phone,
+          keyboardType: TextInputType.phone,
+          required: true,
         ),
-        FilledButton(
+        const SizedBox(height: BmdSpace.s3),
+        const Text(
+          'Creates a Sales Eco request. The participant shows as '
+          '"Pending profile sync" until reconciliation — no local record is '
+          'created.',
+        ),
+      ],
+    ),
+    actions: [
+      Builder(
+        builder: (sheetContext) => BmdButton(
+          label: 'Submit request',
           onPressed: () {
             ref
                 .read(registrationControllerProvider(campaignId).notifier)
                 .requestNewProfile(name.text, phone.text);
-            Navigator.pop(ctx);
+            Navigator.pop(sheetContext);
           },
-          child: const Text('Submit request'),
         ),
-      ],
-    ),
+      ),
+    ],
   );
+
+  name.dispose();
+  phone.dispose();
 }
 
 class _BasketPanel extends ConsumerWidget {

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/di/providers.dart';
 import '../../../app/theme/tokens.dart';
 import '../../../core/design_system/bmd_feedback.dart';
+import '../../../core/design_system/bmd_overlays.dart';
 import '../../../core/design_system/lineage_rail.dart';
 import '../../../core/design_system/status_chip.dart';
 import '../../../core/sync/sync_engine.dart';
@@ -304,36 +305,22 @@ class _QueueTile extends ConsumerWidget {
     // Discard is destructive and controlled (§8.11). It is deliberately
     // awkward: a queued upload almost never needs discarding, and a discarded
     // capture is a participant who has to be photographed twice.
-    final ok = await showDialog<bool>(
+    final result = await showBmdConfirm(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Discard this capture?'),
-        content: const Text(
-          'The photo will be deleted from this device and this attendance will '
-          'show as Not captured. The carpenter would need to be photographed '
-          'again.\n\n'
+      title: 'Discard this capture?',
+      body:
           'Only discard if support asked you to. This action is recorded '
           'against your name.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Keep it queued'),
-          ),
-          Semantics(
-            identifier: 'queue_discard_confirm',
-            child: FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: Theme.of(ctx).bmd.error,
-              ),
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Discard capture'),
-            ),
-          ),
-        ],
-      ),
+      effect:
+          'The photo will be deleted from this device and this attendance '
+          'will show as Not captured. The carpenter would need to be '
+          'photographed again.',
+      confirmLabel: 'Discard capture',
+      cancelLabel: 'Keep it queued',
+      danger: true,
+      confirmIdentifier: 'queue_discard_confirm',
     );
-    if (ok ?? false) {
+    if (result != null) {
       await ref
           .read(syncEngineProvider)
           .discard(id, reason: 'Field user discard (confirmed)');

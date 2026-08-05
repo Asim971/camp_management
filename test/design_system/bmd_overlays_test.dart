@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:acsl_campaign/app/theme/bmd_theme.dart';
 import 'package:acsl_campaign/core/design_system/bmd_overlays.dart';
 import 'package:flutter/material.dart';
@@ -293,6 +295,34 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(confirmed, isTrue);
+    });
+  });
+
+  group('single renderer', () {
+    test('no feature screen hand-rolls a dialog or modal sheet', () {
+      final offenders = <String>[];
+      for (final entity in Directory(
+        'lib/features',
+      ).listSync(recursive: true)) {
+        if (entity is! File || !entity.path.endsWith('.dart')) continue;
+        final lines = entity.readAsLinesSync();
+        for (var i = 0; i < lines.length; i++) {
+          final line = lines[i];
+          if (line.contains('AlertDialog(') ||
+              line.contains('showModalBottomSheet(') ||
+              line.contains('showDialog<')) {
+            offenders.add('${entity.path}:${i + 1}');
+          }
+        }
+      }
+
+      expect(
+        offenders,
+        isEmpty,
+        reason:
+            'Use showBmdConfirm / showBmdSideSheet / showBmdBottomSheet:\n'
+            '${offenders.join("\n")}',
+      );
     });
   });
 }

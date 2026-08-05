@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/theme/tokens.dart';
 import '../../../core/design_system/bmd_field.dart';
+import '../../../core/design_system/bmd_overlays.dart';
 import '../../../core/design_system/status_chip.dart';
 import '../../../domain/registration/registration.dart';
 import '../application/carpenter_search_controller.dart';
@@ -75,9 +76,9 @@ class _CarpenterSearchScreenState extends ConsumerState<CarpenterSearchScreen> {
 
   Future<void> _confirm(RegisteredCarpenter c) async {
     if (c.alreadyCaptured || !c.eligible) return;
-    final confirmed = await showModalBottomSheet<bool>(
+    final confirmed = await showBmdBottomSheet<bool>(
       context: context,
-      isScrollControlled: true,
+      title: 'Confirm carpenter',
       builder: (_) => _ConfirmSheet(c: c),
     );
     if ((confirmed ?? false) && mounted) {
@@ -148,65 +149,57 @@ class _ConfirmSheetState extends State<_ConfirmSheet> {
   @override
   Widget build(BuildContext context) {
     final c = widget.c;
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 20,
-        bottom: MediaQuery.viewInsetsOf(context).bottom + 20,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Center(
-            child: CircleAvatar(
-              radius: 40,
-              backgroundImage: c.thumbnailUrl != null
-                  ? NetworkImage(c.thumbnailUrl!)
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Center(
+          child: CircleAvatar(
+            radius: 40,
+            backgroundImage: c.thumbnailUrl != null
+                ? NetworkImage(c.thumbnailUrl!)
+                : null,
+            child: c.thumbnailUrl == null
+                ? const Icon(Icons.person, size: 40)
+                : null,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          c.name,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '${c.displayId} · ${c.territory} · phone •${c.phoneSuffix}',
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 16),
+        // Second identity cue is mandatory before capture (§8.9).
+        Semantics(
+          identifier: 'confirm_ack',
+          child: CheckboxListTile(
+            value: _acknowledged,
+            onChanged: (v) => setState(() => _acknowledged = v ?? false),
+            title: const Text('I confirmed this is the correct carpenter'),
+            controlAffinity: ListTileControlAffinity.leading,
+          ),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 52,
+          child: Semantics(
+            identifier: 'confirm_continue',
+            child: FilledButton(
+              onPressed: _acknowledged
+                  ? () => Navigator.pop(context, true)
                   : null,
-              child: c.thumbnailUrl == null
-                  ? const Icon(Icons.person, size: 40)
-                  : null,
+              child: const Text('Continue to capture'),
             ),
           ),
-          const SizedBox(height: 12),
-          Text(
-            c.name,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '${c.displayId} · ${c.territory} · phone •${c.phoneSuffix}',
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-          // Second identity cue is mandatory before capture (§8.9).
-          Semantics(
-            identifier: 'confirm_ack',
-            child: CheckboxListTile(
-              value: _acknowledged,
-              onChanged: (v) => setState(() => _acknowledged = v ?? false),
-              title: const Text('I confirmed this is the correct carpenter'),
-              controlAffinity: ListTileControlAffinity.leading,
-            ),
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: 52,
-            child: Semantics(
-              identifier: 'confirm_continue',
-              child: FilledButton(
-                onPressed: _acknowledged
-                    ? () => Navigator.pop(context, true)
-                    : null,
-                child: const Text('Continue to capture'),
-              ),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
