@@ -49,12 +49,15 @@ void main() {
       final key = await loadOrCreateEvidenceKey(storage);
 
       expect(key, hasLength(32));
-      verify(
-        () => storage.write(
-          key: any(named: 'key'),
-          value: any(named: 'value'),
-        ),
-      ).called(1);
+      final written =
+          verify(
+                () => storage.write(
+                  key: any(named: 'key'),
+                  value: captureAny(named: 'value'),
+                ),
+              ).captured.single
+              as String;
+      expect(base64Decode(written), key);
     });
 
     test('regenerates when the stored key cannot be decrypted', () async {
@@ -75,12 +78,15 @@ void main() {
       final key = await loadOrCreateEvidenceKey(storage);
 
       expect(key, hasLength(32));
-      verify(
-        () => storage.write(
-          key: any(named: 'key'),
-          value: any(named: 'value'),
-        ),
-      ).called(1);
+      final written =
+          verify(
+                () => storage.write(
+                  key: any(named: 'key'),
+                  value: captureAny(named: 'value'),
+                ),
+              ).captured.single
+              as String;
+      expect(base64Decode(written), key);
     });
   });
 }
