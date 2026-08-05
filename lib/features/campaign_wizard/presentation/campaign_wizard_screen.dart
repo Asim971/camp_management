@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/theme/tokens.dart';
 import '../../../core/design_system/bmd_button.dart';
+import '../../../core/design_system/bmd_field.dart';
 import '../../../core/responsive/adaptive_scaffold.dart';
 import '../application/wizard_controller.dart';
 
@@ -185,12 +187,13 @@ class _BasicsStep extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        TextFormField(
+        BmdField(
+          label: 'Campaign name',
           initialValue: d.name,
-          decoration: const InputDecoration(labelText: 'Campaign name'),
+          required: true,
           onChanged: (v) => c.edit((x) => x.copyWith(name: v)),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: BmdSpace.s4),
         DropdownButtonFormField<String>(
           initialValue: d.type.isEmpty ? null : d.type,
           decoration: const InputDecoration(labelText: 'Campaign type'),
@@ -199,12 +202,12 @@ class _BasicsStep extends StatelessWidget {
           ],
           onChanged: (v) => c.edit((x) => x.copyWith(type: v ?? '')),
         ),
-        const SizedBox(height: 16),
-        TextFormField(
+        const SizedBox(height: BmdSpace.s4),
+        BmdField.multiline(
+          label: 'Objective (optional)',
           initialValue: d.objective,
           minLines: 2,
           maxLines: 4,
-          decoration: const InputDecoration(labelText: 'Objective (optional)'),
           onChanged: (v) => c.edit((x) => x.copyWith(objective: v)),
         ),
       ],
@@ -314,9 +317,10 @@ class _SessionsStep extends StatelessWidget {
               padding: const EdgeInsets.all(12),
               child: Column(
                 children: [
-                  TextFormField(
+                  BmdField(
+                    label: 'Venue',
                     initialValue: s.venue,
-                    decoration: const InputDecoration(labelText: 'Venue'),
+                    required: true,
                     onChanged: (v) => c.updateSession(s.copyWith(venue: v)),
                   ),
                   const SizedBox(height: 8),
@@ -390,19 +394,18 @@ class _TargetsStep extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        TextFormField(
+        BmdField(
+          label: 'Target participants',
           initialValue: d.target == 0 ? '' : '${d.target}',
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Target participants'),
+          required: true,
           onChanged: (v) =>
               c.edit((x) => x.copyWith(target: int.tryParse(v) ?? 0)),
         ),
-        const SizedBox(height: 16),
-        TextFormField(
+        const SizedBox(height: BmdSpace.s4),
+        BmdField(
+          label: 'Budget reference (optional)',
           initialValue: d.budgetReference ?? '',
-          decoration: const InputDecoration(
-            labelText: 'Budget reference (optional)',
-          ),
           onChanged: (v) => c.edit((x) => x.copyWith(budgetReference: v)),
         ),
         const SizedBox(height: 16),

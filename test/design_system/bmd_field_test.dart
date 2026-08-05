@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:acsl_campaign/app/theme/bmd_theme.dart';
 import 'package:acsl_campaign/app/theme/tokens.dart';
 import 'package:acsl_campaign/core/design_system/bmd_field.dart';
@@ -178,6 +180,33 @@ void main() {
       expect(
         find.text('Searches name, carpenter ID, phone suffix'),
         findsOneWidget,
+      );
+    });
+  });
+
+  group('single renderer', () {
+    test('no feature screen builds a raw text field', () {
+      // A leftover raw field is the pattern the next screen copies, and it
+      // silently opts out of the height, required-name and masking rules.
+      final offenders = <String>[];
+      final dir = Directory('lib/features');
+      for (final entity in dir.listSync(recursive: true)) {
+        if (entity is! File || !entity.path.endsWith('.dart')) continue;
+        final lines = entity.readAsLinesSync();
+        for (var i = 0; i < lines.length; i++) {
+          final line = lines[i];
+          if (line.contains('TextField(') || line.contains('TextFormField(')) {
+            offenders.add('${entity.path}:${i + 1}');
+          }
+        }
+      }
+
+      expect(
+        offenders,
+        isEmpty,
+        reason:
+            'Use BmdField / BmdField.multiline / BmdSearchField instead:\n'
+            '${offenders.join("\n")}',
       );
     });
   });

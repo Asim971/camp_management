@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/theme/tokens.dart';
+import '../../../core/design_system/bmd_field.dart';
 import '../../../core/design_system/status_chip.dart';
 import '../../../domain/registration/registration.dart';
 import '../application/carpenter_search_controller.dart';
@@ -21,14 +23,6 @@ class CarpenterSearchScreen extends ConsumerStatefulWidget {
 }
 
 class _CarpenterSearchScreenState extends ConsumerState<CarpenterSearchScreen> {
-  final _field = TextEditingController();
-
-  @override
-  void dispose() {
-    _field.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     final results = ref.watch(carpenterSearchProvider(widget.sessionId));
@@ -38,22 +32,15 @@ class _CarpenterSearchScreenState extends ConsumerState<CarpenterSearchScreen> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(16),
-            child: Semantics(
+            padding: const EdgeInsets.all(BmdSpace.s4),
+            child: BmdSearchField(
               identifier: 'search_field',
-              child: TextField(
-                controller: _field,
-                autofocus: true,
-                textInputAction: TextInputAction.search,
-                onChanged: (q) => ref
-                    .read(carpenterSearchProvider(widget.sessionId).notifier)
-                    .search(q),
-                decoration: const InputDecoration(
-                  prefixIcon: Icon(Icons.search),
-                  labelText: 'Name, ID or phone suffix',
-                  helperText: 'Type at least 2 characters',
-                ),
-              ),
+              label: 'Find carpenter',
+              scopeLabel: 'Searches name, carpenter ID and phone suffix',
+              hint: 'At least 2 characters',
+              onQueryChanged: (q) => ref
+                  .read(carpenterSearchProvider(widget.sessionId).notifier)
+                  .search(q),
             ),
           ),
           Expanded(

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/theme/tokens.dart';
 import '../../../core/design_system/bmd_button.dart';
+import '../../../core/design_system/bmd_field.dart';
 import '../../../core/design_system/status_chip.dart';
 import '../../../core/responsive/adaptive_scaffold.dart';
 import '../../../core/responsive/breakpoints.dart';
@@ -66,12 +68,10 @@ class _SearchPanel extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        TextField(
-          decoration: const InputDecoration(
-            prefixIcon: Icon(Icons.search),
-            labelText: 'Search carpenter master (name, ID, phone suffix)',
-          ),
-          onChanged: c.search,
+        BmdSearchField(
+          label: 'Search carpenter master',
+          scopeLabel: 'Searches name, carpenter ID and phone suffix',
+          onQueryChanged: c.search,
         ),
         const SizedBox(height: 12),
         Expanded(
@@ -163,13 +163,13 @@ Future<void> _showRequestDialog(
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          TextField(
-            controller: name,
-            decoration: const InputDecoration(labelText: 'Full name'),
-          ),
-          TextField(
+          BmdField(label: 'Full name', controller: name, required: true),
+          const SizedBox(height: BmdSpace.s3),
+          BmdField(
+            label: 'Phone',
             controller: phone,
-            decoration: const InputDecoration(labelText: 'Phone'),
+            keyboardType: TextInputType.phone,
+            required: true,
           ),
           const SizedBox(height: 8),
           const Text(

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/design_system/bmd_button.dart';
+import '../../../core/design_system/bmd_field.dart';
 import '../../../core/responsive/adaptive_scaffold.dart';
 import '../../../core/responsive/breakpoints.dart';
 import '../../../domain/verification/verification.dart';
@@ -304,19 +305,15 @@ class _DecisionPanelState extends ConsumerState<_DecisionPanel> {
               ),
             ),
             const SizedBox(height: 8),
-            Semantics(
+            BmdField.multiline(
               identifier: 'crm_reason',
-              child: TextField(
-                controller: _reason,
-                minLines: 2,
-                maxLines: 4,
-                onChanged: (_) => setState(() {}),
-                decoration: const InputDecoration(
-                  labelText: 'Reason (required)',
-                  helperText:
-                      'Recorded with the decision and shown in the audit log.',
-                ),
-              ),
+              label: 'Reason',
+              required: true,
+              controller: _reason,
+              minLines: 2,
+              maxLines: 4,
+              helper: 'Recorded with the decision and shown in the audit log.',
+              onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 12),
             // Confirm the downstream effect before committing (§8.13).

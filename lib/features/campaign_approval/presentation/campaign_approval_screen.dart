@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/design_system/bmd_button.dart';
+import '../../../core/design_system/bmd_field.dart';
 import '../../../core/design_system/status_chip.dart';
 import '../../../core/responsive/adaptive_scaffold.dart';
 import '../../../core/responsive/breakpoints.dart';
@@ -219,16 +220,13 @@ class _DecisionPanelState extends ConsumerState<_DecisionPanel> {
                 title: const Text('I acknowledge readiness and SoD warnings'),
               ),
             const SizedBox(height: 8),
-            TextField(
+            BmdField.multiline(
+              label: 'Reason',
+              required: _reasonRequired,
               controller: _reason,
               minLines: 2,
               maxLines: 4,
               onChanged: (_) => setState(() {}),
-              decoration: InputDecoration(
-                labelText: _reasonRequired
-                    ? 'Reason (required)'
-                    : 'Reason (optional)',
-              ),
             ),
             const SizedBox(height: 12),
             BmdButton(
