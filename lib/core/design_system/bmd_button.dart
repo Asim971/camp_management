@@ -105,6 +105,9 @@ class BmdIconButton extends StatelessWidget {
   final IconData icon;
   final String tooltip;
   final VoidCallback? onPressed;
+
+  /// Stable a11y identifier for automated tests (Maestro `id:`). Maps to
+  /// Android resource-id / iOS accessibilityIdentifier.
   final String? identifier;
 
   @override

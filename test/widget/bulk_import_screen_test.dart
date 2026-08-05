@@ -83,10 +83,15 @@ void main() {
         'name,phone\nKarim,017\n',
       );
 
-      // TODO: This assertion fails because bulk_import_screen shows both
-      // "Choose file" (line 95) and "Commit valid rows" (line 204) buttons
-      // as primary. Which should be demoted to tonal or outlined is a design
-      // decision that needs to be made.
+      // This assertion passes, but cannot detect a real §5.1 violation:
+      // bulk_import_screen.dart renders _UploadPanel unconditionally (line 30),
+      // then _Results separately below it (line 58) when committable rows exist.
+      // In production, both "Choose file" (line 95, default primary) and
+      // "Commit N valid row(s)" (line 204, default primary) are on screen
+      // simultaneously. The test cannot reach this state because
+      // _FakeImportController.uploadDryRun never populates job state, so
+      // _Results never renders. Which button should be demoted to tonal or
+      // outlined is an open design decision.
       expectSinglePrimaryAction(tester);
     },
   );
