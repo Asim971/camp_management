@@ -103,6 +103,10 @@ abstract final class BmdSize {
   static const double controlHeightCamera = 56;
   static const double rowHeight = 46; // 44–48 operational tables
   static const double touchTargetMin = 48;
+
+  /// Textarea minimum height (§5.2) — a reason or objective drafted in a box
+  /// the user can actually read back.
+  static const double textareaMin = 96;
   static const double appBarWeb = 64;
   static const double appBarMobile = 56;
   static const double drawerExpanded = 264;
