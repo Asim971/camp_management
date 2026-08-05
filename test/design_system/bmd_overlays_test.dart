@@ -72,6 +72,38 @@ void main() {
       expect(tester.widget<FilledButton>(confirm).onPressed, isNotNull);
     });
 
+    testWidgets('a whitespace-only reason does not satisfy the gate', (
+      tester,
+    ) async {
+      // A reason of only spaces is not substantive -- it must not be
+      // mistaken for one that was actually given (T-1.4.2, T-3.1.4).
+      final open = await _host(
+        tester,
+        (context) => showBmdConfirm(
+          context: context,
+          title: 'Return this campaign?',
+          body: 'The creator will be asked to correct it.',
+          confirmLabel: 'Return for correction',
+          reasonLabel: 'Reason',
+        ),
+      );
+      await open();
+
+      final confirm = find.widgetWithText(
+        FilledButton,
+        'Return for correction',
+      );
+
+      await tester.enterText(find.byType(TextFormField), '   ');
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.widget<FilledButton>(confirm).onPressed,
+        isNull,
+        reason: 'whitespace alone is not a substantive reason',
+      );
+    });
+
     testWidgets('confirm stays disabled until every box is acknowledged', (
       tester,
     ) async {
@@ -142,6 +174,34 @@ void main() {
       await open();
 
       await tester.enterText(find.byType(TextFormField), 'Face not visible');
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Reject'));
+      await tester.pumpAndSettle();
+
+      expect(result?.reason, 'Face not visible');
+    });
+
+    testWidgets('the returned reason is trimmed of surrounding whitespace', (
+      tester,
+    ) async {
+      // A reason recorded against a decision must be the substance, not
+      // whatever incidental padding the input carried (T-1.4.2, T-3.1.4).
+      BmdConfirmResult? result;
+      final open = await _host(tester, (context) async {
+        result = await showBmdConfirm(
+          context: context,
+          title: 'Reject this capture?',
+          body: 'The field user will be asked to recapture.',
+          confirmLabel: 'Reject',
+          reasonLabel: 'Reason',
+        );
+      });
+      await open();
+
+      await tester.enterText(
+        find.byType(TextFormField),
+        '  Face not visible  ',
+      );
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(FilledButton, 'Reject'));
       await tester.pumpAndSettle();
