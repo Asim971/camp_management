@@ -79,6 +79,10 @@ flutter:
   assets:
     - assets/templates/
     - assets/e2e/ # test fixtures (fake camera image); harmless in prod builds
-  # fonts:
-  #   - family: Inter        # add licensed Inter TTFs to assets/fonts/ then uncomment
-  #   - family: NotoSansBengali
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Variable.ttf
+    - family: NotoSansBengali
+      fonts:
+        - asset: assets/fonts/NotoSansBengali-Variable.ttf

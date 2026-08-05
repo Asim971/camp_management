@@ -2,6 +2,14 @@ import 'package:flutter/material.dart';
 
 import 'tokens.dart';
 
+/// Inter and Noto Sans Bengali ship only as variable fonts, so a weight has to
+/// be set on the `wght` axis. [TextStyle.fontWeight] alone makes the engine
+/// synthesise a fake bold — visibly coarser than the real cut, and it would
+/// bake that into every golden baseline.
+List<FontVariation> _wght(FontWeight weight) => [
+  FontVariation('wght', weight.value.toDouble()),
+];
+
 /// Builds the BMD-themed Material 3 [ThemeData] for a given [brightness].
 ///
 /// The design system is Material 3 with a BMD brand layer on top (UI/UX
@@ -61,12 +69,14 @@ ThemeData bmdTheme({Brightness brightness = Brightness.light}) {
       fontSize: 48,
       height: 56 / 48,
       fontWeight: FontWeight.w700,
+      fontVariations: _wght(FontWeight.w700),
       color: bmd.textHeading,
     ),
     headlineMedium: base.headlineMedium?.copyWith(
       fontSize: 28,
       height: 36 / 28,
       fontWeight: FontWeight.w700,
+      fontVariations: _wght(FontWeight.w700),
       letterSpacing: -0.28,
       color: bmd.textHeading,
     ),
@@ -74,12 +84,14 @@ ThemeData bmdTheme({Brightness brightness = Brightness.light}) {
       fontSize: 22,
       height: 30 / 22,
       fontWeight: FontWeight.w700,
+      fontVariations: _wght(FontWeight.w700),
       color: bmd.textHeading,
     ),
     titleMedium: base.titleMedium?.copyWith(
       fontSize: 16,
       height: 24 / 16,
       fontWeight: FontWeight.w600,
+      fontVariations: _wght(FontWeight.w600),
       color: bmd.textHeading,
     ),
     bodyLarge: base.bodyLarge?.copyWith(
@@ -96,11 +108,13 @@ ThemeData bmdTheme({Brightness brightness = Brightness.light}) {
       fontSize: 14,
       height: 20 / 14,
       fontWeight: FontWeight.w600,
+      fontVariations: _wght(FontWeight.w600),
     ),
     labelMedium: base.labelMedium?.copyWith(
       fontSize: 12,
       height: 16 / 12,
       fontWeight: FontWeight.w600,
+      fontVariations: _wght(FontWeight.w600),
     ),
     // The micro-label role: the only uppercase in the system. 12px caps need
     // tracking to stay legible at a glance.
@@ -108,6 +122,7 @@ ThemeData bmdTheme({Brightness brightness = Brightness.light}) {
       fontSize: 12,
       height: 16 / 12,
       fontWeight: FontWeight.w600,
+      fontVariations: _wght(FontWeight.w600),
       letterSpacing: 0.72,
       color: bmd.textFaint,
     ),
