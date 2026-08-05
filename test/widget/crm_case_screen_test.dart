@@ -9,6 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/single_primary.dart';
+
 /// In-memory [VerificationRepository] so the real [CrmCaseController] runs
 /// against fixed data instead of a live Dio client — no network stack needed
 /// to exercise the screen's decision gating.
@@ -117,6 +119,8 @@ void main() {
       expect(repo.lastDecision, isNotNull);
       expect(repo.lastDecision!.outcome, VerificationOutcome.approved);
       expect(repo.lastDecision!.reason, 'Matches profile photo.');
+
+      expectSinglePrimaryAction(tester);
     },
   );
 
@@ -147,6 +151,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(repo.lastDecision!.outcome, VerificationOutcome.rejected);
+
+      expectSinglePrimaryAction(tester);
     },
   );
 }

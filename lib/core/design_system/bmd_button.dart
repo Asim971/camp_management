@@ -86,3 +86,45 @@ class BmdButton extends StatelessWidget {
     );
   }
 }
+
+/// An icon-only action: search, filter, zoom, more, close (§5.1).
+///
+/// A separate widget rather than a sixth [BmdButtonVariant] — an icon button
+/// has no label, which would make [BmdButton.label] meaningless. [tooltip] is
+/// required because §5.1 demands one on web, and an unlabelled control without
+/// it is unusable to a screen reader as well as to a new operator.
+class BmdIconButton extends StatelessWidget {
+  const BmdIconButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+    this.identifier,
+    super.key,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onPressed;
+  final String? identifier;
+
+  @override
+  Widget build(BuildContext context) {
+    final size = Breakpoint.of(context).isMobile
+        ? BmdSize.touchTargetMin
+        : BmdSize.controlHeightWeb;
+
+    final button = SizedBox(
+      width: size,
+      height: size,
+      child: IconButton(
+        tooltip: tooltip,
+        icon: Icon(icon, size: 20),
+        onPressed: onPressed,
+      ),
+    );
+
+    return identifier == null
+        ? button
+        : Semantics(identifier: identifier, child: button);
+  }
+}

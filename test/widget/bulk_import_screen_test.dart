@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/single_primary.dart';
+
 /// Fakes the platform file dialog so the widget test never touches a real
 /// OS picker — it hands back a canned in-memory [XFile], the same seam
 /// `file_selector` itself uses for testing (`FileSelectorPlatform.instance`).
@@ -80,6 +82,12 @@ void main() {
         String.fromCharCodes(controller.receivedBytes!),
         'name,phone\nKarim,017\n',
       );
+
+      // TODO: This assertion fails because bulk_import_screen shows both
+      // "Choose file" (line 95) and "Commit valid rows" (line 204) buttons
+      // as primary. Which should be demoted to tonal or outlined is a design
+      // decision that needs to be made.
+      expectSinglePrimaryAction(tester);
     },
   );
 
@@ -116,6 +124,8 @@ void main() {
 
       expect(controller.receivedBytes, isNull);
       expect(controller.receivedFilename, isNull);
+
+      expectSinglePrimaryAction(tester);
     },
   );
 }
