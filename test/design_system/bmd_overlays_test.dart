@@ -300,6 +300,18 @@ void main() {
 
   group('single renderer', () {
     test('no feature screen hand-rolls a dialog or modal sheet', () {
+      // Matches AlertDialog(, showDialog(, showDialog<T>(, showModalBottomSheet(
+      // and showModalBottomSheet<T>( -- an optional generic-type argument can
+      // sit between the identifier and the opening paren, and a literal
+      // `.contains('showModalBottomSheet(')` check misses the typed form
+      // entirely (which is exactly what the carpenter-search screen used to
+      // call). `\b` keeps this from matching the design-system functions the
+      // screens are supposed to call instead (showBmdBottomSheet,
+      // showBmdConfirm) -- neither name contains AlertDialog, showDialog or
+      // showModalBottomSheet as a substring.
+      final offenderPattern = RegExp(
+        r'\b(?:AlertDialog|showDialog|showModalBottomSheet)(?:<[^>]*>)?\(',
+      );
       final offenders = <String>[];
       for (final entity in Directory(
         'lib/features',
@@ -307,10 +319,7 @@ void main() {
         if (entity is! File || !entity.path.endsWith('.dart')) continue;
         final lines = entity.readAsLinesSync();
         for (var i = 0; i < lines.length; i++) {
-          final line = lines[i];
-          if (line.contains('AlertDialog(') ||
-              line.contains('showModalBottomSheet(') ||
-              line.contains('showDialog<')) {
+          if (offenderPattern.hasMatch(lines[i])) {
             offenders.add('${entity.path}:${i + 1}');
           }
         }
