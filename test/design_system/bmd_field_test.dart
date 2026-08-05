@@ -1,4 +1,5 @@
 import 'package:acsl_campaign/app/theme/bmd_theme.dart';
+import 'package:acsl_campaign/app/theme/tokens.dart';
 import 'package:acsl_campaign/core/design_system/bmd_field.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -37,10 +38,15 @@ void main() {
 
     testWidgets('errorText overrides validator output', (tester) async {
       // A server rejection or an async duplicate check has to be able to beat
-      // whatever a synchronous validator currently thinks.
+      // whatever a synchronous validator currently thinks. Driving validate()
+      // explicitly is what actually exercises the precedence: without it,
+      // the validator is never invoked and this test would pass even if the
+      // errorText/validator guard were deleted.
+      final formKey = GlobalKey<FormState>();
       await _pump(
         tester,
         Form(
+          key: formKey,
           child: BmdField(
             label: 'Campaign name',
             errorText: 'A campaign with this name already exists',
@@ -48,6 +54,9 @@ void main() {
           ),
         ),
       );
+
+      formKey.currentState!.validate();
+      await tester.pump();
 
       expect(
         find.text('A campaign with this name already exists'),
@@ -58,6 +67,14 @@ void main() {
 
     testWidgets('a multiline field is at least 96px tall', (tester) async {
       await _pump(tester, const BmdField.multiline(label: 'Objective'));
+
+      // Assert the constraint itself, not just a rendered height that could
+      // coincidentally land on 96px for other reasons (e.g. minLines: 3's
+      // natural line-box height at this test's width).
+      final decoration = tester
+          .widget<TextField>(find.byType(TextField))
+          .decoration;
+      expect(decoration?.constraints?.minHeight, BmdSize.textareaMin);
 
       final height = tester
           .getSize(
