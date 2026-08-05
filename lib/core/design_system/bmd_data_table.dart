@@ -30,7 +30,12 @@ class BmdColumn<T> {
   final String id;
   final String label;
 
-  /// Width below which this column is unreadable rather than merely cramped.
+  /// The preferred floor below which this column is unreadable rather than
+  /// merely cramped — honoured whenever the viewport can afford it. When
+  /// even every rendered column's minimum cannot fit at once (a narrow phone
+  /// with an identity and a primary column that are both never dropped),
+  /// each rendered column is scaled down proportionally to its [minWidth]
+  /// instead, so the row stays visible rather than overflowing.
   final double minWidth;
 
   /// Share of the leftover width once every rendered column has its minimum.
@@ -98,7 +103,7 @@ class BmdDataTable<T> extends StatefulWidget {
 class _BmdDataTableState<T> extends State<BmdDataTable<T>> {
   static const double _rowHeight = BmdSize.rowHeight; // 46
   static const double _selectWidth = 48;
-  static const double _detailWidth = 44;
+  static const double _detailWidth = BmdSize.controlHeightWeb; // 44
 
   void _toggle(String id, bool? on) {
     final next = Set<String>.from(widget.selectedIds);
@@ -146,17 +151,30 @@ class _BmdDataTableState<T> extends State<BmdDataTable<T>> {
 
   /// Each column's minimum, plus a flex-weighted share of the slack. Flex alone
   /// would ignore the minimums and starve a wide column next to a narrow one.
+  ///
+  /// `identity`/`primary` columns are never dropped by [_visible], so their
+  /// minimums can still exceed [available] on a narrow phone. Handing each
+  /// its full [BmdColumn.minWidth] in that case would make the sum of
+  /// [_widths] exceed the budget and overflow the row's [Row] — so instead
+  /// every rendered column's width is scaled down proportionally to its
+  /// minWidth until the total fits exactly. The invariant this preserves:
+  /// the widths returned here never sum to more than [_contentWidth].
   List<double> _widths(List<BmdColumn<T>> columns, double available) {
     final budget = _contentWidth(available);
 
     final minSum = columns.fold(0.0, (sum, c) => sum + c.minWidth);
     final slack = budget - minSum;
-    final flexSum = columns.fold(0, (sum, c) => sum + c.flex);
 
+    if (slack < 0) {
+      final clamped = budget <= 0 ? 0.0 : budget;
+      if (minSum <= 0) return [for (final _ in columns) 0.0];
+      return [for (final column in columns) clamped * column.minWidth / minSum];
+    }
+
+    final flexSum = columns.fold(0, (sum, c) => sum + c.flex);
     return [
       for (final column in columns)
-        column.minWidth +
-            (slack <= 0 || flexSum == 0 ? 0 : slack * column.flex / flexSum),
+        column.minWidth + (flexSum == 0 ? 0 : slack * column.flex / flexSum),
     ];
   }
 
@@ -168,12 +186,19 @@ class _BmdDataTableState<T> extends State<BmdDataTable<T>> {
     );
   }
 
+  /// `true` when every row is selected, `false` when none is, `null` for a
+  /// partial selection — a genuine tristate value for the header checkbox
+  /// rather than the plain bool a partial selection would otherwise collapse
+  /// to "unchecked".
+  bool? get _headerCheckboxValue {
+    if (widget.rows.isEmpty || widget.selectedIds.isEmpty) return false;
+    if (widget.selectedIds.length == widget.rows.length) return true;
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final allSelected =
-        widget.rows.isNotEmpty &&
-        widget.selectedIds.length == widget.rows.length;
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -200,7 +225,7 @@ class _BmdDataTableState<T> extends State<BmdDataTable<T>> {
 
             return Column(
               children: [
-                _header(theme, visible, widths, allSelected),
+                _header(theme, visible, widths, _headerCheckboxValue),
                 const Divider(height: 1),
                 Expanded(
                   child: ListView.builder(
@@ -222,7 +247,7 @@ class _BmdDataTableState<T> extends State<BmdDataTable<T>> {
     ThemeData theme,
     List<BmdColumn<T>> visible,
     List<double> widths,
-    bool allSelected,
+    bool? headerCheckboxValue,
   ) {
     final style = theme.textTheme.labelMedium?.copyWith(color: BmdColor.ink700);
     return Container(
@@ -234,7 +259,7 @@ class _BmdDataTableState<T> extends State<BmdDataTable<T>> {
             SizedBox(
               width: _selectWidth,
               child: Checkbox(
-                value: allSelected,
+                value: headerCheckboxValue,
                 tristate: true,
                 onChanged: _toggleAll,
               ),
@@ -297,15 +322,29 @@ class _BmdDataTableState<T> extends State<BmdDataTable<T>> {
                     padding: const EdgeInsets.symmetric(
                       horizontal: BmdSpace.s3,
                     ),
-                    child: Align(
-                      alignment: visible[i].numeric
-                          ? Alignment.centerRight
-                          : Alignment.centerLeft,
-                      child: DefaultTextStyle.merge(
-                        style: theme.textTheme.bodyMedium,
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                        child: visible[i].cell(row),
+                    // An arbitrary cell widget (a StatusChip is a Row of an
+                    // icon and a label with no overflow handling of its own)
+                    // can demand more width than a cramped column has. A
+                    // bounded maxWidth doesn't prevent that: RenderFlex
+                    // overflows whenever a Flex's non-flexible children want
+                    // more room than the Flex itself was given, regardless
+                    // of anything clipping it from outside. OverflowBox
+                    // grants the cell its natural size so nothing inside it
+                    // ever overflows, and the surrounding ClipRect trims
+                    // the paint back to the column's actual bounds — a hard
+                    // clip rather than an ellipsis, but never a crash.
+                    child: ClipRect(
+                      child: OverflowBox(
+                        alignment: visible[i].numeric
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
+                        maxWidth: double.infinity,
+                        child: DefaultTextStyle.merge(
+                          style: theme.textTheme.bodyMedium,
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                          child: visible[i].cell(row),
+                        ),
                       ),
                     ),
                   ),
