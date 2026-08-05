@@ -2,6 +2,7 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/theme/tokens.dart';
 import '../../../core/design_system/bmd_button.dart';
 import '../../../core/design_system/bmd_data_table.dart';
 import '../../../core/design_system/status_chip.dart';
@@ -166,23 +167,43 @@ class _Results extends StatelessWidget {
           child: BmdDataTable<ImportRow>(
             rows: job.rows,
             rowId: (r) => r.rowId,
+            rowDetailTitle: (r) => 'Row ${r.rowId}',
+            rowDetailBuilder: (r) {
+              final o = _outcome(r.outcome);
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(r.name),
+                  const SizedBox(height: BmdSpace.s3),
+                  StatusChip(label: o.label, tone: o.tone),
+                  const SizedBox(height: BmdSpace.s3),
+                  Text(r.message ?? r.linkedCarpenterId ?? '—'),
+                ],
+              );
+            },
             columns: [
               BmdColumn(
                 id: 'row',
                 label: 'Row',
-                width: 80,
+                priority: BmdColumnPriority.identity,
+                minWidth: 80,
+                flex: 0,
                 cell: (r) => Text(r.rowId),
               ),
               BmdColumn(
                 id: 'name',
                 label: 'Name',
-                width: 200,
+                priority: BmdColumnPriority.primary,
+                minWidth: 160,
+                flex: 2,
                 cell: (r) => Text(r.name),
               ),
               BmdColumn(
                 id: 'outcome',
                 label: 'Outcome',
-                width: 150,
+                priority: BmdColumnPriority.primary,
+                minWidth: 150,
                 cell: (r) {
                   final o = _outcome(r.outcome);
                   return StatusChip(label: o.label, tone: o.tone);
@@ -191,7 +212,8 @@ class _Results extends StatelessWidget {
               BmdColumn(
                 id: 'message',
                 label: 'Detail / action',
-                width: 280,
+                minWidth: 200,
+                flex: 2,
                 cell: (r) => Text(r.message ?? r.linkedCarpenterId ?? '—'),
               ),
             ],

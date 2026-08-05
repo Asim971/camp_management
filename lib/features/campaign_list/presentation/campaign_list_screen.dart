@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/theme/tokens.dart';
 import '../../../core/design_system/bmd_data_table.dart';
 import '../../../core/design_system/status_chip.dart';
 import '../../../core/responsive/adaptive_scaffold.dart';
@@ -40,17 +41,31 @@ class CampaignListScreen extends ConsumerWidget {
                 rows: paged.items,
                 rowId: (c) => c.id,
                 onRowTap: (c) => context.go('/campaigns/${c.id}'),
+                rowDetailTitle: (c) => c.name,
+                rowDetailBuilder: (c) => Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    StatusChip(label: c.status.name, tone: _toneFor(c.status)),
+                    const SizedBox(height: BmdSpace.s3),
+                    Text('Target audience: ${c.targetAudience}'),
+                    Text('Verified attendance: ${c.verifiedAttendance}'),
+                  ],
+                ),
                 columns: [
                   BmdColumn(
                     id: 'name',
                     label: 'Campaign',
-                    width: 280,
+                    priority: BmdColumnPriority.identity,
+                    minWidth: 200,
+                    flex: 3,
                     cell: (c) => Text(c.name),
                   ),
                   BmdColumn(
                     id: 'status',
                     label: 'Status',
-                    width: 180,
+                    priority: BmdColumnPriority.primary,
+                    minWidth: 160,
                     cell: (c) => StatusChip(
                       label: c.status.name,
                       tone: _toneFor(c.status),
@@ -59,14 +74,14 @@ class CampaignListScreen extends ConsumerWidget {
                   BmdColumn(
                     id: 'target',
                     label: 'Target',
-                    width: 120,
+                    minWidth: 100,
                     numeric: true,
                     cell: (c) => Text('${c.targetAudience}'),
                   ),
                   BmdColumn(
                     id: 'verified',
                     label: 'Verified',
-                    width: 120,
+                    minWidth: 100,
                     numeric: true,
                     cell: (c) => Text('${c.verifiedAttendance}'),
                   ),
