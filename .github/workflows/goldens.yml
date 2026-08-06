@@ -7,6 +7,17 @@ name: goldens
 # so a pull request can never make CI commit on its behalf.
 on:
   workflow_dispatch:
+  # TEMPORARY, removed in the commit that lands the baselines. `workflow_dispatch`
+  # is only exposed for workflows that exist on the default branch, and `main`
+  # has no `.github/` at all yet -- so the first baselines cannot be produced by
+  # dispatch. This push trigger bootstraps them on the same ubuntu-latest runner
+  # that verifies them. Once `.github/` reaches `main`, dispatch works and this
+  # block must go: a push-triggered `--update-goldens` would silently regenerate
+  # baselines on every commit, which defeats the entire point of having them.
+  push:
+    branches: [feat/campaign-management-flutter-scaffold]
+    paths:
+      - '.github/workflows/goldens.yml'
 
 permissions:
   contents: read
