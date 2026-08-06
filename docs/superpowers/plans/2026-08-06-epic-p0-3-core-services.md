@@ -15,7 +15,7 @@
 - **Repo:** `D:\Camp_man`, branch `feat/campaign-management-flutter-scaffold`. Commit after every task.
 - **Lints are strict and CI-enforced.** `analysis_options.yaml` enables `strict-casts: true`, `strict-raw-types: true`, and requires `always_declare_return_types`, `avoid_dynamic_calls`, `avoid_print`, `directives_ordering`, `prefer_const_constructors`, `prefer_final_locals`, `require_trailing_commas`, `sort_child_properties_last`, `unawaited_futures`, `use_super_parameters`. Use `debugPrint`, never `print`. Every `Future` is awaited or explicitly `unawaited(...)`.
 - **Verification gates (every task):** `dart format --set-exit-if-changed .` clean, `flutter analyze --fatal-infos` exits 0, `flutter test` green. The final task additionally runs `flutter build web` and `flutter build apk --flavor dev`.
-- **Baseline:** 33 tests pass before this epic starts. No existing test may regress — in particular `test/core/sync_engine_test.dart` and `test/core/backoff_test.dart`, since `BackoffPolicy` is reused unchanged.
+- **Baseline:** 87 tests pass and 29 skip before this epic starts (measured at `fae2bc3`; the 29 skips are the Linux-gated goldens, expected on Windows). An earlier note in `TASK_BREAKDOWN.md` said 33 — that figure predates Epic P0.2 and is stale. No existing test may regress — in particular `test/core/sync_engine_test.dart` and `test/core/backoff_test.dart`, since `BackoffPolicy` is reused unchanged.
 - **HARD ORDERING CONSTRAINT:** Task 1 (dump the v1 Drift schema) MUST complete and be committed before Task 6 touches `app_database.dart`. After the `schemaVersion` bump the v1 baseline can only be recovered by a git checkout.
 - **Never rename `SecureStoreKeys.evidenceAesKeyV1`** (value `'evidence_aes_key_v1'`). Renaming abandons any key already on a device, and with it the ability to decrypt evidence encrypted under it.
 - **🔒 contract-pending endpoints** stay placeholders, flagged in-file exactly as the campaign endpoints already are: audit posts to `POST /audit/events` with body `{"events": [...]}`.
@@ -2968,7 +2968,7 @@ flutter build web
 flutter build apk --flavor dev
 ```
 
-Expected: format clean; analyze exits 0; every test passes (33 baseline + 47 new); both builds succeed.
+Expected: format clean; analyze exits 0; every test passes (87 baseline − 3 superseded + 50 new = 134, with the 29 Linux-gated goldens still skipping on Windows); both builds succeed.
 
 - [ ] **Step 9: Confirm the moved code left no stragglers**
 
