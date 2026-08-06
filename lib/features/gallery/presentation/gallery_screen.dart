@@ -10,6 +10,13 @@ import '../../../core/design_system/lineage_rail.dart';
 import '../../../core/design_system/status_chip.dart';
 import '../../../domain/common/status.dart';
 
+/// Gallery-only container sizes. These are not design tokens — there is no
+/// [BmdSize] slot for "gallery card width" — just named constants so a reader
+/// sees intent instead of a bare literal repeated across demos.
+const double _kCardWidth = 300;
+const double _kTableHeight = 200;
+const double _kStateHeight = 260;
+
 /// Stable keys for each gallery section, so a golden baseline can target one
 /// section instead of the whole page.
 abstract final class GallerySection {
@@ -239,7 +246,11 @@ class _StatusDemo extends StatelessWidget {
     return Wrap(
       spacing: BmdSpace.s2,
       runSpacing: BmdSpace.s2,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
+        // The 28px variant, for use beside a page title (per its own doc
+        // comment) — every other chip below is the 24px default.
+        const StatusChip(label: 'active', tone: StatusTone.info, large: true),
         for (final s in CampaignStatus.values)
           StatusChip.campaign(s, label: s.name),
         for (final s in RegistrationStatus.values)
@@ -265,7 +276,7 @@ class _CardsDemo extends StatelessWidget {
       runSpacing: BmdSpace.s4,
       children: [
         const SizedBox(
-          width: 300,
+          width: _kCardWidth,
           child: KpiCard(
             label: 'Verified attendance',
             value: '1,107',
@@ -279,7 +290,7 @@ class _CardsDemo extends StatelessWidget {
           ),
         ),
         const SizedBox(
-          width: 300,
+          width: _kCardWidth,
           child: KpiCard(
             label: 'Median time to decision',
             value: '6.4h',
@@ -294,8 +305,23 @@ class _CardsDemo extends StatelessWidget {
             deltaContext: 'vs last week',
           ),
         ),
+        const SizedBox(
+          width: _kCardWidth,
+          child: KpiCard(
+            label: 'Active campaigns',
+            value: '42',
+            definition: 'Campaigns currently in the Active status.',
+            source: 'campaign facts',
+            freshness: 'refreshed 09:42',
+            delta: '0',
+            // Flat: no meaningful movement week over week — distinct from
+            // omitting delta entirely, which reads as "not tracked".
+            deltaContext: 'vs last week',
+            footer: Text('Excludes paused and draft campaigns.'),
+          ),
+        ),
         SizedBox(
-          width: 300,
+          width: _kCardWidth,
           child: ExceptionCard(
             label: 'Captures awaiting sync',
             count: '34',
@@ -308,7 +334,7 @@ class _CardsDemo extends StatelessWidget {
           ),
         ),
         const SizedBox(
-          width: 300,
+          width: _kCardWidth,
           child: ExceptionCard(
             label: 'Rejected this week',
             count: '6',
@@ -317,7 +343,7 @@ class _CardsDemo extends StatelessWidget {
           ),
         ),
         SizedBox(
-          width: 300,
+          width: _kCardWidth,
           child: ExceptionCard(
             label: 'No-reference captures',
             count: '11',
@@ -350,10 +376,53 @@ class _FeedbackDemo extends StatelessWidget {
           ),
           const SizedBox(height: BmdSpace.s3),
         ],
+        // The optional trailing action slot, on its own banner rather than
+        // folded into the tone loop above — one instance is enough to show
+        // the slot exists without implying every tone needs one.
+        BmdBanner(
+          title: 'A newer version of this campaign was just approved',
+          tone: BannerTone.warning,
+          body: 'Reload to see the latest plan before you continue editing.',
+          action: BmdButton(
+            label: 'Reload',
+            variant: BmdButtonVariant.tonal,
+            onPressed: () {},
+          ),
+        ),
+        const SizedBox(height: BmdSpace.s3),
         const OfflineBar(pendingCount: 3, lastSyncLabel: '14m ago'),
+        const SizedBox(height: BmdSpace.s2),
+        // The connected state: a different icon and tone from the default
+        // (disconnected/queued) bar above, plus the "View queue" action,
+        // which only renders when onViewQueue is non-null.
+        OfflineBar(
+          pendingCount: 0,
+          lastSyncLabel: 'just now',
+          connected: true,
+          onViewQueue: () {},
+        ),
         const SizedBox(height: BmdSpace.s4),
         const SizedBox(
-          height: 260,
+          height: _kStateHeight,
+          child: BmdState.empty(
+            title: 'No campaigns match these filters',
+            body: 'Try widening the date range or clearing the region filter.',
+          ),
+        ),
+        const SizedBox(height: BmdSpace.s4),
+        const SizedBox(
+          height: _kStateHeight,
+          child: BmdState.error(
+            title: 'Could not load the campaign list',
+            body:
+                'The request timed out. Check your connection and try '
+                'again.',
+            reference: 'Reference ERR-504',
+          ),
+        ),
+        const SizedBox(height: BmdSpace.s4),
+        const SizedBox(
+          height: _kStateHeight,
           child: BmdState.denied(
             title: "You don't have access to campaign approval",
             body:
@@ -399,7 +468,7 @@ class _TableDemo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 200,
+      height: _kTableHeight,
       child: BmdDataTable<_GalleryRow>(
         rows: _rows,
         rowId: (r) => r.code,
