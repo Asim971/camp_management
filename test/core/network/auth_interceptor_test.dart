@@ -1,4 +1,5 @@
 import 'package:acsl_campaign/core/network/auth_interceptor.dart';
+import 'package:acsl_campaign/core/network/retry_interceptor.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -86,5 +87,51 @@ void main() {
         'Bearer token-1',
       );
     });
+
+    test(
+      'Finding 1: RetryInterceptor retries re-read live tokens, not cached headers',
+      () async {
+        // Regression: without the replay flag, onRequest would see the Authorization
+        // header from the first attempt and skip re-reading the live token on retry.
+        // This test verifies RetryInterceptor retries get fresh tokens.
+        var readCount = 0;
+        final tokenByRead = ['v1', 'v2'];
+
+        final adapter = ScriptedAdapter([
+          const ScriptedReply.status(503), // Retryable transient error
+          const ScriptedReply.status(200), // Retry succeeds
+        ]);
+        final dio = Dio(BaseOptions(baseUrl: 'https://api.test'))
+          ..httpClientAdapter = adapter;
+
+        dio.interceptors.addAll([
+          AuthInterceptor(
+            readAccessToken: () {
+              final token =
+                  tokenByRead[readCount.clamp(0, tokenByRead.length - 1)];
+              readCount++;
+              return token;
+            },
+            refreshToken: () async => null,
+            onAuthLost: () {},
+            replay: (options) => dio.fetch<dynamic>(options),
+          ),
+          // RetryInterceptor with instant delay so test doesn't sleep
+          RetryInterceptor(dio: dio, delay: (_) => Future<void>.value()),
+        ]);
+
+        final res = await dio.get<void>('/campaigns');
+
+        expect(res.statusCode, 200);
+        // First request (503): reads v1
+        // Retry: reads v2 (not v1 from header cache)
+        expect(
+          adapter.requests.last.headers['Authorization'],
+          'Bearer v2',
+          reason:
+              'Retry should use fresh token from readAccessToken, not cached header',
+        );
+      },
+    );
   });
 }
