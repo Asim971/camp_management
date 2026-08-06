@@ -76,6 +76,38 @@ List<GallerySectionView> gallerySections() => const [
   ),
 ];
 
+/// A Bengali-copy sample for the §13.2 wrapping baseline. Bengali conjuncts
+/// and matras wrap differently from Latin text, and the placeholder test font
+/// cannot show it — this is only meaningful once real Bengali glyphs shape,
+/// which `test/flutter_test_config.dart` loads for every test under `test/`.
+class BengaliCopySample extends StatelessWidget {
+  const BengaliCopySample({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        BmdField(
+          label: 'ক্যাম্পেইনের নাম',
+          required: true,
+          helper: 'অংশগ্রহণকারীদের আমন্ত্রণে এই নামটি দেখানো হবে।',
+        ),
+        SizedBox(height: BmdSpace.s4),
+        BmdBanner(
+          title: 'অর্ডারের তথ্য ৪১ মিনিট পিছিয়ে আছে',
+          tone: BannerTone.warning,
+          body:
+              'নিচের অবদানের হিসাব থেকে শেষ ৪১ মিনিটের তথ্য বাদ '
+              'দেওয়া হয়েছে।',
+        ),
+        SizedBox(height: BmdSpace.s4),
+        StatusChip(label: 'যাচাই সম্পন্ন', tone: StatusTone.success),
+      ],
+    );
+  }
+}
+
 /// The component gallery (T-0.2.9). Every variant and state of every design
 /// system component, rendered at once.
 ///

@@ -59,6 +59,16 @@ jobs:
       - name: Test
         run: flutter test
 
+      # A golden diff nobody can look at is nearly impossible to act on.
+      - name: Upload golden failure diffs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-failures
+          path: test/**/failures
+          retention-days: 7
+          if-no-files-found: ignore
+
       - name: Build web
         run: flutter build web --release
 

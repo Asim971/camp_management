@@ -1,0 +1,48 @@
+name: goldens
+
+# Manual only. Baselines cannot be generated on the development machine --
+# there is no Linux Flutter toolchain there -- so this job produces them on the
+# same runner that verifies them, and uploads them for a human to commit.
+# It deliberately does NOT write to the repository: the gate stays read-only,
+# so a pull request can never make CI commit on its behalf.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: 3.44.8
+
+jobs:
+  update:
+    name: regenerate golden baselines
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Generate localizations
+        run: flutter gen-l10n
+
+      - name: Run code generation
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Regenerate baselines
+        run: flutter test test/golden --update-goldens
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: golden-baselines
+          path: test/golden/goldens
+          retention-days: 14
+          if-no-files-found: error
