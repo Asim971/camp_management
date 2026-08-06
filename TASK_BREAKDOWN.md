@@ -33,17 +33,24 @@
 | T-0.1.5 | Codegen wiring (`build_runner`, freezed, riverpod_generator, drift, l10n) | M | 0.1.1 | ✅ freezed + json_serializable + drift + gen-l10n. Riverpod codegen dropped — see ARCHITECTURE §6 amendment |
 
 ### Epic P0.2 — Design system & tokens ⭐
-| ID | Task | Est | Deps | Design |
-|----|------|-----|------|--------|
-| T-0.2.1 | BMD tokens in Dart (color, space, radius, elevation, type) | M | 0.1.5 | §4 |
-| T-0.2.2 | `bmdTheme()` → Material 3 `ThemeData` for light + dark | M | 0.2.1 | §4 |
-| T-0.2.3 | Typed status vocabulary enums (campaign/registration/attendance/import/integrity) + labels | M | 0.2.1 | Appendix B |
-| T-0.2.4 | `StatusChip` single renderer (icon + label, never color-only) | M | 0.2.3 | §5.4 |
-| T-0.2.5 | `BmdButton` variants (primary/tonal/outlined/text/danger/icon) + one-primary assertion | M | 0.2.2 | §5.1 |
-| T-0.2.6 | `BmdField` / `BmdSearchField` (outlined, persistent label, inline validation) | M | 0.2.2 | §5.2 |
-| T-0.2.7 | `BmdDataTable` ⭐ — virtualized, sticky header + identity column, 44–48px rows, safe bulk-select | L | 0.2.2 | §5.5, §11 |
-| T-0.2.8 | KPI card, exception card, side sheet, bottom sheet, dialog primitives | L | 0.2.2 | §5.5, §5.6 |
-| T-0.2.9 | Component gallery route + golden test baselines | M | 0.2.4–0.2.8 | QA checklist |
+| ID | Task | Est | Deps | Design | Status |
+|----|------|-----|------|--------|--------|
+| T-0.2.1 | BMD tokens in Dart (color, space, radius, elevation, type) | M | 0.1.5 | §4 | ✅ |
+| T-0.2.2 | `bmdTheme()` → Material 3 `ThemeData` for light + dark | M | 0.2.1 | §4 | ✅ |
+| T-0.2.3 | Typed status vocabulary enums (campaign/registration/attendance/import/integrity) + labels | M | 0.2.1 | Appendix B | ✅ |
+| T-0.2.4 | `StatusChip` single renderer (icon + label, never color-only) | M | 0.2.3 | §5.4 | ✅ |
+| T-0.2.5 | `BmdButton` variants (primary/tonal/outlined/text/danger/icon) + one-primary assertion | M | 0.2.2 | §5.1 | ✅ |
+| T-0.2.6 | `BmdField` / `BmdSearchField` (outlined, persistent label, inline validation) | M | 0.2.2 | §5.2 | ✅ |
+| T-0.2.7 | `BmdDataTable` ⭐ — virtualized, sticky header + identity column, 44–48px rows, safe bulk-select | L | 0.2.2 | §5.5, §11 | ✅ |
+| T-0.2.8 | KPI card, exception card, side sheet, bottom sheet, dialog primitives | L | 0.2.2 | §5.5, §5.6 | ✅ |
+| T-0.2.9 | Component gallery route + golden test baselines | M | 0.2.4–0.2.8 | QA checklist | ✅ |
+
+> **P0.2 complete** (2026-08-05). T-0.2.7 ships priority-flex columns rather
+> than a frozen identity column: freezing splits each row into two widget
+> subtrees, so a screen reader reads column-major, which would fail the
+> T-3.4.1/T-3.4.2 accessibility gates. Overflow columns reach the user through
+> the row-detail side sheet (§5.3). Goldens run on Linux only; regenerate via
+> the `goldens` workflow (`gh workflow run goldens`), not locally.
 
 ### Epic P0.3 — Core services ⭐
 | ID | Task | Est | Deps | Notes |
@@ -66,7 +73,7 @@
 ### Epic P0.5 — Localization ⭐
 | ID | Task | Est | Deps | Notes |
 |----|------|-----|------|-------|
-| T-0.5.1 | `flutter_localizations` + ARB scaffolding (en, bn) + Noto Sans Bengali fallback | M | 0.1.5 | §4.3, §13 |
+| T-0.5.1 | `flutter_localizations` + ARB scaffolding (en, bn) + Noto Sans Bengali fallback | M | 0.1.5 | ✅ ARB + gen-l10n. The Noto Sans Bengali fallback was declared in the theme but never bundled; the fonts landed in P0.2 (2026-08-05). |
 | T-0.5.2 | Versioned consent/purpose-notice content model (bn/en parity + version record) | M | 0.5.1 | 🔒 Legal §10.3 |
 
 ### Epic P0.6 — Riverpod DI baseline ⭐
