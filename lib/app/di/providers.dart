@@ -62,6 +62,9 @@ final authControllerProvider = NotifierProvider<AuthController, Session?>(
 
 final dioProvider = Provider<Dio>((ref) {
   final config = ref.watch(appConfigProvider);
+  // The interceptor needs the client it lives in, so bind lazily: `dio` is
+  // assigned before any request can run, so the closure never sees it unset.
+  late final Dio dio;
   final interceptor = AuthInterceptor(
     readAccessToken: () => ref.read(authControllerProvider)?.accessToken,
     refreshToken: () async {
@@ -69,8 +72,10 @@ final dioProvider = Provider<Dio>((ref) {
       throw UnimplementedError('Auth refresh pending service contract');
     },
     onAuthLost: () => ref.read(authControllerProvider.notifier).clear(),
+    replay: (options) => dio.fetch<dynamic>(options),
   );
-  return buildDio(baseUrl: config.apiBaseUrl, authInterceptor: interceptor);
+  dio = buildDio(baseUrl: config.apiBaseUrl, authInterceptor: interceptor);
+  return dio;
 });
 
 final campaignRepositoryProvider = Provider<CampaignRepository>(
