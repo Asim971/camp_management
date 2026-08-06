@@ -69,17 +69,12 @@ class AuthInterceptor extends QueuedInterceptor {
         ..headers['Authorization'] = 'Bearer $refreshed';
       try {
         final response = await replay(req);
-        // If replay also returns 401, signal auth lost (do not retry again,
-        // which would deadlock in QueuedInterceptor's exclusive error queue).
+        // If replay also returns 401, signal auth lost but do not retry again
+        // (which would deadlock in QueuedInterceptor's exclusive error queue).
         if (response.statusCode == 401) {
           onAuthLost();
-          return handler.next(
-            DioException(
-              requestOptions: req,
-              response: response,
-              type: DioExceptionType.badResponse,
-            ),
-          );
+          // Pass original error through without creating a new one
+          return handler.next(err);
         }
         return handler.resolve(response);
       } on DioException catch (e) {
