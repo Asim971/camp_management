@@ -5,13 +5,19 @@ import 'bmd_overlays.dart';
 
 /// How hard a column fights for space when the viewport is tight.
 enum BmdColumnPriority {
-  /// The column that tells the user which row they are reading. Always shown.
+  /// The column that tells the user which row they are reading. Always
+  /// shown, even below its own [BmdColumn.minWidth] if there is truly no
+  /// other choice — the alternative is an unreadable row, not a missing one.
   identity,
 
-  /// Status, owner, SLA age, next action — shown before anything else (§5.5).
+  /// Status, owner, SLA age, next action — rendered before secondary
+  /// columns (§5.5). Dropped into the row detail, last-declared first, when
+  /// the viewport cannot fit it alongside identity and any primary columns
+  /// declared before it.
   primary,
 
-  /// Everything else. Dropped into the row detail when space runs out.
+  /// Everything else. Dropped into the row detail first, before any primary
+  /// column, when space runs out.
   secondary,
 }
 
@@ -30,12 +36,14 @@ class BmdColumn<T> {
   final String id;
   final String label;
 
-  /// The preferred floor below which this column is unreadable rather than
-  /// merely cramped — honoured whenever the viewport can afford it. When
-  /// even every rendered column's minimum cannot fit at once (a narrow phone
-  /// with an identity and a primary column that are both never dropped),
-  /// each rendered column is scaled down proportionally to its [minWidth]
-  /// instead, so the row stays visible rather than overflowing.
+  /// Width below which this column is unreadable rather than merely
+  /// cramped — a real floor, never shrunk to force a fit (Guideline §5.4:
+  /// "the label is the controlled word verbatim — never abbreviated to fit
+  /// a column; if it does not fit, the column is too narrow"). A column
+  /// that cannot have its minWidth honoured is dropped into the row detail
+  /// instead. The one exception is an [BmdColumnPriority.identity] column:
+  /// it is never dropped, so if there is nowhere left to cut, it renders
+  /// below its own minimum rather than not render at all.
   final double minWidth;
 
   /// Share of the leftover width once every rendered column has its minimum.
@@ -56,12 +64,17 @@ class BmdColumn<T> {
 ///  * **Vertically virtualized** — `ListView.builder` renders only visible
 ///    rows, so 10k-row result sets stay smooth.
 ///  * **Sticky header** — the header stays pinned while the body scrolls.
-///  * **No horizontal scroll.** Columns flex to the viewport: identity and
-///    primary columns always render, secondary columns are admitted while
-///    their [BmdColumn.minWidth] still fits, and leftover width is shared by
-///    [BmdColumn.flex]. A frozen identity column is therefore unnecessary —
-///    and a frozen column would split each row into two widget subtrees, so a
-///    screen reader would read column-major instead of row by row.
+///  * **No horizontal scroll.** Columns flex to the viewport: identity
+///    always renders (below its own minimum if there is truly no room to
+///    spare), primary columns render next and drop into the row detail
+///    (last-declared first) once the viewport cannot fit them, secondary
+///    columns are admitted only while their [BmdColumn.minWidth] still
+///    fits, and leftover width among the columns that do render is shared
+///    by [BmdColumn.flex]. No column ever renders narrower than its
+///    minWidth to force a fit (§5.4) — it is dropped instead. A frozen
+///    identity column is therefore unnecessary — and a frozen column would
+///    split each row into two widget subtrees, so a screen reader would
+///    read column-major instead of row by row.
 ///  * **Overflow goes to the side sheet** — §5.3 already sends low-value
 ///    columns there, so [rowDetailBuilder] renders the whole row on demand.
 ///  * **Safe bulk-select** — opt-in via [selectable]; the caller decides where
@@ -129,36 +142,70 @@ class _BmdDataTableState<T> extends State<BmdDataTable<T>> {
   }
 
   /// Columns that fit [available], in declaration order.
+  ///
+  /// `identity` columns are never dropped. `primary` columns are dropped
+  /// last-declared-first — each one removed only if identity plus the
+  /// remaining primaries still cannot fit their combined minimums — until
+  /// what's left fits or none remain. Only once identity and the surviving
+  /// primaries fit does the remaining budget admit `secondary` columns, in
+  /// declaration order, while their [BmdColumn.minWidth] still fits. No
+  /// column here is ever asked to render narrower than its own minWidth
+  /// (Guideline §5.4) — a column that cannot have its minimum honoured is
+  /// dropped, not shrunk. The single exception is identity: see [_widths].
   List<BmdColumn<T>> _visible(double available) {
-    var budget = _contentWidth(available);
+    final budget = _contentWidth(available);
 
-    final kept = <String>{};
-    for (final column in widget.columns) {
-      if (column.priority != BmdColumnPriority.secondary) {
-        kept.add(column.id);
-        budget -= column.minWidth;
-      }
-    }
-    for (final column in widget.columns) {
-      if (column.priority != BmdColumnPriority.secondary) continue;
-      if (budget - column.minWidth < 0) break;
-      budget -= column.minWidth;
-      kept.add(column.id);
+    final identity = widget.columns
+        .where((c) => c.priority == BmdColumnPriority.identity)
+        .toList();
+    final primary = widget.columns
+        .where((c) => c.priority == BmdColumnPriority.primary)
+        .toList();
+    final secondary = widget.columns
+        .where((c) => c.priority == BmdColumnPriority.secondary)
+        .toList();
+
+    final identityMin = identity.fold(0.0, (sum, c) => sum + c.minWidth);
+
+    final keptPrimary = List<BmdColumn<T>>.from(primary);
+    while (keptPrimary.isNotEmpty) {
+      final primaryMin = keptPrimary.fold(0.0, (sum, c) => sum + c.minWidth);
+      if (identityMin + primaryMin <= budget) break;
+      keptPrimary.removeLast();
     }
 
-    return widget.columns.where((c) => kept.contains(c.id)).toList();
+    var remaining =
+        budget -
+        identityMin -
+        keptPrimary.fold(0.0, (sum, c) => sum + c.minWidth);
+
+    final keptSecondaryIds = <String>{};
+    for (final column in secondary) {
+      if (remaining - column.minWidth < 0) break;
+      remaining -= column.minWidth;
+      keptSecondaryIds.add(column.id);
+    }
+
+    final keptIds = <String>{
+      for (final c in identity) c.id,
+      for (final c in keptPrimary) c.id,
+      ...keptSecondaryIds,
+    };
+
+    return widget.columns.where((c) => keptIds.contains(c.id)).toList();
   }
 
-  /// Each column's minimum, plus a flex-weighted share of the slack. Flex alone
-  /// would ignore the minimums and starve a wide column next to a narrow one.
+  /// Each column's minimum, plus a flex-weighted share of the slack. Flex
+  /// alone would ignore the minimums and starve a wide column next to a
+  /// narrow one.
   ///
-  /// `identity`/`primary` columns are never dropped by [_visible], so their
-  /// minimums can still exceed [available] on a narrow phone. Handing each
-  /// its full [BmdColumn.minWidth] in that case would make the sum of
-  /// [_widths] exceed the budget and overflow the row's [Row] — so instead
-  /// every rendered column's width is scaled down proportionally to its
-  /// minWidth until the total fits exactly. The invariant this preserves:
-  /// the widths returned here never sum to more than [_contentWidth].
+  /// [_visible] only ever returns a combination whose minimums fit
+  /// [_contentWidth] — it drops primary and secondary columns until that is
+  /// true. The one case it cannot fix is identity alone still not fitting
+  /// (there is nothing left to drop): when that happens, every surviving
+  /// column's width is scaled down proportionally to its minWidth so the
+  /// total fits exactly rather than overflowing the row's [Row]. In every
+  /// other case this is a no-op, because slack is never negative there.
   List<double> _widths(List<BmdColumn<T>> columns, double available) {
     final budget = _contentWidth(available);
 
@@ -216,11 +263,12 @@ class _BmdDataTableState<T> extends State<BmdDataTable<T>> {
               visible.length == widget.columns.length ||
                   widget.rowDetailBuilder != null,
               'BmdDataTable dropped '
-              '${widget.columns.length - visible.length} column(s) at '
+              '${widget.columns.length - visible.length} column(s) '
+              '(possibly including a primary column) at '
               '${constraints.maxWidth.toStringAsFixed(0)}px with no '
               'rowDetailBuilder, so that data is unreachable. Supply '
-              'rowDetailBuilder, lower minWidth, or mark fewer columns '
-              'secondary.',
+              'rowDetailBuilder, lower minWidth, widen the layout, or mark '
+              'fewer columns primary/secondary.',
             );
 
             return Column(
@@ -322,23 +370,24 @@ class _BmdDataTableState<T> extends State<BmdDataTable<T>> {
                     padding: const EdgeInsets.symmetric(
                       horizontal: BmdSpace.s3,
                     ),
-                    // An arbitrary cell widget (a StatusChip is a Row of an
-                    // icon and a label with no overflow handling of its own)
-                    // can demand more width than a cramped column has. A
-                    // bounded maxWidth doesn't prevent that: RenderFlex
-                    // overflows whenever a Flex's non-flexible children want
-                    // more room than the Flex itself was given, regardless
-                    // of anything clipping it from outside. OverflowBox
-                    // grants the cell its natural size so nothing inside it
-                    // ever overflows, and the surrounding ClipRect trims
-                    // the paint back to the column's actual bounds — a hard
-                    // clip rather than an ellipsis, but never a crash.
+                    // The cell is laid out under the column's genuine width
+                    // (Align only loosens the minimum, not the maximum), so
+                    // a Text cell's `overflow: ellipsis` below still does
+                    // its job (Guideline §5.4: never abbreviate a label to
+                    // fit — but ellipsis is truncation with a visible
+                    // marker, not abbreviation, and is the accepted way to
+                    // show "there is more here"). ClipRect is a defensive
+                    // backstop only, for a caller-supplied cell widget whose
+                    // own internals (e.g. a Flex with no Flexible child)
+                    // might otherwise paint a stray pixel past the column —
+                    // it is not load-bearing the way it was before this
+                    // column's width itself is meant to already fit the
+                    // content per its declared minWidth.
                     child: ClipRect(
-                      child: OverflowBox(
+                      child: Align(
                         alignment: visible[i].numeric
                             ? Alignment.centerRight
                             : Alignment.centerLeft,
-                        maxWidth: double.infinity,
                         child: DefaultTextStyle.merge(
                           style: theme.textTheme.bodyMedium,
                           overflow: TextOverflow.ellipsis,
