@@ -62,9 +62,14 @@ final authControllerProvider = NotifierProvider<AuthController, Session?>(
 
 final dioProvider = Provider<Dio>((ref) {
   final config = ref.watch(appConfigProvider);
-  // The interceptor needs the client it lives in, so bind lazily: `dio` is
-  // assigned before any request can run, so the closure never sees it unset.
-  late final Dio dio;
+  // AuthInterceptor.replay must dispatch through a client that does NOT carry
+  // AuthInterceptor itself, or a second 401 on the replay would need a second
+  // onError run - which deadlocks inside QueuedInterceptor's exclusive error
+  // queue while the first onError is still awaiting replay(). buildReplayDio
+  // shares buildDio's baseUrl/timeouts (so the replay resolves relative paths
+  // like `/campaigns` against the real baseUrl, the original bug this task
+  // fixes) but adds no interceptors of its own.
+  final replayClient = buildReplayDio(baseUrl: config.apiBaseUrl);
   final interceptor = AuthInterceptor(
     readAccessToken: () => ref.read(authControllerProvider)?.accessToken,
     refreshToken: () async {
@@ -72,10 +77,9 @@ final dioProvider = Provider<Dio>((ref) {
       throw UnimplementedError('Auth refresh pending service contract');
     },
     onAuthLost: () => ref.read(authControllerProvider.notifier).clear(),
-    replay: (options) => dio.fetch<dynamic>(options),
+    replay: (options) => replayClient.fetch<dynamic>(options),
   );
-  dio = buildDio(baseUrl: config.apiBaseUrl, authInterceptor: interceptor);
-  return dio;
+  return buildDio(baseUrl: config.apiBaseUrl, authInterceptor: interceptor);
 });
 
 final campaignRepositoryProvider = Provider<CampaignRepository>(

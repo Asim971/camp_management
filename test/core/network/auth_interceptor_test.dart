@@ -16,6 +16,9 @@ void main() {
       ]);
       final dio = Dio(BaseOptions(baseUrl: 'https://api.test'))
         ..httpClientAdapter = adapter;
+      // Mirrors production's buildReplayDio: same baseUrl, no interceptors.
+      final replayClient = Dio(BaseOptions(baseUrl: 'https://api.test'))
+        ..httpClientAdapter = adapter;
 
       var refreshCalls = 0;
       var authLost = false;
@@ -27,7 +30,7 @@ void main() {
             return 'fresh';
           },
           onAuthLost: () => authLost = true,
-          replay: (options) => dio.fetch<dynamic>(options),
+          replay: (options) => replayClient.fetch<dynamic>(options),
         ),
       );
 
@@ -48,6 +51,10 @@ void main() {
       final adapter = ScriptedAdapter([const ScriptedReply.status(401)]);
       final dio = Dio(BaseOptions(baseUrl: 'https://api.test'))
         ..httpClientAdapter = adapter;
+      // replay() is never reached (refresh yields no token), but wired the
+      // same way production does: a separate, interceptor-free client.
+      final replayClient = Dio(BaseOptions(baseUrl: 'https://api.test'))
+        ..httpClientAdapter = adapter;
 
       var authLost = false;
       dio.interceptors.add(
@@ -55,7 +62,7 @@ void main() {
           readAccessToken: () => 'stale',
           refreshToken: () async => null,
           onAuthLost: () => authLost = true,
-          replay: (options) => dio.fetch<dynamic>(options),
+          replay: (options) => replayClient.fetch<dynamic>(options),
         ),
       );
 
@@ -71,12 +78,16 @@ void main() {
       final adapter = ScriptedAdapter([const ScriptedReply.status(200)]);
       final dio = Dio(BaseOptions(baseUrl: 'https://api.test'))
         ..httpClientAdapter = adapter;
+      // replay() is never reached (no 401 here), but wired the same way
+      // production does: a separate, interceptor-free client.
+      final replayClient = Dio(BaseOptions(baseUrl: 'https://api.test'))
+        ..httpClientAdapter = adapter;
       dio.interceptors.add(
         AuthInterceptor(
           readAccessToken: () => 'token-1',
           refreshToken: () async => null,
           onAuthLost: () {},
-          replay: (options) => dio.fetch<dynamic>(options),
+          replay: (options) => replayClient.fetch<dynamic>(options),
         ),
       );
 
@@ -87,6 +98,56 @@ void main() {
         'Bearer token-1',
       );
     });
+
+    test(
+      'Finding 2: consecutive 401s complete instead of deadlocking',
+      () async {
+        // The bug this pins: replaying through a Dio that carries this same
+        // AuthInterceptor makes a second 401 on the replay need a second
+        // onError run. QueuedInterceptor's error queue is exclusive, so that
+        // second onError queues behind the first - which is still awaiting
+        // replay(). Neither can proceed: deadlock. Replaying through a
+        // separate, interceptor-free client (as production now does via
+        // buildReplayDio) rules this out: a second 401 just makes replay()
+        // throw, which the existing `on DioException catch` turns into a
+        // normal propagated error.
+        final adapter = ScriptedAdapter([
+          const ScriptedReply.status(401),
+          const ScriptedReply.status(401),
+        ]);
+        final dio = Dio(BaseOptions(baseUrl: 'https://api.test'))
+          ..httpClientAdapter = adapter;
+        // Deliberately a second, separate client with no AuthInterceptor -
+        // exactly what production wires up via buildReplayDio. Pointing
+        // `replay` back at `dio` itself reintroduces the deadlock; see the
+        // teeth-check note in the task report.
+        final replayClient = Dio(BaseOptions(baseUrl: 'https://api.test'))
+          ..httpClientAdapter = adapter;
+
+        var refreshCalls = 0;
+        var authLost = false;
+        dio.interceptors.add(
+          AuthInterceptor(
+            readAccessToken: () => 'stale',
+            refreshToken: () async {
+              refreshCalls++;
+              return 'fresh';
+            },
+            onAuthLost: () => authLost = true,
+            replay: (options) => replayClient.fetch<dynamic>(options),
+          ),
+        );
+
+        await expectLater(
+          dio.get<void>('/campaigns'),
+          throwsA(isA<DioException>()),
+        );
+        expect(authLost, isTrue);
+        expect(refreshCalls, 1);
+        expect(adapter.callCount, 2);
+      },
+      timeout: const Timeout(Duration(seconds: 10)),
+    );
 
     test(
       'Finding 1: RetryInterceptor retries re-read live tokens, not cached headers',

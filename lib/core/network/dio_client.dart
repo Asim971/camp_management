@@ -7,20 +7,23 @@ import 'correlation_interceptor.dart';
 import 'retry_interceptor.dart';
 import 'trace_options.dart';
 
+/// Base request options shared by the app's main [Dio] client and its
+/// interceptor-free replay client (see [buildReplayDio]) - both must resolve
+/// relative paths (`/campaigns`) against the same `baseUrl` and timeouts.
+BaseOptions _baseOptions(String baseUrl) => BaseOptions(
+  baseUrl: baseUrl,
+  connectTimeout: const Duration(seconds: 15),
+  receiveTimeout: const Duration(seconds: 30),
+  headers: {'Accept': 'application/json'},
+);
+
 /// Builds the app-wide [Dio] instance. All API traffic goes through here so
 /// auth/refresh, correlation-ID, retry and error mapping are centralized.
 Dio buildDio({
   required String baseUrl,
   required AuthInterceptor authInterceptor,
 }) {
-  final dio = Dio(
-    BaseOptions(
-      baseUrl: baseUrl,
-      connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(seconds: 30),
-      headers: {'Accept': 'application/json'},
-    ),
-  );
+  final dio = Dio(_baseOptions(baseUrl));
 
   // Order carries meaning in both directions. Correlation runs first on the
   // request so auth and retry both observe the resolved id. RetryInterceptor is
@@ -35,6 +38,20 @@ Dio buildDio({
 
   return dio;
 }
+
+/// Builds a [Dio] with the same `baseUrl`/timeouts as [buildDio] but no
+/// interceptors - in particular, no [AuthInterceptor].
+///
+/// This is the client [AuthInterceptor.replay] must dispatch through. Because
+/// `AuthInterceptor extends QueuedInterceptor`, whose error queue is
+/// exclusive, replaying a request through a client that carries the *same*
+/// `AuthInterceptor` would mean a second 401 on the replay needs a second
+/// `onError` run - which queues behind the first `onError`, still awaiting
+/// `replay()`. Neither can proceed: deadlock. A client with no interceptors
+/// can never re-enter `AuthInterceptor.onError`, so that failure mode is
+/// structurally impossible; a second 401 simply surfaces as a thrown
+/// `DioException` from `replay()`.
+Dio buildReplayDio({required String baseUrl}) => Dio(_baseOptions(baseUrl));
 
 /// Maps transport/HTTP errors to the domain [Failure] taxonomy so features
 /// never inspect raw [DioException]s.
