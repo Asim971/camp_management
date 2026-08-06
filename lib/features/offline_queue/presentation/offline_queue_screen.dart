@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/di/providers.dart';
 import '../../../app/theme/tokens.dart';
+import '../../../core/design_system/bmd_button.dart';
 import '../../../core/design_system/bmd_feedback.dart';
 import '../../../core/design_system/bmd_overlays.dart';
 import '../../../core/design_system/lineage_rail.dart';
@@ -55,9 +56,9 @@ class OfflineQueueScreen extends ConsumerWidget {
                 body:
                     'Your captures are still saved on this device. Reopening '
                     'the app will not lose them.',
-                action: FilledButton(
+                action: BmdButton(
+                  label: 'Try again',
                   onPressed: () => ref.invalidate(syncQueueProvider),
-                  child: const Text('Try again'),
                 ),
                 reference: 'Reference SYN-READ',
               ),

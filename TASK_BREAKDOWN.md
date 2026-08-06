@@ -49,8 +49,13 @@
 > than a frozen identity column: freezing splits each row into two widget
 > subtrees, so a screen reader reads column-major, which would fail the
 > T-3.4.1/T-3.4.2 accessibility gates. Overflow columns reach the user through
-> the row-detail side sheet (§5.3). Goldens run on Linux only; regenerate via
-> the `goldens` workflow (`gh workflow run goldens`), not locally.
+> the row-detail side sheet (§5.3). A mid-epic ruling changed what "overflow"
+> covers: only `identity` columns are guaranteed to render (below their own
+> `minWidth` if there is truly no room left); `primary` columns now drop into
+> the row detail, last-declared first, once the viewport cannot fit them
+> alongside identity, rather than always staying on screen. Goldens run on
+> Linux only; regenerate via the `goldens` workflow (`gh workflow run
+> goldens`), not locally.
 
 ### Epic P0.3 — Core services ⭐
 | ID | Task | Est | Deps | Notes |

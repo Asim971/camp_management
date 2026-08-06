@@ -31,6 +31,25 @@ void main() {
       // build.
       expect(config(flavor: Flavor.prod, e2e: true).devRoutesEnabled, isTrue);
     });
+
+    test('AppConfig.fromEnvironment() with no --dart-define exposes them under '
+        'flutter test/run, matching the documented dev fallback', () {
+      // parseFlavor falls back to Flavor.dev when FLAVOR is absent, so a
+      // bare `flutter test`/`flutter run` (no --dart-define at all) lands
+      // here. This is the flavor-logic half of the devRoutesEnabled
+      // contract: dev routes are reachable when nothing says otherwise.
+      //
+      // What this test cannot reach: kReleaseMode is always false under
+      // `flutter test`, so the `&& !kReleaseMode` release-mode guard added
+      // in devRoutesEnabled is structurally untestable from here. A real
+      // `flutter build web --release` run with no FLAVOR define is the
+      // only way to observe that guard firing — flavor alone would still
+      // say Flavor.dev, and it is exactly that combination (release binary
+      // + default-dev flavor) the guard exists for.
+      final config = AppConfig.fromEnvironment();
+      expect(config.flavor, Flavor.dev);
+      expect(config.devRoutesEnabled, isTrue);
+    });
   });
 
   group('GalleryScreen', () {

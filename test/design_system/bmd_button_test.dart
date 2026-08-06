@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:acsl_campaign/app/theme/bmd_theme.dart';
+import 'package:acsl_campaign/app/theme/tokens.dart';
 import 'package:acsl_campaign/core/design_system/bmd_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -43,6 +46,37 @@ void main() {
     });
   });
 
+  group('responsive control height (Guideline §5.1, §11)', () {
+    // Regression coverage: deleting the Breakpoint.of(context).isMobile ? … :
+    // … ternary at bmd_button.dart:41 would leave the rest of the suite
+    // green. tester.binding.setSurfaceSize() does not drive MediaQuery.sizeOf
+    // on this Flutter version (3.44.8), so tester.view is driven directly.
+    // Verified by mutation: deleting the ternary (replacing it with a single
+    // constant) fails exactly this test; restoring it turns the suite green
+    // again.
+    testWidgets('BmdButton is 52px tall on mobile and 44px on web/tablet+', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(390, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await _pump(tester, BmdButton(label: 'Continue', onPressed: () {}));
+      expect(
+        tester.getSize(find.byType(BmdButton)).height,
+        BmdSize.controlHeightMobile,
+      );
+
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await _pump(tester, BmdButton(label: 'Continue', onPressed: () {}));
+      expect(
+        tester.getSize(find.byType(BmdButton)).height,
+        BmdSize.controlHeightWeb,
+      );
+    });
+  });
+
   group('expectSinglePrimaryAction', () {
     testWidgets('passes with one primary', (tester) async {
       await _pump(
@@ -82,6 +116,46 @@ void main() {
             allOf(contains('Submit'), contains('Approve')),
           ),
         ),
+      );
+    });
+  });
+
+  group('single renderer', () {
+    test('no feature screen builds a raw filled/outlined button', () {
+      // expectSinglePrimaryAction only counts BmdButton instances, so a screen
+      // could carry any number of raw FilledButton/ElevatedButton/
+      // OutlinedButton widgets and still pass it -- they bypass the design
+      // system entirely, and a widget-tree count can't fix that here: BmdButton
+      // *renders* a FilledButton internally, so counting FilledButtons in the
+      // tree would double-count every legitimate BmdButton too. A filesystem
+      // guard, consistent with the overlay and field guards above, is the
+      // right tool.
+      //
+      // TextButton and IconButton are deliberately not in this blocklist:
+      // BmdButton's `text` variant renders a TextButton, and several
+      // design-system internals legitimately use IconButton, so either name
+      // would flag legitimate design-system output as well as raw screen code.
+      final offenders = <String>[];
+      final dir = Directory('lib/features');
+      for (final entity in dir.listSync(recursive: true)) {
+        if (entity is! File || !entity.path.endsWith('.dart')) continue;
+        final lines = entity.readAsLinesSync();
+        for (var i = 0; i < lines.length; i++) {
+          final line = lines[i];
+          if (line.contains('FilledButton(') ||
+              line.contains('ElevatedButton(') ||
+              line.contains('OutlinedButton(')) {
+            offenders.add('${entity.path}:${i + 1}');
+          }
+        }
+      }
+
+      expect(
+        offenders,
+        isEmpty,
+        reason:
+            'Use BmdButton (primary/tonal/outlined/danger variant) instead:\n'
+            '${offenders.join("\n")}',
       );
     });
   });

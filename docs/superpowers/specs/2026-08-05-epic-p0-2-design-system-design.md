@@ -161,7 +161,7 @@ BmdColumn<T>({
 
 `LayoutBuilder` measures the available width, then:
 
-1. always renders `identity` and `primary` columns;
+1. always renders `identity` columns — the only priority permitted to render below its own `minWidth` when there is truly no room to spare; `primary` columns are dropped into the row detail, last-declared first, before that happens (a mid-epic ruling: round 1 shipped "always renders identity and primary," but squeezing primary below its minWidth to keep it on-screen violates §5.4's "never shrink a column to force a fit," so dropping replaced squeezing);
 2. admits `secondary` columns in declaration order while their `minWidth` still fits;
 3. distributes remaining width across rendered columns by `flex`.
 
@@ -196,7 +196,7 @@ Goldens catch pixels. These catch rules:
 | `BmdSearchField` | rapid input coalesces into one `onQueryChanged`; clear fires immediately; `scopeLabel` is rendered |
 | `showBmdConfirm` | confirm disabled until reason non-empty; disabled until all acknowledgements checked; `effect` rendered; `danger` uses the danger variant |
 | `showBmdSideSheet` | returns its value; delegates to a bottom sheet below the tablet breakpoint |
-| `BmdDataTable` | drops secondary columns when narrow and never identity or primary; asserts when dropping with no `rowDetailBuilder`; existing selection and semantics tests still pass |
+| `BmdDataTable` | drops secondary columns when narrow, then primary (last-declared first) if identity still cannot fit alongside them, and never identity; asserts when dropping with no `rowDetailBuilder`; existing selection and semantics tests still pass |
 | screens | `expectSinglePrimaryAction` on the two existing screen tests and on gallery sections |
 
 Existing coverage that must stay green: `test/design_system/design_system_test.dart` (tokens, `StatusChip`, `LineageRail`, `KpiCard`, feedback), `test/widget/bulk_import_screen_test.dart`, `test/widget/crm_case_screen_test.dart`.

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme/tokens.dart';
+import '../../../core/design_system/bmd_button.dart';
 import '../../../core/design_system/bmd_data_table.dart';
 import '../../../core/design_system/status_chip.dart';
 import '../../../core/responsive/adaptive_scaffold.dart';
@@ -118,7 +119,11 @@ class _ErrorState extends StatelessWidget {
       children: [
         const Text("Couldn't load campaigns."),
         const SizedBox(height: 8),
-        OutlinedButton(onPressed: onRetry, child: const Text('Retry')),
+        BmdButton(
+          variant: BmdButtonVariant.outlined,
+          label: 'Retry',
+          onPressed: onRetry,
+        ),
       ],
     ),
   );

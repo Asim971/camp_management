@@ -301,16 +301,30 @@ void main() {
   group('single renderer', () {
     test('no feature screen hand-rolls a dialog or modal sheet', () {
       // Matches AlertDialog(, showDialog(, showDialog<T>(, showModalBottomSheet(
-      // and showModalBottomSheet<T>( -- an optional generic-type argument can
-      // sit between the identifier and the opening paren, and a literal
+      // showModalBottomSheet<T>(, showGeneralDialog(, showGeneralDialog<T>(,
+      // showCupertinoDialog(, showCupertinoModalPopup(, bare Dialog( and
+      // SimpleDialog( -- an optional generic-type argument can sit between
+      // the identifier and the opening paren, and a literal
       // `.contains('showModalBottomSheet(')` check misses the typed form
       // entirely (which is exactly what the carpenter-search screen used to
-      // call). `\b` keeps this from matching the design-system functions the
-      // screens are supposed to call instead (showBmdBottomSheet,
-      // showBmdConfirm) -- neither name contains AlertDialog, showDialog or
-      // showModalBottomSheet as a substring.
+      // call). showGeneralDialog is the most important of these: it is how
+      // showBmdSideSheet itself is built (bmd_overlays.dart), so it is the
+      // exact primitive a developer copies when reaching for "a dialog like
+      // the side sheet's". `\b` keeps this from matching the design-system
+      // functions the screens are supposed to call instead (showBmdBottomSheet,
+      // showBmdSideSheet, showBmdConfirm) -- none of those names contains
+      // AlertDialog, showDialog, showModalBottomSheet, showGeneralDialog,
+      // showCupertinoDialog, showCupertinoModalPopup, Dialog or SimpleDialog
+      // as a substring. `\b` in front of the bare `Dialog` alternative also
+      // keeps it from matching inside AlertDialog( or SimpleDialog( -- `\b`
+      // requires a transition between a word character and a non-word one,
+      // and the character immediately before the `D` in both of those is
+      // itself a word character (`t` in Alert-, `e` in Simple-), so no
+      // boundary exists there and the bare alternative cannot fire mid-word.
       final offenderPattern = RegExp(
-        r'\b(?:AlertDialog|showDialog|showModalBottomSheet)(?:<[^>]*>)?\(',
+        r'\b(?:AlertDialog|showDialog|showModalBottomSheet|showGeneralDialog|'
+        r'showCupertinoDialog|showCupertinoModalPopup|SimpleDialog|Dialog)'
+        r'(?:<[^>]*>)?\(',
       );
       final offenders = <String>[];
       for (final entity in Directory(

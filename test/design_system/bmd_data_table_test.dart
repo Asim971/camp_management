@@ -130,8 +130,27 @@ void main() {
       final scrollables = tester.widgetList<Scrollable>(
         find.byType(Scrollable),
       );
+
+      // A vacuous pass here (e.g. from deleting the ListView entirely) would
+      // still keep the suite green if only the "every" assertion below were
+      // present, since `Iterable.every` on an empty list is trivially true.
+      // Asserting a vertical Scrollable actually exists closes that gap.
       expect(
-        scrollables.every((s) => s.axisDirection == AxisDirection.down),
+        scrollables,
+        isNotEmpty,
+        reason: 'expected the row ListView to render a Scrollable',
+      );
+      expect(
+        scrollables.any((s) => s.axisDirection == AxisDirection.down),
+        isTrue,
+        reason: 'expected a vertically scrolling Scrollable (the row list)',
+      );
+      expect(
+        scrollables.every(
+          (s) =>
+              s.axisDirection != AxisDirection.left &&
+              s.axisDirection != AxisDirection.right,
+        ),
         isTrue,
         reason: 'a horizontally scrolling table is what priority-flex removes',
       );

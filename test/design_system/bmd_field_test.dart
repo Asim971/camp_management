@@ -129,6 +129,63 @@ void main() {
     });
   });
 
+  group('responsive control height (Guideline §5.2, §11)', () {
+    // tester.binding.setSurfaceSize() does not drive MediaQuery.sizeOf on this
+    // Flutter version (3.44.8) -- it leaves the reported size at the 800x600
+    // default, so Breakpoint.of(context) would resolve to the same breakpoint
+    // regardless of the width requested here. Driving tester.view directly is
+    // what actually changes MediaQuery.sizeOf, and therefore Breakpoint.of.
+    Future<void> pumpAt(WidgetTester tester, double width, Widget child) {
+      tester.view.physicalSize = Size(width, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      return _pump(tester, child, width: width);
+    }
+
+    // Regression coverage: deleting the Breakpoint.of(context).isMobile ? … :
+    // … ternary at bmd_field.dart:130 (BmdField._minHeight) or bmd_field.dart
+    // :301 (BmdSearchField.build) would leave the rest of the suite green --
+    // nothing else pins the mobile vs. web control height apart from the
+    // fixed 96px textarea case above. Verified by mutation: deleting each
+    // ternary in turn (replacing it with a single constant) fails exactly the
+    // matching test below; restoring it turns the suite green again.
+    testWidgets('BmdField is 52px on mobile and 44px on web/tablet+', (
+      tester,
+    ) async {
+      await pumpAt(tester, 390, const BmdField(label: 'Venue'));
+      var decoration = tester
+          .widget<TextField>(find.byType(TextField))
+          .decoration;
+      expect(decoration?.constraints?.minHeight, BmdSize.controlHeightMobile);
+
+      await pumpAt(tester, 1280, const BmdField(label: 'Venue'));
+      decoration = tester.widget<TextField>(find.byType(TextField)).decoration;
+      expect(decoration?.constraints?.minHeight, BmdSize.controlHeightWeb);
+    });
+
+    testWidgets('BmdSearchField is 52px on mobile and 44px on web/tablet+', (
+      tester,
+    ) async {
+      await pumpAt(
+        tester,
+        390,
+        BmdSearchField(scopeLabel: 'Searches name', onQueryChanged: (_) {}),
+      );
+      var decoration = tester
+          .widget<TextField>(find.byType(TextField))
+          .decoration;
+      expect(decoration?.constraints?.minHeight, BmdSize.controlHeightMobile);
+
+      await pumpAt(
+        tester,
+        1280,
+        BmdSearchField(scopeLabel: 'Searches name', onQueryChanged: (_) {}),
+      );
+      decoration = tester.widget<TextField>(find.byType(TextField)).decoration;
+      expect(decoration?.constraints?.minHeight, BmdSize.controlHeightWeb);
+    });
+  });
+
   group('BmdSearchField', () {
     testWidgets('rapid typing collapses into one query', (tester) async {
       final queries = <String>[];
@@ -188,6 +245,10 @@ void main() {
     test('no feature screen builds a raw text field', () {
       // A leftover raw field is the pattern the next screen copies, and it
       // silently opts out of the height, required-name and masking rules.
+      // TextField(/TextFormField( are the Material entry points; neither
+      // CupertinoTextField( nor EditableText( is generic, so unlike the
+      // overlay guard this needs no optional-generic tolerance -- a plain
+      // substring check on each line is enough.
       final offenders = <String>[];
       final dir = Directory('lib/features');
       for (final entity in dir.listSync(recursive: true)) {
@@ -195,7 +256,10 @@ void main() {
         final lines = entity.readAsLinesSync();
         for (var i = 0; i < lines.length; i++) {
           final line = lines[i];
-          if (line.contains('TextField(') || line.contains('TextFormField(')) {
+          if (line.contains('TextField(') ||
+              line.contains('TextFormField(') ||
+              line.contains('CupertinoTextField(') ||
+              line.contains('EditableText(')) {
             offenders.add('${entity.path}:${i + 1}');
           }
         }

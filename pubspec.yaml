@@ -79,6 +79,7 @@ flutter:
   assets:
     - assets/templates/
     - assets/e2e/ # test fixtures (fake camera image); harmless in prod builds
+    - assets/fonts/OFL.txt # SIL OFL 1.1 text the bundled fonts require
   fonts:
     - family: Inter
       fonts:

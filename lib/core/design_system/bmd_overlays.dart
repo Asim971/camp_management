@@ -58,7 +58,15 @@ Future<T?> showBmdSideSheet<T>({
     context: context,
     barrierDismissible: true,
     barrierLabel: 'Dismiss $title',
-    barrierColor: Colors.black54,
+    // showModalBottomSheet (below) does not set its own barrierColor, so it
+    // resolves through Theme.of(context).bottomSheetTheme.modalBarrierColor,
+    // falling back to Colors.black54 when that is unset. Reading the same
+    // theme value here — rather than a bare Colors.black54 literal — is what
+    // keeps the two halves of this one responsive primitive dimming
+    // identically if that theme value is ever set; a hardcoded literal here
+    // would silently stop matching whatever the bottom sheet resolves to.
+    barrierColor:
+        Theme.of(context).bottomSheetTheme.modalBarrierColor ?? Colors.black54,
     transitionDuration: const Duration(milliseconds: 180),
     pageBuilder: (dialogContext, animation, _) {
       final theme = Theme.of(dialogContext);

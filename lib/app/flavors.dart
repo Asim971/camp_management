@@ -10,10 +10,18 @@
 /// `flutter test`/`flutter run` supplies no `--dart-define`; keep both
 /// files in sync or `run.ps1` and a bare `flutter run` will silently
 /// point at different hosts.
+library;
+
+import 'package:flutter/foundation.dart' show kReleaseMode;
+
 enum Flavor { dev, stg, prod }
 
 /// Maps a `FLAVOR` dart-define to its enum. An unrecognized name falls back to
 /// [Flavor.dev] — failing closed toward the dev API rather than production.
+///
+/// That default is right for *which backend a request goes to*, but it is the
+/// wrong default for *route exposure* — see [AppConfig.devRoutesEnabled],
+/// which deliberately does not lean on this fallback for that second concern.
 Flavor parseFlavor(String name) =>
     Flavor.values.firstWhere((f) => f.name == name, orElse: () => Flavor.dev);
 
@@ -64,5 +72,19 @@ class AppConfig {
   /// Whether the dev-only routes (`/dev` launcher, `/gallery` component
   /// gallery) are registered. E2E builds get them whatever the flavor, because
   /// Maestro deep-links through `/dev`.
-  bool get devRoutesEnabled => e2e || !isProd;
+  ///
+  /// Deliberately not `e2e || !isProd` alone: [parseFlavor] falls back to
+  /// [Flavor.dev] for an absent or unrecognized `FLAVOR`, so a release build
+  /// run without `--dart-define=FLAVOR` — exactly what `flutter build web
+  /// --release` does in CI — would otherwise register these routes in the
+  /// artifact it ships. `parseFlavor`'s dev fallback is the right default for
+  /// *which backend a request goes to* (accidentally hitting the dev API is
+  /// safer than accidentally hitting production) but the wrong default for
+  /// *route exposure*; `&& !kReleaseMode` fails that half closed regardless of
+  /// what `FLAVOR` resolves to, while leaving the flavor-based behaviour
+  /// intact — and testable — everywhere else. `kReleaseMode` is always
+  /// `false` under `flutter test`, so this getter's release-mode path itself
+  /// cannot be exercised by a widget/unit test; see
+  /// test/app/dev_routes_test.dart for what is and is not covered.
+  bool get devRoutesEnabled => e2e || (!isProd && !kReleaseMode);
 }

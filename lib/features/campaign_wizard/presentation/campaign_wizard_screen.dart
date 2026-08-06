@@ -194,6 +194,9 @@ class _BasicsStep extends StatelessWidget {
           onChanged: (v) => c.edit((x) => x.copyWith(name: v)),
         ),
         const SizedBox(height: BmdSpace.s4),
+        // TODO: bypasses the design system -- no BmdSelect primitive exists
+        // yet, so this misses the responsive minHeight its sibling BmdFields
+        // get. Migrate once BmdSelect lands.
         DropdownButtonFormField<String>(
           initialValue: d.type.isEmpty ? null : d.type,
           decoration: const InputDecoration(labelText: 'Campaign type'),
@@ -327,32 +330,32 @@ class _SessionsStep extends StatelessWidget {
                   Row(
                     children: [
                       Expanded(
-                        child: OutlinedButton(
+                        child: BmdButton(
+                          variant: BmdButtonVariant.outlined,
+                          label: s.startAt == null
+                              ? 'Start time'
+                              : 'Start: ${s.startAt}',
                           onPressed: () async {
                             final dt = await _pick(context, s.startAt);
                             if (dt != null) {
                               c.updateSession(s.copyWith(startAt: dt));
                             }
                           },
-                          child: Text(
-                            s.startAt == null
-                                ? 'Start time'
-                                : 'Start: ${s.startAt}',
-                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
-                        child: OutlinedButton(
+                        child: BmdButton(
+                          variant: BmdButtonVariant.outlined,
+                          label: s.endAt == null
+                              ? 'End time'
+                              : 'End: ${s.endAt}',
                           onPressed: () async {
                             final dt = await _pick(context, s.endAt);
                             if (dt != null) {
                               c.updateSession(s.copyWith(endAt: dt));
                             }
                           },
-                          child: Text(
-                            s.endAt == null ? 'End time' : 'End: ${s.endAt}',
-                          ),
                         ),
                       ),
                       IconButton(
@@ -409,6 +412,9 @@ class _TargetsStep extends StatelessWidget {
           onChanged: (v) => c.edit((x) => x.copyWith(budgetReference: v)),
         ),
         const SizedBox(height: 16),
+        // TODO: bypasses the design system -- no BmdSelect primitive exists
+        // yet, so this misses the responsive minHeight its sibling BmdFields
+        // get. Migrate once BmdSelect lands.
         DropdownButtonFormField<String>(
           initialValue: d.approverId,
           decoration: const InputDecoration(labelText: 'Approver'),

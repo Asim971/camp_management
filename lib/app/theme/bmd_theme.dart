@@ -15,7 +15,9 @@ List<FontVariation> _wght(FontWeight weight) => [
 /// The design system is Material 3 with a BMD brand layer on top (UI/UX
 /// Guideline §1 "Design position"): M3 supplies the interaction primitives, the
 /// token layer supplies the identity. Typography uses Inter with a Noto Sans
-/// Bengali fallback — add the licensed fonts under `assets/fonts`.
+/// Bengali fallback — both are bundled under `assets/fonts` (each an SIL OFL
+/// 1.1 variable font; see `assets/fonts/OFL.txt` for the license, registered
+/// with `LicenseRegistry` in `main.dart`).
 ///
 /// Brand tokens Material has no slot for — the semantic quartet, chip tints,
 /// the data-series palette and the funnel ramp — ride along as a [BmdTokens]

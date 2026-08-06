@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme/tokens.dart';
+import '../../../core/design_system/bmd_button.dart';
 import '../../../core/design_system/bmd_field.dart';
 import '../../../core/design_system/bmd_overlays.dart';
 import '../../../core/design_system/status_chip.dart';
@@ -187,17 +188,10 @@ class _ConfirmSheetState extends State<_ConfirmSheet> {
           ),
         ),
         const SizedBox(height: 8),
-        SizedBox(
-          height: 52,
-          child: Semantics(
-            identifier: 'confirm_continue',
-            child: FilledButton(
-              onPressed: _acknowledged
-                  ? () => Navigator.pop(context, true)
-                  : null,
-              child: const Text('Continue to capture'),
-            ),
-          ),
+        BmdButton(
+          identifier: 'confirm_continue',
+          label: 'Continue to capture',
+          onPressed: _acknowledged ? () => Navigator.pop(context, true) : null,
         ),
       ],
     );
