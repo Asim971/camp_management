@@ -13,6 +13,7 @@ import '../../features/campaign_wizard/presentation/campaign_wizard_screen.dart'
 import '../../features/carpenter_search/presentation/carpenter_search_screen.dart';
 import '../../features/crm_case/presentation/crm_case_screen.dart';
 import '../../features/dev/presentation/dev_launcher_screen.dart';
+import '../../features/gallery/presentation/gallery_screen.dart';
 import '../../features/offline_queue/presentation/offline_queue_screen.dart';
 import '../../features/registration/presentation/registration_workspace_screen.dart';
 import '../di/providers.dart';
@@ -48,8 +49,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, __) =>
             const PlaceholderScreen(title: 'Access denied', screenId: 'RBAC'),
       ),
-      // Test-only deep-link launcher (only reachable in E2E builds).
-      GoRoute(path: '/dev', builder: (_, __) => const DevLauncherScreen()),
+      // Dev-only surfaces. Registered by AppConfig.devRoutesEnabled, so they
+      // are genuinely absent from a production build rather than merely
+      // unlinked — /dev used to be reachable by URL in prod web.
+      if (config.devRoutesEnabled) ...[
+        GoRoute(path: '/dev', builder: (_, __) => const DevLauncherScreen()),
+        GoRoute(path: '/gallery', builder: (_, __) => const GalleryScreen()),
+      ],
       GoRoute(
         path: '/',
         builder: (_, __) => const PlaceholderScreen(

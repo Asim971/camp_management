@@ -60,4 +60,9 @@ class AppConfig {
   }
 
   bool get isProd => flavor == Flavor.prod;
+
+  /// Whether the dev-only routes (`/dev` launcher, `/gallery` component
+  /// gallery) are registered. E2E builds get them whatever the flavor, because
+  /// Maestro deep-links through `/dev`.
+  bool get devRoutesEnabled => e2e || !isProd;
 }
