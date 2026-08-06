@@ -1285,7 +1285,7 @@ Expected: PASS, 3 tests.
 
 Run: `dart format --set-exit-if-changed . && flutter analyze --fatal-infos && flutter test`
 
-Expected: format clean, analyze exits 0, all tests pass. `providers.dart` still uses the raw `FlutterSecureStorage` at this point — that is rewired in Task 8.
+Expected: format clean, analyze exits 0, all tests pass. `providers.dart` still uses the raw `FlutterSecureStorage` at this point — Task 8 builds `EvidenceKeyStore` on top of `SecureStore`, and Task 9 rewires the composition root onto both. The temporary coexistence is intentional, not duplication to clean up here.
 
 - [ ] **Step 6: Commit**
 
@@ -1555,7 +1555,8 @@ First half of T-0.3.6. The flusher follows in Task 8.
   - `AuditEvent({required AuditAction action, required String entity, required String entityId, required TraceId correlationId, required String actorId, String? remarks})`.
   - `AuditSink` with `Future<void> emit(AuditEvent event)` and `Future<Result<T>> revealAudited<T>(AuditEvent event, Future<T> Function() reveal)`.
   - `AuditAction.evidenceKeyRotated` (new enum value).
-  - `abstract interface class AuditTransport` with `Future<Result<void>> send(List<AuditEvent> events)`; `class DioAuditTransport implements AuditTransport` — `DioAuditTransport(Dio dio)`.
+  - `class AuditEventPayload` — wire shape with `String action` (deliberately not the enum), `entity`, `entityId`, `correlationId`, `actorId`, `remarks`, `factory AuditEventPayload.fromEvent(AuditEvent)`, and `Map<String, Object?> toJson()`.
+  - `abstract interface class AuditTransport` with `Future<Result<void>> send(List<AuditEventPayload> events)`; `class DioAuditTransport implements AuditTransport` — `DioAuditTransport(Dio dio)`.
   - `class DurableAuditSink implements AuditSink` — `DurableAuditSink({required AppDatabase db, required AuditTransport transport, DateTime Function() now = ..., String Function() newId = ..., void Function()? onBuffered})`.
 
 - [ ] **Step 1: Write the failing test**
@@ -1584,10 +1585,10 @@ class _ScriptedTransport implements AuditTransport {
   /// assertion could run before the read completed.
   final Future<void> Function()? onSend;
 
-  final List<List<AuditEvent>> batches = [];
+  final List<List<AuditEventPayload>> batches = [];
 
   @override
-  Future<Result<void>> send(List<AuditEvent> events) async {
+  Future<Result<void>> send(List<AuditEventPayload> events) async {
     batches.add(events);
     await onSend?.call();
     return _results[(batches.length - 1).clamp(0, _results.length - 1)];
@@ -1874,6 +1875,52 @@ import '../network/dio_client.dart';
 import '../result/result.dart';
 import 'audit.dart';
 
+/// One audit event in wire shape.
+///
+/// [action] is a plain String, not an [AuditAction], on purpose. The flusher
+/// reads rows written by whatever build was installed at the time, and Android
+/// permits downgrades - so a row can legitimately carry an action this build
+/// has no enum value for. Mapping it back through the enum would force a
+/// choice between throwing mid-flush and substituting some *other* real
+/// action, and silently relabelling a compliance record is falsification, not
+/// degradation. The persisted string ships verbatim instead.
+class AuditEventPayload {
+  const AuditEventPayload({
+    required this.action,
+    required this.entity,
+    required this.entityId,
+    required this.correlationId,
+    required this.actorId,
+    this.remarks,
+  });
+
+  /// From an in-memory event, where the action is known and typed.
+  factory AuditEventPayload.fromEvent(AuditEvent event) => AuditEventPayload(
+    action: event.action.name,
+    entity: event.entity,
+    entityId: event.entityId,
+    correlationId: event.correlationId.value,
+    actorId: event.actorId,
+    remarks: event.remarks,
+  );
+
+  final String action;
+  final String entity;
+  final String entityId;
+  final String correlationId;
+  final String actorId;
+  final String? remarks;
+
+  Map<String, Object?> toJson() => {
+    'action': action,
+    'entity': entity,
+    'entityId': entityId,
+    'correlationId': correlationId,
+    'actorId': actorId,
+    if (remarks != null) 'remarks': remarks,
+  };
+}
+
 /// Transport seam for shipping audit events to the server.
 ///
 /// 🔒 The audit contract (endpoint, payload shape, batch semantics) is an
@@ -1884,7 +1931,7 @@ import 'audit.dart';
 /// Returns a [Result] rather than throwing so `audit_emitter.dart` needs no
 /// network import: error mapping belongs here.
 abstract interface class AuditTransport {
-  Future<Result<void>> send(List<AuditEvent> events);
+  Future<Result<void>> send(List<AuditEventPayload> events);
 }
 
 /// Dio-backed transport. The endpoint and payload shape are placeholders
@@ -1895,23 +1942,11 @@ class DioAuditTransport implements AuditTransport {
   final Dio _dio;
 
   @override
-  Future<Result<void>> send(List<AuditEvent> events) async {
+  Future<Result<void>> send(List<AuditEventPayload> events) async {
     try {
       await _dio.post<void>(
         '/audit/events',
-        data: {
-          'events': [
-            for (final e in events)
-              {
-                'action': e.action.name,
-                'entity': e.entity,
-                'entityId': e.entityId,
-                'correlationId': e.correlationId.value,
-                'actorId': e.actorId,
-                if (e.remarks != null) 'remarks': e.remarks,
-              },
-          ],
-        },
+        data: {'events': [for (final e in events) e.toJson()]},
       );
       return const Ok(null);
     } catch (e) {
@@ -1999,7 +2034,7 @@ class DurableAuditSink implements AuditSink {
       );
     }
 
-    final sent = await _transport.send([event]);
+    final sent = await _transport.send([AuditEventPayload.fromEvent(event)]);
     if (sent case Err(:final failure)) {
       // Fail closed. The row stays pending so the flusher still delivers the
       // attempt, but the value is not shown.
@@ -2117,10 +2152,10 @@ class _ScriptedTransport implements AuditTransport {
   _ScriptedTransport(this._results);
 
   final List<Result<void>> _results;
-  final List<List<AuditEvent>> batches = [];
+  final List<List<AuditEventPayload>> batches = [];
 
   @override
-  Future<Result<void>> send(List<AuditEvent> events) async {
+  Future<Result<void>> send(List<AuditEventPayload> events) async {
     batches.add(events);
     return _results[(batches.length - 1).clamp(0, _results.length - 1)];
   }
@@ -2461,7 +2496,7 @@ class AuditFlusher {
             .get();
     if (rows.isEmpty) return;
 
-    final result = await _transport.send(rows.map(_toEvent).toList());
+    final result = await _transport.send(rows.map(_toPayload).toList());
 
     if (result case Err(:final failure)) {
       await _db.batch((b) {
@@ -2509,16 +2544,15 @@ class AuditFlusher {
     );
   }
 
-  AuditEvent _toEvent(AuditEventRow row) => AuditEvent(
-    action: AuditAction.values.firstWhere(
-      (a) => a.name == row.action,
-      // A row written by a newer build carrying an action this build does not
-      // know must still ship, so it degrades rather than throwing mid-flush.
-      orElse: () => AuditAction.configChanged,
-    ),
+  /// The action string passes through verbatim - never round-tripped through
+  /// [AuditAction]. A row written by a build with actions this one lacks (an
+  /// Android downgrade) must reach the server labelled with what actually
+  /// happened, not with whatever enum value happened to be the fallback.
+  AuditEventPayload _toPayload(AuditEventRow row) => AuditEventPayload(
+    action: row.action,
     entity: row.entity,
     entityId: row.entityId,
-    correlationId: TraceId.of(row.correlationId),
+    correlationId: row.correlationId,
     actorId: row.actorId,
     remarks: row.remarks,
   );
@@ -3008,6 +3042,8 @@ git commit -m "docs: close Epic P0.3 in the task breakdown"
 | §8 risks | mitigations embedded (Task 6 Step 8 covers generated-name drift) |
 | §9 out of scope | nothing in this plan touches them |
 
-**Type consistency verified across tasks.** `TraceId.of`/`.generate`/`.value` (2→3, 7, 8, 9); `traceIdExtraKey`/`idempotencyKeyExtraKey` (2→3); `CorrelationIdInterceptor.headerName`/`.idempotencyHeaderName` (2→3, 4, 9); `ScriptedAdapter(replies)`/`.requests`/`.callCount` and `ScriptedReply.status`/`.failure` (2→3, 4, 9); `BackoffPolicy.delayFor(int, {double jitterSeed})`/`.shouldGiveUp(int)`/`jitterSeedFor(String)` (existing→3, 8); `AuditEvent(action/entity/entityId/correlationId/actorId/remarks)` (7→8); `AuditTransport.send(List<AuditEvent>) → Future<Result<void>>` (7→8, 9); `AuditFlusher.notifyBuffered`/`.start`/`.flush`/`.dispose` (8→9); `SecureStore.read/write/delete` and `SecureStoreKeys.evidenceAesKeyV1` (5→8, 9); `EvidenceKeyStore.loadOrCreate` (8→9); `AuditEventRow` vs the domain `AuditEvent` disambiguated by `@DataClassName` in Task 6 and consumed under that name in Task 8's `_toEvent`.
+**Type consistency verified across tasks.** `TraceId.of`/`.generate`/`.value` (2→3, 7, 8, 9); `traceIdExtraKey`/`idempotencyKeyExtraKey` (2→3); `CorrelationIdInterceptor.headerName`/`.idempotencyHeaderName` (2→3, 4, 9); `ScriptedAdapter(replies)`/`.requests`/`.callCount` and `ScriptedReply.status`/`.failure` (2→3, 4, 9); `BackoffPolicy.delayFor(int, {double jitterSeed})`/`.shouldGiveUp(int)`/`jitterSeedFor(String)` (existing→3, 8); `AuditEvent(action/entity/entityId/correlationId/actorId/remarks)` (7→8); `AuditEventPayload.fromEvent`/`.toJson` and `AuditTransport.send(List<AuditEventPayload>) → Future<Result<void>>` (7→8, 9); `AuditFlusher.notifyBuffered`/`.start`/`.flush`/`.dispose` (8→9); `SecureStore.read/write/delete` and `SecureStoreKeys.evidenceAesKeyV1` (5→8, 9); `EvidenceKeyStore.loadOrCreate` (8→9); `AuditEventRow` vs the domain `AuditEvent` disambiguated by `@DataClassName` in Task 6 and consumed under that name in Task 8's `_toPayload`.
+
+**Pre-flight amendment (2026-08-06).** `AuditEventPayload` was introduced before execution began, replacing a `_toEvent` that mapped an unrecognised action string to `AuditAction.configChanged`. Substituting one real action for another falsifies a compliance record, and Android app downgrades make the case reachable. The action string now ships verbatim.
 
 **Two places where generated code, not this plan, is authoritative** — each has an explicit reconciliation step rather than an assumption: drift's v1 test-helper class names (Task 6 Step 8) and `AuditEventsCompanion.insert`'s parameter names (Task 7 Step 6).
