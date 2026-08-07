@@ -2514,7 +2514,9 @@ Expected: no issues. (`tool/**` is excluded from the app's `analysis_options.yam
 
 Run: `dart format --set-exit-if-changed . && flutter analyze --fatal-infos && flutter test`
 
-Expected: **210 passing / 29 skipped** (209 from this task's 6 login tests plus the 1 new `obscureText` case). `providers.dart` still references the old `AuthController`; `sessionManagerProvider` arrives in Task 9. If the login screen cannot compile because that provider does not exist yet, add it to `providers.dart` now as part of this task:
+Expected: **210 passing / 29 skipped** (this task's 6 login tests plus the 1 new `obscureText` case).
+
+**You MUST add these three providers to `providers.dart` as part of this task** — not conditionally. `login_screen.dart` reads `sessionManagerProvider`, so the tree cannot compile without them. `AuthController` and `authControllerProvider` stay for now; Task 9 deletes them and promotes `authStateProvider` out of its temporary home in `app_router.dart`.
 
 ```dart
 final authServiceProvider = Provider<AuthService>((ref) {
@@ -3459,9 +3461,23 @@ Then update `dioProvider`'s interceptor so the throwing seam is gone:
 
 Note the circularity: `authServiceProvider` reads `dioProvider`, and `dioProvider`'s interceptor reads `sessionManagerProvider`. Riverpod resolves this because the interceptor callbacks are lazy — they run per request, long after both providers are built. Keep them as closures; do not hoist either read to provider-build time.
 
-- [ ] **Step 4: Delete the temporary bridge**
+- [ ] **Step 4: Delete the temporary bridge and repoint its importers**
 
-In `lib/app/router/app_router.dart`, delete the temporary `authStateProvider` definition and its `TEMPORARY` comment, and import it from `../di/providers.dart` instead.
+In `lib/app/router/app_router.dart`, delete the temporary `authStateProvider` definition and its `TEMPORARY` comment, then import it from `../di/providers.dart`.
+
+**Then fix every file that imported it from the old location.** Task 7 and Task 8 wrote `import '../../app/router/app_router.dart';` purely to reach `authStateProvider`, and those imports are now wrong:
+
+- `lib/core/auth/permission_gate.dart` — replace the `app_router.dart` import with `../../app/di/providers.dart`
+- `lib/app/shell/app_shell.dart` — it imports both; drop the `router/app_router.dart` one if nothing else in the file needs it
+- `test/core/auth/permission_gate_test.dart` and `test/app/shell/app_shell_test.dart` — repoint their `authStateProvider` import the same way
+
+Run this to catch any straggler:
+
+```bash
+grep -rn "router/app_router.dart" lib test | grep -v "lib/app/app.dart"
+```
+
+Every remaining hit must genuinely need `routerProvider` or `registeredRoutePaths`, not `authStateProvider`.
 
 - [ ] **Step 5: Restore the session at boot**
 
