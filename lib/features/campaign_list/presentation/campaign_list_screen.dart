@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/shell/app_shell.dart';
 import '../../../app/theme/tokens.dart';
 import '../../../core/design_system/bmd_button.dart';
 import '../../../core/design_system/bmd_data_table.dart';
 import '../../../core/design_system/status_chip.dart';
-import '../../../core/responsive/adaptive_scaffold.dart';
 import '../../../domain/campaign/campaign.dart';
 import '../../../domain/common/status.dart';
 import '../application/campaign_list_notifier.dart';
@@ -21,9 +21,8 @@ class CampaignListScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(campaignListProvider);
 
-    return AdaptiveScaffold(
+    return AppShell(
       title: 'Campaigns',
-      selectedIndex: 1,
       actions: [
         IconButton(
           tooltip: 'Create campaign',

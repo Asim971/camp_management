@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../responsive/adaptive_scaffold.dart';
+import '../../app/shell/app_shell.dart';
 
 /// Temporary scaffold for feature modules that are structured but not yet
 /// implemented. Keeps routing and navigation wired end-to-end during P0 so the
@@ -20,7 +20,7 @@ class PlaceholderScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AdaptiveScaffold(
+    return AppShell(
       title: title,
       body: Center(
         child: Column(

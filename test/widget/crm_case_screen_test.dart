@@ -1,4 +1,8 @@
 import 'package:acsl_campaign/app/di/providers.dart';
+import 'package:acsl_campaign/app/router/app_router.dart';
+import 'package:acsl_campaign/core/auth/rbac.dart';
+import 'package:acsl_campaign/core/auth/session.dart';
+import 'package:acsl_campaign/core/auth/session_manager.dart';
 import 'package:acsl_campaign/core/result/result.dart';
 import 'package:acsl_campaign/core/trace/trace_id.dart';
 import 'package:acsl_campaign/domain/common/status.dart';
@@ -9,8 +13,44 @@ import 'package:acsl_campaign/features/crm_case/presentation/crm_case_screen.dar
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 
 import '../support/single_primary.dart';
+
+/// A signed-in verifier, holding the permission the verification case screen
+/// itself gates on. AppShell (which CrmCaseScreen now renders through) reads
+/// [authStateProvider] for its destinations and account menu.
+AuthState _signedInVerifier() => AuthSignedIn(
+  Session(
+    userId: 'u-verifier',
+    displayName: 'Test Verifier',
+    scope: const AccessScope(
+      roles: {AppRole.crmVerifier},
+      permissions: {Permission.verificationDecide},
+      organizationId: 'ORG_1',
+    ),
+    accessToken: 'a',
+    refreshToken: 'r',
+    expiresAt: DateTime.now().add(const Duration(hours: 1)),
+  ),
+);
+
+/// AppShell derives the selected nav index from GoRouterState.of(context),
+/// which requires the widget under test to be built by an actual GoRouter
+/// route rather than a bare MaterialApp(home: ...).
+Widget _wrapInRouter(String attendanceId) {
+  final router = GoRouter(
+    initialLocation: '/verification/cases/$attendanceId',
+    routes: [
+      GoRoute(
+        path: '/verification/cases/:id',
+        builder: (_, state) =>
+            CrmCaseScreen(attendanceId: state.pathParameters['id']!),
+      ),
+    ],
+  );
+  return MaterialApp.router(routerConfig: router);
+}
 
 /// In-memory [VerificationRepository] so the real [CrmCaseController] runs
 /// against fixed data instead of a live Dio client — no network stack needed
@@ -80,8 +120,11 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [verificationRepositoryProvider.overrideWithValue(repo)],
-          child: const MaterialApp(home: CrmCaseScreen(attendanceId: 'ATT-1')),
+          overrides: [
+            verificationRepositoryProvider.overrideWithValue(repo),
+            authStateProvider.overrideWith((ref) => _signedInVerifier()),
+          ],
+          child: _wrapInRouter('ATT-1'),
         ),
       );
       await tester.pumpAndSettle();
@@ -138,8 +181,11 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [verificationRepositoryProvider.overrideWithValue(repo)],
-          child: const MaterialApp(home: CrmCaseScreen(attendanceId: 'ATT-2')),
+          overrides: [
+            verificationRepositoryProvider.overrideWithValue(repo),
+            authStateProvider.overrideWith((ref) => _signedInVerifier()),
+          ],
+          child: _wrapInRouter('ATT-2'),
         ),
       );
       await tester.pumpAndSettle();

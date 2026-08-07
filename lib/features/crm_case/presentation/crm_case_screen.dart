@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/shell/app_shell.dart';
 import '../../../core/design_system/bmd_button.dart';
 import '../../../core/design_system/bmd_field.dart';
-import '../../../core/responsive/adaptive_scaffold.dart';
 import '../../../core/responsive/breakpoints.dart';
 import '../../../domain/verification/verification.dart';
 import '../../../domain/verification/verification_case.dart';
@@ -24,9 +24,8 @@ class CrmCaseScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(crmCaseControllerProvider(attendanceId));
 
-    return AdaptiveScaffold(
+    return AppShell(
       title: 'Verification case',
-      selectedIndex: 2,
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, __) => Center(

@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/shell/app_shell.dart';
 import '../../../core/design_system/bmd_button.dart';
 import '../../../core/design_system/status_chip.dart';
-import '../../../core/responsive/adaptive_scaffold.dart';
 import '../../../domain/common/status.dart';
 import '../../../domain/session/campaign_session.dart';
 import '../application/campaign_detail_controller.dart';
@@ -21,9 +21,8 @@ class CampaignDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(campaignDetailProvider(campaignId));
 
-    return AdaptiveScaffold(
+    return AppShell(
       title: 'Campaign detail',
-      selectedIndex: 1,
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, __) => Center(
