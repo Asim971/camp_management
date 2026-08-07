@@ -29,7 +29,7 @@
 | T-0.1.1 | `flutter create` with web + android platforms; adopt scaffold in this repo | S | — | ✅ web + android; runs on Chrome and Android emulator |
 | T-0.1.2 | Configure flavors (dev/stg/prod) + `--dart-define` env (API base, media host) | M | 0.1.1 | ✅ Gradle flavors with distinct app IDs + `tool/scripts/run.ps1` |
 | T-0.1.3 | `analysis_options.yaml` (strict lints), format + import-order rules | S | 0.1.1 | ✅ `analyze --fatal-infos` exits 0; `dart format --set-exit-if-changed` and `flutter analyze` both run in CI's `gate` job on every PR |
-| T-0.1.4 | CI pipeline: analyze → test → build web + apk; artifact upload | M | 0.1.3 | ✅ `.github/workflows/ci.yml` `gate` job runs on every PR and is green (format → gen-l10n → codegen → analyze → test → build web → build apk-dev). There is no `e2e` job — Maestro/emulator E2E (Task 8) and a nightly suite (Task 9) were both cancelled, not deferred. The `gate` check is **not marked required** in branch protection, so a red PR is not mechanically blocked from merging; branch protection was never enabled (Task 6 was skipped by explicit instruction). |
+| T-0.1.4 | CI pipeline: analyze → test → build web + apk; artifact upload | M | 0.1.3 | ✅ `.github/workflows/ci.yml` `gate` job runs on every PR and is green (format → gen-l10n → codegen → analyze → test → build web → build apk-dev). There is no `e2e` job — Maestro/emulator E2E (Task 8) and a nightly suite (Task 9) were both cancelled, not deferred. **Correction (2026-08-07):** branch protection **is** enabled on `main`, with `gate` marked as a required status check and `strict: true` (up-to-date-before-merge enforcement); the earlier note in this row claiming the opposite was wrong. |
 | T-0.1.5 | Codegen wiring (`build_runner`, freezed, riverpod_generator, drift, l10n) | M | 0.1.1 | ✅ freezed + json_serializable + drift + gen-l10n. Riverpod codegen dropped — see ARCHITECTURE §6 amendment |
 
 ### Epic P0.2 — Design system & tokens ⭐
@@ -61,7 +61,7 @@
 | ID | Task | Est | Deps | Status (2026-08-06) |
 |----|------|-----|------|---------------------|
 | T-0.3.1 | `Result`/`Failure` types + error taxonomy | S | 0.1.5 | ✅ pure Dart |
-| T-0.3.2 | Dio client + interceptors (auth, refresh, correlation-ID, retry, error→Failure) | L | 0.3.1 | ✅ 🔒 API base; `AuthInterceptor.refreshToken` remains a throwing seam pending T-0.4.1, and the 401 replay runs through an interceptor-free client (`buildReplayDio`) |
+| T-0.3.2 | Dio client + interceptors (auth, refresh, correlation-ID, retry, error→Failure) | L | 0.3.1 | ✅ 🔒 API base; `AuthInterceptor.refreshToken` delegates to `SessionManager.refresh()` (P0.4 closed this — it was a throwing seam through Task 8), and the 401 replay runs through an interceptor-free client (`buildReplayDio`) |
 | T-0.3.3 | Drift DB (schema v1: sync_task, attendance_draft, cached_reference) + migrations | L | 0.1.5 | ✅ offline core; schema v2 (`audit_events`) added for T-0.3.6 |
 | T-0.3.4 | Secure storage wrapper (tokens, encryption keys) | S | 0.1.5 | ✅ `SecureStore`/`FlutterSecureStore` + frozen `SecureStoreKeys` registry |
 | T-0.3.5 | Responsive breakpoint system + adaptive scaffold (drawer/rail/bottom-nav) | M | 0.2.2 | ✅ §11 |
@@ -79,16 +79,59 @@
 > through `AuditSink.revealAudited`, which takes the reveal as a callback so it
 > cannot fail open. Feature-level audit emission stays with the owning tasks
 > (T-1.4.2, T-1.6.3, T-3.1.4); this epic emits only `evidenceKeyRotated`.
-> `AuthInterceptor.refreshToken` remains a throwing seam pending T-0.4.1, and
-> the 401 replay now goes through an interceptor-free client.
+> `AuthInterceptor.refreshToken` delegates to `SessionManager.refresh()` as of
+> P0.4's close (it was a throwing seam through Task 8), and the 401 replay now
+> goes through an interceptor-free client.
 
 ### Epic P0.4 — Auth, RBAC & routing ⭐
 | ID | Task | Est | Deps | Notes |
 |----|------|-----|------|-------|
-| T-0.4.1 | Session model + token lifecycle (login/refresh/logout) | M | 0.3.2, 0.3.4 | 🔒 auth API |
-| T-0.4.2 | RBAC scope model (role + org/territory) + permission checks | M | 0.4.1 | §12 |
-| T-0.4.3 | GoRouter config + redirect guards (role/scope before build) | L | 0.4.2, 0.3.5 | §7 |
-| T-0.4.4 | App shell wiring (nav map, breadcrumb, notifications slot) | M | 0.4.3 | §3.3 |
+| T-0.4.1 | Session model + token lifecycle (login/refresh/logout) | M | 0.3.2, 0.3.4 | ✅ 🔒 format pending; `SessionManager` owns login/restore/refresh/signOut with single-flight refresh and a generation guard against post-sign-out resurrection |
+| T-0.4.2 | RBAC scope model (role + org/territory) + permission checks | M | 0.4.1 | ✅ §12; `AccessScope`/`Permission` + `PermissionGate.hidden`/`.disabled` |
+| T-0.4.3 | GoRouter config + redirect guards (role/scope before build) | L | 0.4.2, 0.3.5 | ✅ §7; one `routeTable` read by both the router and `RouteGuards`, keyed on `GoRouterState.fullPath` |
+| T-0.4.4 | App shell wiring (nav map, breadcrumb, notifications slot) | M | 0.4.3 | ✅ §3.3; `AppShell` + `nav_destinations.dart`, permission-filtered |
+
+> **P0.4 complete** (2026-08-07). T-0.4.1's lifecycle lives in a dedicated
+> `SessionManager` with single-flight refresh: a 401-triggered refresh racing a
+> proactive one would, under server-side rotation, leave the loser presenting a
+> consumed token and sign the user out mid-task. `AuthState` is a sealed
+> tri-state rather than `Session?`, because a nullable session conflates
+> signed-out with not-yet-known and a mobile cold start would flash the login
+> screen. Tokens: the refresh token persists to Keystore/Keychain on mobile and
+> **not at all on web**, where `SecureStore` is `localStorage` rather than
+> hardware-backed; the access token is never persisted anywhere. Changing the
+> web behaviour needs a server-side httpOnly cookie, not a different client
+> store. T-0.4.3 replaces prefix matching with one `routeTable` that both the
+> router and the guard read, keyed on `GoRouterState.fullPath` so a
+> parameterised template matches exactly; an undeclared path fails closed, and
+> a test asserts the registered set equals the table with dev routes both on
+> and off. T-0.4.2 adds `PermissionGate` (hidden for whole surfaces, disabled
+> with a screen-reader-reachable reason for actions on a visible record);
+> `AccessScope.inTerritory` remains modelled and unconsumed until P1/P3's
+> territory-filtered queries. T-0.4.4's nav was previously inert — no caller
+> passed `onDestinationSelected` — and its destinations were unfiltered, so a
+> field user was offered four surfaces the guard then rejected. The auth wire
+> format stays 🔒 pending the contract; `DioAuthService` and `scope_claims.dart`
+> are the only places it lands.
+>
+> Expiry is checked on the *request* path, not the render path:
+> `SessionManager.accessTokenForRequest()` proactively refreshes inside a 60s
+> skew and signs out if refresh fails, so an idle signed-in user with an
+> expired token is redirected on their next request rather than instantly —
+> `authStateProvider` and `RouteGuards.evaluate` do not re-check
+> `Session.expiresAt` on every render. That is a deliberate choice, not the
+> gap it looks like at a glance: this epic's temporary bridge (Tasks 5–8) had
+> dropped the old `RouteGuards`' `!session.isExpired` check, and closing this
+> epic means confirming that omission is intentional rather than silently
+> keeping it. `AuthInterceptor.refreshToken` now delegates to
+> `SessionManager.refresh()` and `onAuthLost` to `SessionManager.signOut()`
+> (both were seams/stubs through Task 8), so a 401 actually renews the session
+> through the same single-flight path a proactive refresh uses. `main()`
+> exchanges any persisted refresh token via `SessionManager.restore()` before
+> the first frame, and — under E2E — awaits a real `signIn()` against
+> `FakeAuthService` before `runApp`, so Maestro drives the same
+> `SessionManager` path production does instead of starting pre-authenticated
+> by construction. Closes T-0.4.1 through T-0.4.4.
 
 ### Epic P0.5 — Localization ⭐
 | ID | Task | Est | Deps | Notes |
