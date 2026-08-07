@@ -1,0 +1,228 @@
+    <section class="ds-block">
+      <div class="ds-plate">
+        <div class="ds-plate__chrome">
+          <span class="ds-plate__dot"></span><span class="ds-plate__dot"></span><span class="ds-plate__dot"></span>
+          <span class="ds-plate__url">sales.bmd.internal/campaigns/new?step=3</span>
+        </div>
+        <div class="ds-plate__body">
+          <div class="shell" data-nav="campaigns" data-sub="all">
+<!--@include partials/drawer-web.html-->
+            <div class="col" style="gap: 0; min-width: 0">
+              <header class="appbar">
+                <button class="icon-btn" title="Collapse navigation">☰</button>
+                <div class="crumb"><span>Campaigns</span><span class="crumb__sep">/</span><b>Create campaign</b></div>
+                <div class="row gap-2" style="margin-left: auto">
+                  <span class="chip chip--neutral"><span class="chip__dot">◔</span>Draft saved 09:41</span>
+                  <span class="context-pill is-locked">🔒 Dhaka North · BMD</span>
+                  <span class="thumb" title="Farhana Rahman">FR</span>
+                </div>
+              </header>
+
+              <div class="content">
+                <div class="page-head">
+                  <div class="page-head__text">
+                    <div class="page-head__title">
+                      <h2 class="t-page">Create campaign</h2>
+                      <span class="chip chip--neutral chip--lg"><span class="chip__dot">○</span>Draft</span>
+                    </div>
+                    <p class="t-body">Mistri Meet — Savar Cluster · CMP-2026-0184</p>
+                  </div>
+                  <div class="page-head__actions">
+                    <button class="btn btn--text">Discard draft</button>
+                    <button class="btn btn--outlined">Save and close</button>
+                  </div>
+                </div>
+
+                <div class="card" style="margin-bottom: var(--space-6)">
+                  <div class="stepper">
+                    <div class="step is-done"><span class="step__n">✓</span><span class="step__label">Basics and objective</span></div>
+                    <div class="step is-done"><span class="step__n">✓</span><span class="step__label">Audience and territory</span></div>
+                    <div class="step is-current"><span class="step__n">3</span><span class="step__label">Sessions, venue and geofence</span></div>
+                    <div class="step"><span class="step__n">4</span><span class="step__label">Targets, budget and approval</span></div>
+                    <div class="step"><span class="step__n">5</span><span class="step__label">Review and submit</span></div>
+                  </div>
+                </div>
+
+                <div class="grid" style="grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); align-items: start">
+                  <div class="col gap-6">
+                    <div class="card">
+                      <div class="card__body gap-4">
+                        <div class="spread">
+                          <span class="t-card">Session 1</span>
+                          <span class="chip chip--success"><span class="chip__dot">✓</span>Complete</span>
+                        </div>
+                        <div class="grid g-2" style="gap: var(--space-4)">
+                          <div class="field">
+                            <span class="field__label">Date <span class="req">*</span></span>
+                            <div class="field__box"><span>04 Aug 2026</span><span class="field__affix">▤</span></div>
+                          </div>
+                          <div class="field">
+                            <span class="field__label">Venue <span class="req">*</span></span>
+                            <div class="field__box"><span>Savar Community Hall</span><span class="field__affix">⌄</span></div>
+                          </div>
+                          <div class="field">
+                            <span class="field__label">Start <span class="req">*</span></span>
+                            <div class="field__box"><span>10:00</span></div>
+                            <span class="field__help">Asia/Dhaka (GMT+6)</span>
+                          </div>
+                          <div class="field">
+                            <span class="field__label">End <span class="req">*</span></span>
+                            <div class="field__box"><span>13:00</span></div>
+                            <span class="field__help">Capture window 09:30–13:30 with ± 30 min tolerance</span>
+                          </div>
+                          <div class="field">
+                            <span class="field__label">Capacity <span class="req">*</span></span>
+                            <div class="field__box"><span class="num">400</span><span class="field__affix">participants</span></div>
+                          </div>
+                          <div class="field">
+                            <span class="field__label">Assigned field users <span class="req">*</span></span>
+                            <div class="field__box"><span class="field__ph">Add users</span><span class="field__affix">⌄</span></div>
+                            <div class="row gap-2 wrap" style="padding-top: 4px">
+                              <span class="fchip is-active">A. Karim <span class="fchip__x">✕</span></span>
+                              <span class="fchip is-active">J. Uddin <span class="fchip__x">✕</span></span>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="row gap-4 wrap" style="border-top: 1px solid var(--border-default); padding-top: var(--space-4)">
+                          <label class="row gap-3"><span class="switch is-on"></span>
+                            <span class="col"><span class="t-strong">Enforce venue geofence</span>
+                              <span class="t-caption">200 m radius · capture outside it needs an authorised override</span></span></label>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="card">
+                      <div class="card__body gap-4">
+                        <div class="spread">
+                          <span class="t-card">Session 2</span>
+                          <span class="chip chip--error"><span class="chip__dot">⚠</span>2 problems</span>
+                        </div>
+                        <div class="grid g-2" style="gap: var(--space-4)">
+                          <div class="field">
+                            <span class="field__label">Date <span class="req">*</span></span>
+                            <div class="field__box"><span>04 Aug 2026</span><span class="field__affix">▤</span></div>
+                          </div>
+                          <div class="field">
+                            <span class="field__label">Venue <span class="req">*</span></span>
+                            <div class="field__box is-error"><span>Savar Community Hall</span><span class="field__affix">⌄</span></div>
+                            <span class="field__err"><span>⚠</span>Same venue and overlapping window as session 1. Attendance windows would overlap and produce duplicate-capture exceptions.</span>
+                          </div>
+                          <div class="field">
+                            <span class="field__label">Start <span class="req">*</span></span>
+                            <div class="field__box"><span>12:00</span></div>
+                          </div>
+                          <div class="field">
+                            <span class="field__label">End <span class="req">*</span></span>
+                            <div class="field__box"><span>15:00</span></div>
+                          </div>
+                          <div class="field">
+                            <span class="field__label">Capacity <span class="req">*</span></span>
+                            <div class="field__box"><span class="num">400</span><span class="field__affix">participants</span></div>
+                          </div>
+                          <div class="field">
+                            <span class="field__label">Assigned field users <span class="req">*</span></span>
+                            <div class="field__box is-error"><span class="field__ph">Add users</span><span class="field__affix">⌄</span></div>
+                            <span class="field__err"><span>⚠</span>At least one field user must be assigned before this session can open for capture.</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button class="btn btn--outlined" style="align-self: flex-start">＋ Add session</button>
+                  </div>
+
+                  <div class="col gap-6">
+                    <div class="card">
+                      <div class="card__body">
+                        <span class="t-card">Still to resolve</span>
+                        <div class="col gap-2">
+                          <div class="row-t gap-2"><span style="color: var(--semantic-error)">⚠</span>
+                            <a class="t-body" href="#">Session 2 venue conflicts with session 1</a></div>
+                          <div class="row-t gap-2"><span style="color: var(--semantic-error)">⚠</span>
+                            <a class="t-body" href="#">Session 2 has no assigned field user</a></div>
+                          <div class="row-t gap-2"><span style="color: var(--semantic-warning)">◷</span>
+                            <a class="t-body" href="#">Step 4 — budget reference required above a 500 target</a></div>
+                        </div>
+                        <span class="footnote">Your draft is saved as you go. You can leave and return without losing anything.</span>
+                      </div>
+                    </div>
+
+                    <div class="card">
+                      <div class="card__body">
+                        <span class="t-card">Set by your organisation</span>
+                        <dl class="kv" style="grid-template-columns: 1fr auto">
+                          <dt>Attendance tolerance</dt><dd class="num">± 30 min</dd>
+                          <dt>Geofence radius</dt><dd class="num">200 m</dd>
+                          <dt>Reference priority</dt><dd>Profile → NID</dd>
+                          <dt>Verification SLA</dt><dd class="num">8 h</dd>
+                          <dt>Attribution window</dt><dd class="num">30 days</dd>
+                        </dl>
+                        <span class="footnote">These are configuration, not fields. An Org Admin changes them, with a reason and
+                          an effective date.</span>
+                      </div>
+                    </div>
+
+                    <div class="card">
+                      <div class="card__body">
+                        <span class="t-card">Approval route</span>
+                        <div class="audit">
+                          <div class="audit__row">
+                            <div class="audit__spine"><span class="audit__dot"></span><span class="audit__line"></span></div>
+                            <div class="audit__body"><span class="t-strong">You submit</span>
+                              <span class="t-caption">F. Rahman · Campaign Admin</span></div>
+                          </div>
+                          <div class="audit__row">
+                            <div class="audit__spine"><span class="audit__dot"></span></div>
+                            <div class="audit__body"><span class="t-strong">M. Alam approves</span>
+                              <span class="t-caption">Campaign Approver · Dhaka North</span></div>
+                          </div>
+                        </div>
+                        <span class="footnote">You cannot approve a campaign you created. Segregation of duties is enforced at
+                          submission, not discovered at approval.</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="card card--raised" style="margin-top: var(--space-6); position: sticky; bottom: 0">
+                  <div class="card__body">
+                    <div class="spread">
+                      <span class="t-caption">Step 3 of 5 · 3 items to resolve before submission</span>
+                      <div class="row gap-2">
+                        <button class="btn btn--text">← Back</button>
+                        <button class="btn btn--outlined">Save draft</button>
+                        <button class="btn btn--primary">Continue →</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head"><h2 class="ds-block__title">Specification</h2></div>
+      <table class="ds-spec">
+        <thead><tr><th>Dimension</th><th>Specification</th></tr></thead>
+        <tbody>
+          <tr><td>Steps</td><td>1 Basics and objective · 2 Audience and territory · 3 Sessions, venue, geofence · 4 Targets, budget, approval · 5 Review and submit</td></tr>
+          <tr><td>Mobile</td><td>Draft review only. Creation is tablet and desktop first unless the business approves mobile creation.</td></tr>
+          <tr><td>Primary actions</td><td>Save draft · continue · preview · submit for approval</td></tr>
+          <tr><td>Required states</td><td>Unsaved · validation error · schedule conflict · missing approver · submitted · returned</td></tr>
+          <tr><td>Final step</td><td>A read-only summary of everything configured, shown before submission.</td></tr>
+        </tbody>
+      </table>
+      <div class="ds-note ds-note--rule">
+        <div class="ds-note__body"><b>Continue is never blocked by a later step's problem.</b> The user can move forward with
+          session 2 unresolved — the running “Still to resolve” panel carries the debt, and only <i>submit</i> is gated. Blocking
+          navigation on validation is how a 24-field form becomes a spreadsheet instead.</div>
+      </div>
+      <div class="ds-note">
+        <div class="ds-note__body"><b>Organisation-configured values are shown, not hidden.</b> A campaign admin who cannot see
+          the geofence radius or the attribution window will design sessions that quietly violate them. Showing the values as a
+          read-only panel — clearly labelled as configuration — prevents the whole class of problem.</div>
+      </div>
+    </section>

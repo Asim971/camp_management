@@ -1,0 +1,41 @@
+{
+  "@@locale": "bn",
+
+  "appTitle": "ক্যাম্পেইন ব্যবস্থাপনা",
+
+  "campaignStatus_draft": "খসড়া",
+  "campaignStatus_pendingApproval": "অনুমোদনের অপেক্ষায়",
+  "campaignStatus_returned": "ফেরত পাঠানো হয়েছে",
+  "campaignStatus_approved": "অনুমোদিত",
+  "campaignStatus_active": "চলমান",
+  "campaignStatus_paused": "স্থগিত",
+  "campaignStatus_completed": "সম্পন্ন",
+  "campaignStatus_cancelled": "বাতিল",
+
+  "attendanceStatus_notCaptured": "ধারণ করা হয়নি",
+  "attendanceStatus_pendingSync": "সিঙ্কের অপেক্ষায়",
+  "attendanceStatus_matchProcessing": "মিল যাচাই চলছে",
+  "attendanceStatus_crmReview": "সিআরএম পর্যালোচনা",
+  "attendanceStatus_approved": "অনুমোদিত",
+  "attendanceStatus_rejected": "প্রত্যাখ্যাত",
+  "attendanceStatus_returned": "ফেরত পাঠানো হয়েছে",
+
+  "action_submitForApproval": "অনুমোদনের জন্য জমা দিন",
+  "action_captureAttendance": "উপস্থিতি ধারণ করুন",
+  "action_returnForRecapture": "পুনরায় ধারণের জন্য ফেরত দিন",
+  "action_retrySync": "আবার সিঙ্ক করুন",
+  "action_viewQueue": "সারি দেখুন",
+
+  "notice_title": "উপস্থিতির ছবি ও পরিচয় যাচাই",
+  "notice_purpose": "এই ক্যাম্পেইন সেশনের জন্য আপনার নিবন্ধিত প্রোফাইলের সাথে উপস্থিতি যাচাই করতে ACSL আপনার ছবি ধারণ করবে।",
+  "notice_reviewRequired": "পর্যালোচনা প্রয়োজন",
+
+  "offline_pending": "{count, plural, =0{সব সিঙ্ক হয়েছে} =1{১টি আইটেম অপেক্ষমাণ} other{{count}টি আইটেম অপেক্ষমাণ}}",
+  "@offline_pending": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "offline_lastSync": "সর্বশেষ সিঙ্ক {time}",
+  "@offline_lastSync": {
+    "placeholders": { "time": { "type": "String" } }
+  }
+}

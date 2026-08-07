@@ -1,0 +1,247 @@
+    <section class="ds-block">
+      <div class="ds-plate">
+        <div class="ds-plate__chrome">
+          <span class="ds-plate__dot"></span><span class="ds-plate__dot"></span><span class="ds-plate__dot"></span>
+          <span class="ds-plate__url">sales.bmd.internal/campaigns/CMP-2026-0166/import/JOB-7741</span>
+        </div>
+        <div class="ds-plate__body">
+          <div class="shell" data-nav="participants">
+<!--@include partials/drawer-web.html-->
+            <div class="col" style="gap: 0; min-width: 0">
+              <header class="appbar">
+                <button class="icon-btn" title="Collapse navigation">☰</button>
+                <div class="crumb"><span>Rod Clinic — Savar</span><span class="crumb__sep">/</span><span>Bulk imports</span>
+                  <span class="crumb__sep">/</span><b>JOB-7741</b></div>
+                <div class="row gap-2" style="margin-left: auto">
+                  <span class="context-pill is-locked">🔒 Savar · Dhaka North</span>
+                  <span class="thumb" title="Mahmud Hasan">MH</span>
+                </div>
+              </header>
+
+              <div class="content">
+                <div class="page-head">
+                  <div class="page-head__text">
+                    <div class="page-head__title">
+                      <h2 class="t-page">Bulk import · JOB-7741</h2>
+                      <span class="chip chip--info chip--lg"><span class="chip__dot">◍</span>Ready to commit</span>
+                    </div>
+                    <p class="t-body">savar_session3_participants_v2.csv · 1,204 rows · uploaded 09:38 by M. Hasan ·
+                      dry run completed 09:39</p>
+                  </div>
+                  <div class="page-head__actions">
+                    <button class="btn btn--text">Cancel job</button>
+                    <button class="btn btn--outlined">Download result (masked)</button>
+                    <button class="btn btn--primary">Commit 1,098 valid rows</button>
+                  </div>
+                </div>
+
+                <!-- Panel 1: the job's own progress -->
+                <div class="card" style="margin-bottom: var(--space-6)">
+                  <div class="card__body gap-3">
+                    <div class="stepper" style="border: 0">
+                      <div class="step is-done"><span class="step__n">✓</span><span class="step__label">Upload</span></div>
+                      <div class="step is-done"><span class="step__n">✓</span><span class="step__label">Virus and format scan</span></div>
+                      <div class="step is-done"><span class="step__n">✓</span><span class="step__label">Dry run</span></div>
+                      <div class="step is-current"><span class="step__n">4</span><span class="step__label">Review and commit</span></div>
+                      <div class="step"><span class="step__n">5</span><span class="step__label">Result and audit</span></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Panel 2: dry-run summary -->
+                <div class="section">
+                  <div class="section__head">
+                    <h3 class="t-section">Dry-run summary</h3>
+                    <span class="t-caption">Nothing has been written yet</span>
+                  </div>
+                  <div class="grid g-5">
+                    <div class="card exc" style="border-left-color: var(--semantic-success)">
+                      <span class="t-micro">Valid</span>
+                      <span class="exc__count num-hero" style="color: var(--semantic-success)">1,098</span>
+                      <span class="t-caption">Will be registered on commit</span>
+                    </div>
+                    <div class="card exc exc--warning">
+                      <span class="t-micro">Warning</span>
+                      <span class="exc__count num-hero">44</span>
+                      <span class="t-caption">Will register, with a flag</span>
+                      <a class="t-caption" href="#">Review →</a>
+                    </div>
+                    <div class="card exc exc--warning">
+                      <span class="t-micro">Duplicate</span>
+                      <span class="exc__count num-hero">38</span>
+                      <span class="t-caption">Already registered · will skip</span>
+                      <a class="t-caption" href="#">Review →</a>
+                    </div>
+                    <div class="card exc exc--info">
+                      <span class="t-micro">Needs profile</span>
+                      <span class="exc__count num-hero">17</span>
+                      <span class="t-caption">Sales Eco request required</span>
+                      <a class="t-caption" href="#">Review →</a>
+                    </div>
+                    <div class="card exc exc--error">
+                      <span class="t-micro">Error</span>
+                      <span class="exc__count num-hero">7</span>
+                      <span class="t-caption">4 unauthorised territory · 3 unreadable</span>
+                      <a class="t-caption" href="#">Fix rows →</a>
+                    </div>
+                  </div>
+                  <div class="banner banner--info">
+                    <span class="banner__icon">◍</span>
+                    <div class="col gap-1">
+                      <span class="banner__title">Committing is safe to repeat</span>
+                      <span class="banner__body">This job carries idempotency key <span class="ds-code">JOB-7741-a4f1</span>.
+                        Running commit twice registers each row once — a timeout or a double click cannot double-register anyone.</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Panel 3: row-level validation -->
+                <div class="section">
+                  <div class="section__head">
+                    <h3 class="t-section">Rows needing attention</h3>
+                    <span class="t-caption">106 of 1,204 · every row has a stable ID and a named outcome</span>
+                  </div>
+                  <div class="filterbar" style="position: static">
+                    <div class="search"><span>⌕</span><span class="field__ph">Row number, name or ID</span>
+                      <span class="search__scope">This job</span></div>
+                    <span class="fchip is-active">Warning 44 <span class="fchip__x">✕</span></span>
+                    <span class="fchip is-active">Duplicate 38 <span class="fchip__x">✕</span></span>
+                    <span class="fchip is-active">Needs profile 17 <span class="fchip__x">✕</span></span>
+                    <span class="fchip is-active">Error 7 <span class="fchip__x">✕</span></span>
+                    <span class="fchip">Valid 1,098</span>
+                  </div>
+                  <div class="table-wrap">
+                    <table class="tbl">
+                      <thead>
+                        <tr><th class="c-num" style="width: 72px">Row</th><th>Name in file</th><th>ID in file</th>
+                          <th>Outcome</th><th>Matched to</th><th>What to do</th></tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td class="c-num">104</td><td class="tbl__primary">Abdul Karim</td><td class="c-id">CRP-48813</td>
+                          <td><span class="chip chip--warning"><span class="chip__dot">◌</span>No reference photo</span></td>
+                          <td class="c-id">CRP-48813</td>
+                          <td class="t-caption">Registers with a flag. Will route to manual review at capture.</td>
+                        </tr>
+                        <tr>
+                          <td class="c-num">105</td><td class="tbl__primary">Rafiqul Islam</td><td class="c-id">CRP-50021</td>
+                          <td><span class="chip chip--warning"><span class="chip__dot">⧉</span>Duplicate</span></td>
+                          <td class="c-id">CRP-50021</td>
+                          <td class="t-caption">Registered on 28 Jul by F. Rahman. Row will be skipped.</td>
+                        </tr>
+                        <tr>
+                          <td class="c-num">118</td><td class="tbl__primary">Jashim Uddin Mia</td><td class="c-id">—</td>
+                          <td><span class="chip chip--info"><span class="chip__dot">⟳</span>Needs profile</span></td>
+                          <td class="t-caption">No match</td>
+                          <td><a href="#">Request Sales Eco profile</a></td>
+                        </tr>
+                        <tr>
+                          <td class="c-num">231</td><td class="tbl__primary">Nurul Haque</td><td class="c-id">CRP-61120</td>
+                          <td><span class="chip chip--error"><span class="chip__dot">✕</span>Unauthorised territory</span></td>
+                          <td class="c-id">CRP-61120 · Chattogram</td>
+                          <td class="t-caption">Outside your scope. Ask a Dhaka North admin, or remove the row.</td>
+                        </tr>
+                        <tr>
+                          <td class="c-num">288</td><td class="tbl__primary">—</td><td class="c-id">CRP-4881</td>
+                          <td><span class="chip chip--error"><span class="chip__dot">✕</span>Unreadable</span></td>
+                          <td class="t-caption">No match</td>
+                          <td class="t-caption">ID is 7 characters; carpenter IDs are 9. Correct it in the file and re-upload.</td>
+                        </tr>
+                        <tr>
+                          <td class="c-num">301</td><td class="tbl__primary">Md. Rafiq Mia</td><td class="c-id">CRP-44190</td>
+                          <td><span class="chip chip--warning"><span class="chip__dot">⟳</span>Profile pending sync</span></td>
+                          <td class="c-id">CRP-44190</td>
+                          <td class="t-caption">Registers and holds until Sales Eco confirms the profile.</td>
+                        </tr>
+                        <tr>
+                          <td class="c-num">344</td><td class="tbl__primary">Shafiqul Alam</td><td class="c-id">CRP-47201</td>
+                          <td><span class="chip chip--warning"><span class="chip__dot">◷</span>Over capacity</span></td>
+                          <td class="c-id">CRP-47201</td>
+                          <td class="t-caption">Session 3 fills at row 289. Rows 289–332 will be waitlisted.</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <!-- Panel 4: commit -->
+                <div class="card card--raised">
+                  <div class="card__body">
+                    <div class="spread">
+                      <div class="col gap-1">
+                        <span class="t-card">Commit this import</span>
+                        <span class="t-caption">1,098 will register · 44 register with a flag · 38 skip as duplicates ·
+                          17 need a profile request · 7 errors stay unresolved</span>
+                      </div>
+                      <div class="row gap-2">
+                        <button class="btn btn--outlined">Download template</button>
+                        <button class="btn btn--outlined">Re-run dry run</button>
+                        <button class="btn btn--primary">Commit 1,098 valid rows</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Processing and partial completion</h2>
+      </div>
+      <div class="grid g-2">
+        <div class="card">
+          <div class="card__body gap-3">
+            <span class="t-micro">Processing</span>
+            <div class="spread"><span class="t-card">Committing 1,098 rows</span>
+              <span class="chip chip--info"><span class="chip__dot">⟳</span>Processing</span></div>
+            <div class="agebar" style="height: 8px"><div class="agebar__fill agebar__fill--ok" style="width: 64%"></div></div>
+            <span class="t-caption num">703 of 1,098 · about 40 seconds remaining · safe to leave this page</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card__body gap-3">
+            <span class="t-micro">Partially completed</span>
+            <div class="spread"><span class="t-card">1,061 of 1,098 registered</span>
+              <span class="chip chip--warning"><span class="chip__dot">◐</span>Partially completed</span></div>
+            <div class="banner banner--warning">
+              <span class="banner__icon">⚠</span>
+              <div class="col gap-1">
+                <span class="banner__title">37 rows could not be written</span>
+                <span class="banner__body">The Sales Eco master became unavailable at 09:47. These 37 are held, not lost —
+                  retrying uses the same idempotency key, so the 1,061 already registered will not be duplicated.</span>
+              </div>
+              <div class="banner__action"><button class="btn btn--tonal">Retry 37</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="ds-note ds-note--rule">
+        <div class="ds-note__body"><b>There is no generic “upload failed” anywhere in this flow.</b> Every row carries a stable
+          row number, a named outcome, the identity it matched to, and the specific corrective action. A user who cannot see which
+          of 1,204 rows failed will re-upload the whole file, which is exactly how duplicates get created.</div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head"><h2 class="ds-block__title">Specification</h2></div>
+      <table class="ds-spec">
+        <thead><tr><th>Dimension</th><th>Specification</th></tr></thead>
+        <tbody>
+          <tr><td>Primary users</td><td>Campaign Admin with the dedicated bulk-import permission</td></tr>
+          <tr><td>Panels</td><td>Upload · dry-run summary · row-level validation table · commit and reconciliation</td></tr>
+          <tr><td>Outcome buckets</td><td>Valid · warning · duplicate · needs profile · unauthorised · error, each with a count and a filter</td></tr>
+          <tr><td>Mobile</td><td>Tablet supports monitoring only. Upload and correction are desktop-first.</td></tr>
+          <tr><td>Primary actions</td><td>Download template · upload · run dry run · review row · commit valid rows · retry failed · cancel</td></tr>
+          <tr><td>Required states</td><td>Uploading · scanning · dry run · ready · processing · partial · failed · completed · cancelled</td></tr>
+          <tr><td>Result file</td><td>Masked download. Phone and NID never appear in full in an export.</td></tr>
+        </tbody>
+      </table>
+      <div class="ds-note">
+        <div class="ds-note__body"><b>The idempotency key is shown to the user, not hidden in a log.</b> It is the reason a
+          nervous admin can press Commit again after a timeout, and telling them so is cheaper than a support conversation.</div>
+      </div>
+    </section>

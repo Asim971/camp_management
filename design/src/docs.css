@@ -1,0 +1,133 @@
+/* ==========================================================================
+   Documentation chrome — the frame around each specimen.
+   Deliberately quiet: the specimen is the subject, the page around it is a
+   drafting sheet. Prefixed `ds-` so it can never collide with the `bmd`
+   component layer it is documenting.
+   ========================================================================== */
+
+.ds-page { padding: var(--space-7) var(--space-8) var(--space-10); max-width: 1400px; margin: 0 auto; }
+.ds-page--flush { padding: 0; max-width: none; }
+
+.ds-head { display: flex; flex-direction: column; gap: var(--space-2); padding-bottom: var(--space-7); }
+.ds-head__eyebrow { display: flex; align-items: center; gap: var(--space-3); }
+.ds-head__id {
+  font: var(--type-label); letter-spacing: var(--tracking-micro);
+  padding: 3px var(--space-2); border-radius: var(--radius-1);
+  background: var(--bmd-ink-700); color: #fff;
+}
+.ds-head__ref { font: var(--type-label); letter-spacing: var(--tracking-micro); color: var(--text-muted); }
+.ds-head__title { font: var(--type-page); color: var(--text-heading); }
+.ds-head__lede { font: var(--type-body-lg); color: var(--text-secondary); max-width: 78ch; }
+
+.ds-block { display: flex; flex-direction: column; gap: var(--space-4); padding-bottom: var(--space-8); }
+.ds-block__head { display: flex; align-items: baseline; gap: var(--space-3); border-bottom: 1px solid var(--border-default); padding-bottom: var(--space-2); }
+.ds-block__title { font: var(--type-section); color: var(--text-heading); }
+.ds-block__note { font: var(--type-caption); color: var(--text-muted); margin-left: auto; }
+
+/* A specimen well: neutral ground so component surfaces read correctly. */
+.ds-specimen {
+  background: var(--surface-base);
+  border: 1px solid var(--border-default); border-radius: var(--radius-3);
+  padding: var(--space-6);
+  display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-4);
+}
+.ds-specimen--col { flex-direction: column; flex-wrap: nowrap; }
+.ds-specimen--tight { padding: var(--space-4); gap: var(--space-3); }
+.ds-specimen--white { background: var(--surface-elevated); }
+.ds-specimen--dark { background: #0D1020; border-color: #2B3152; }
+
+.ds-cell { display: flex; flex-direction: column; gap: var(--space-2); }
+/* .ds-specimen sets align-items: flex-start so side-by-side specimens size to
+   their content. In a stacked specimen that would let each cell shrink to its
+   own caption width — which makes full-width components like the lineage rail
+   render at inconsistent lengths down the page. Stack children always stretch. */
+.ds-specimen--col > .ds-cell { align-self: stretch; }
+.ds-cell__label { font: var(--type-label); letter-spacing: var(--tracking-micro); text-transform: uppercase; color: var(--text-muted); }
+
+/* Swatches */
+.ds-swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); gap: var(--space-4); }
+.ds-swatch { display: flex; flex-direction: column; gap: var(--space-2); }
+.ds-swatch__chip {
+  height: 76px; border-radius: var(--radius-2); border: 1px solid rgba(43, 54, 116, 0.10);
+  display: flex; align-items: flex-end; padding: var(--space-2);
+}
+.ds-swatch__name { font: var(--type-body-strong); color: var(--text-primary); }
+.ds-swatch__hex { font: var(--type-caption); color: var(--text-muted); font-variant-numeric: tabular-nums; text-transform: uppercase; }
+.ds-swatch__use { font: var(--type-caption); color: var(--text-muted); }
+.ds-swatch__prov {
+  align-self: flex-start; font: 600 10px/14px var(--font-sans);
+  letter-spacing: var(--tracking-micro); text-transform: uppercase;
+  padding: 1px 5px; border-radius: 3px;
+}
+.ds-prov--confirmed { background: var(--tint-success); color: var(--semantic-success); }
+.ds-prov--guideline { background: var(--tint-info); color: var(--semantic-info); }
+.ds-prov--validated { background: var(--tint-neutral); color: var(--text-secondary); }
+
+/* Spec table */
+table.ds-spec { width: 100%; border-collapse: collapse; font: var(--type-body); }
+.ds-spec th {
+  text-align: left; padding: var(--space-2) var(--space-3);
+  font: var(--type-label); letter-spacing: var(--tracking-micro); text-transform: uppercase;
+  color: var(--text-muted); border-bottom: 1px solid var(--border-strong);
+}
+.ds-spec td {
+  padding: var(--space-3); border-bottom: 1px solid var(--border-default);
+  color: var(--text-secondary); vertical-align: top;
+}
+.ds-spec td:first-child { color: var(--text-primary); font: var(--type-body-strong); white-space: nowrap; }
+.ds-spec code, .ds-code {
+  font: 500 12px/18px ui-monospace, "Cascadia Code", Consolas, monospace;
+  background: var(--bmd-navy-50); color: var(--bmd-ink-700);
+  padding: 1px 5px; border-radius: 4px;
+}
+
+/* Annotation — the redline voice. Numbered only where the content is genuinely
+   a sequence; otherwise plain. */
+.ds-note {
+  display: flex; gap: var(--space-3); padding: var(--space-3) var(--space-4);
+  background: var(--bmd-navy-50); border-radius: var(--radius-2);
+  border-left: 3px solid var(--bmd-ink-700);
+}
+.ds-note__body { font: var(--type-body); color: var(--text-secondary); }
+.ds-note__body b { color: var(--text-heading); }
+.ds-note--rule { border-left-color: var(--bmd-primary-600); background: var(--bmd-red-50); }
+.ds-note--privacy { border-left-color: var(--semantic-warning); background: var(--tint-warning); }
+.ds-note--a11y { border-left-color: var(--semantic-success); background: var(--tint-success); }
+
+.ds-do-dont { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
+.ds-dd { border: 1px solid var(--border-default); border-radius: var(--radius-3); overflow: hidden; }
+.ds-dd__head { padding: var(--space-2) var(--space-4); font: var(--type-label); letter-spacing: var(--tracking-micro); text-transform: uppercase; }
+.ds-dd--do .ds-dd__head { background: var(--tint-success); color: var(--semantic-success); }
+.ds-dd--dont .ds-dd__head { background: var(--tint-error); color: var(--semantic-error); }
+.ds-dd__body { padding: var(--space-4); background: var(--surface-elevated); display: flex; flex-direction: column; gap: var(--space-3); }
+
+/* Screen mockups sit on a plate that mimics the browser working width. */
+.ds-plate {
+  background: var(--surface-base);
+  border: 1px solid var(--border-strong); border-radius: var(--radius-3);
+  overflow: hidden; box-shadow: var(--elev-1);
+}
+.ds-plate__chrome {
+  height: 34px; background: var(--surface-sunken);
+  border-bottom: 1px solid var(--border-default);
+  display: flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-3);
+}
+.ds-plate__dot { width: 9px; height: 9px; border-radius: 50%; background: var(--border-strong); flex: none; }
+.ds-plate__url {
+  margin-left: var(--space-3); font: var(--type-caption); color: var(--text-muted);
+  background: var(--surface-elevated); border: 1px solid var(--border-default);
+  border-radius: var(--radius-pill); padding: 2px var(--space-3);
+}
+.ds-plate__body { background: var(--surface-base); }
+
+.ds-devices { display: flex; gap: var(--space-6); flex-wrap: wrap; align-items: flex-start; }
+.ds-devices .ds-cell { max-width: 390px; }
+
+.ds-token-list { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.ds-token { font: var(--type-label); background: var(--surface-sunken); color: var(--text-secondary); padding: 3px var(--space-2); border-radius: var(--radius-1); }
+
+.ds-ruler { display: flex; align-items: flex-end; gap: var(--space-3); }
+.ds-ruler__bar { background: var(--bmd-ink-700); border-radius: 2px; width: 100%; }
+.ds-checks { display: flex; flex-direction: column; gap: var(--space-2); }
+.ds-check { display: flex; align-items: flex-start; gap: var(--space-2); font: var(--type-body); color: var(--text-secondary); }
+.ds-check__mark { color: var(--semantic-success); flex: none; }

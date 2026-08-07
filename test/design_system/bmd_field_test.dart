@@ -1,0 +1,277 @@
+import 'dart:io';
+
+import 'package:acsl_campaign/app/theme/bmd_theme.dart';
+import 'package:acsl_campaign/app/theme/tokens.dart';
+import 'package:acsl_campaign/core/design_system/bmd_field.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+Future<void> _pump(WidgetTester tester, Widget child, {double width = 1280}) {
+  return tester.pumpWidget(
+    MaterialApp(
+      theme: bmdTheme(),
+      home: Scaffold(
+        body: Center(
+          child: SizedBox(width: width, child: child),
+        ),
+      ),
+    ),
+  );
+}
+
+void main() {
+  group('BmdField', () {
+    testWidgets('a required field says so in its accessible name', (
+      tester,
+    ) async {
+      // An asterisk glyph is decoration; a screen-reader user needs the word.
+      await _pump(
+        tester,
+        const BmdField(label: 'Campaign name', required: true),
+      );
+
+      final label = tester
+          .getSemantics(find.byType(TextField))
+          .label
+          .toLowerCase();
+      expect(label, contains('campaign name'));
+      expect(label, contains('required'));
+    });
+
+    testWidgets('errorText overrides validator output', (tester) async {
+      // A server rejection or an async duplicate check has to be able to beat
+      // whatever a synchronous validator currently thinks. Driving validate()
+      // explicitly is what actually exercises the precedence: without it,
+      // the validator is never invoked and this test would pass even if the
+      // errorText/validator guard were deleted.
+      final formKey = GlobalKey<FormState>();
+      await _pump(
+        tester,
+        Form(
+          key: formKey,
+          child: BmdField(
+            label: 'Campaign name',
+            errorText: 'A campaign with this name already exists',
+            validator: (_) => 'Locally this looks fine',
+          ),
+        ),
+      );
+
+      formKey.currentState!.validate();
+      await tester.pump();
+
+      expect(
+        find.text('A campaign with this name already exists'),
+        findsOneWidget,
+      );
+      expect(find.text('Locally this looks fine'), findsNothing);
+    });
+
+    testWidgets('a multiline field is at least 96px tall', (tester) async {
+      await _pump(tester, const BmdField.multiline(label: 'Objective'));
+
+      // Assert the constraint itself, not just a rendered height that could
+      // coincidentally land on 96px for other reasons (e.g. minLines: 3's
+      // natural line-box height at this test's width).
+      final decoration = tester
+          .widget<TextField>(find.byType(TextField))
+          .decoration;
+      expect(decoration?.constraints?.minHeight, BmdSize.textareaMin);
+
+      final height = tester
+          .getSize(
+            find.descendant(
+              of: find.byType(BmdField),
+              matching: find.byType(InputDecorator),
+            ),
+          )
+          .height;
+      expect(height, greaterThanOrEqualTo(96));
+    });
+
+    testWidgets('a masked field never shows the full value unrevealed', (
+      tester,
+    ) async {
+      const full = '1990123456789';
+      await _pump(
+        tester,
+        BmdField.masked(
+          label: 'National ID',
+          maskedValue: '•••••••••4821',
+          onReveal: () async => full,
+        ),
+      );
+
+      expect(find.text('•••••••••4821'), findsOneWidget);
+      expect(find.text(full), findsNothing);
+
+      await tester.tap(find.byIcon(Icons.visibility_outlined));
+      await tester.pumpAndSettle();
+
+      expect(find.text(full), findsOneWidget);
+    });
+
+    testWidgets('with no reveal callback the affordance is absent', (
+      tester,
+    ) async {
+      // Not disabled — a disabled reveal button advertises data the user
+      // cannot have (§10.2).
+      await _pump(
+        tester,
+        const BmdField.masked(
+          label: 'National ID',
+          maskedValue: '•••••••••4821',
+        ),
+      );
+
+      expect(find.byIcon(Icons.visibility_outlined), findsNothing);
+      expect(find.byType(IconButton), findsNothing);
+    });
+  });
+
+  group('responsive control height (Guideline §5.2, §11)', () {
+    // tester.binding.setSurfaceSize() does not drive MediaQuery.sizeOf on this
+    // Flutter version (3.44.8) -- it leaves the reported size at the 800x600
+    // default, so Breakpoint.of(context) would resolve to the same breakpoint
+    // regardless of the width requested here. Driving tester.view directly is
+    // what actually changes MediaQuery.sizeOf, and therefore Breakpoint.of.
+    Future<void> pumpAt(WidgetTester tester, double width, Widget child) {
+      tester.view.physicalSize = Size(width, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      return _pump(tester, child, width: width);
+    }
+
+    // Regression coverage: deleting the Breakpoint.of(context).isMobile ? … :
+    // … ternary at bmd_field.dart:130 (BmdField._minHeight) or bmd_field.dart
+    // :301 (BmdSearchField.build) would leave the rest of the suite green --
+    // nothing else pins the mobile vs. web control height apart from the
+    // fixed 96px textarea case above. Verified by mutation: deleting each
+    // ternary in turn (replacing it with a single constant) fails exactly the
+    // matching test below; restoring it turns the suite green again.
+    testWidgets('BmdField is 52px on mobile and 44px on web/tablet+', (
+      tester,
+    ) async {
+      await pumpAt(tester, 390, const BmdField(label: 'Venue'));
+      var decoration = tester
+          .widget<TextField>(find.byType(TextField))
+          .decoration;
+      expect(decoration?.constraints?.minHeight, BmdSize.controlHeightMobile);
+
+      await pumpAt(tester, 1280, const BmdField(label: 'Venue'));
+      decoration = tester.widget<TextField>(find.byType(TextField)).decoration;
+      expect(decoration?.constraints?.minHeight, BmdSize.controlHeightWeb);
+    });
+
+    testWidgets('BmdSearchField is 52px on mobile and 44px on web/tablet+', (
+      tester,
+    ) async {
+      await pumpAt(
+        tester,
+        390,
+        BmdSearchField(scopeLabel: 'Searches name', onQueryChanged: (_) {}),
+      );
+      var decoration = tester
+          .widget<TextField>(find.byType(TextField))
+          .decoration;
+      expect(decoration?.constraints?.minHeight, BmdSize.controlHeightMobile);
+
+      await pumpAt(
+        tester,
+        1280,
+        BmdSearchField(scopeLabel: 'Searches name', onQueryChanged: (_) {}),
+      );
+      decoration = tester.widget<TextField>(find.byType(TextField)).decoration;
+      expect(decoration?.constraints?.minHeight, BmdSize.controlHeightWeb);
+    });
+  });
+
+  group('BmdSearchField', () {
+    testWidgets('rapid typing collapses into one query', (tester) async {
+      final queries = <String>[];
+      await _pump(
+        tester,
+        BmdSearchField(
+          scopeLabel: 'Searches name, carpenter ID, phone suffix',
+          onQueryChanged: queries.add,
+        ),
+      );
+
+      await tester.enterText(find.byType(TextField), 'a');
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.enterText(find.byType(TextField), 'ab');
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.enterText(find.byType(TextField), 'abc');
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(queries, ['abc']);
+    });
+
+    testWidgets('clearing is immediate, not debounced', (tester) async {
+      final queries = <String>[];
+      await _pump(
+        tester,
+        BmdSearchField(
+          scopeLabel: 'Searches campaign name and code',
+          initialQuery: 'roadshow',
+          onQueryChanged: queries.add,
+        ),
+      );
+
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pump();
+
+      expect(queries, [''], reason: 'a delayed clear reads as a broken field');
+    });
+
+    testWidgets('the search scope is always visible', (tester) async {
+      // §5.3: the user must be able to see what is being searched.
+      await _pump(
+        tester,
+        BmdSearchField(
+          scopeLabel: 'Searches name, carpenter ID, phone suffix',
+          onQueryChanged: (_) {},
+        ),
+      );
+
+      expect(
+        find.text('Searches name, carpenter ID, phone suffix'),
+        findsOneWidget,
+      );
+    });
+  });
+
+  group('single renderer', () {
+    test('no feature screen builds a raw text field', () {
+      // A leftover raw field is the pattern the next screen copies, and it
+      // silently opts out of the height, required-name and masking rules.
+      // TextField(/TextFormField( are the Material entry points; neither
+      // CupertinoTextField( nor EditableText( is generic, so unlike the
+      // overlay guard this needs no optional-generic tolerance -- a plain
+      // substring check on each line is enough.
+      final offenders = <String>[];
+      final dir = Directory('lib/features');
+      for (final entity in dir.listSync(recursive: true)) {
+        if (entity is! File || !entity.path.endsWith('.dart')) continue;
+        final lines = entity.readAsLinesSync();
+        for (var i = 0; i < lines.length; i++) {
+          final line = lines[i];
+          if (line.contains('TextField(') ||
+              line.contains('TextFormField(') ||
+              line.contains('CupertinoTextField(') ||
+              line.contains('EditableText(')) {
+            offenders.add('${entity.path}:${i + 1}');
+          }
+        }
+      }
+
+      expect(
+        offenders,
+        isEmpty,
+        reason:
+            'Use BmdField / BmdField.multiline / BmdSearchField instead:\n'
+            '${offenders.join("\n")}',
+      );
+    });
+  });
+}

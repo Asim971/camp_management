@@ -1,0 +1,184 @@
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Contrast</h2>
+        <span class="ds-block__note">WCAG 2.2 AA · 4.5:1 text, 3:1 large text and meaningful graphics</span>
+      </div>
+      <table class="ds-spec">
+        <thead><tr><th>Pair</th><th>Ratio</th><th>Requirement</th><th>Result</th></tr></thead>
+        <tbody>
+          <tr><td>text.primary on surface.elevated</td><td>14.1:1</td><td>4.5:1</td><td>pass</td></tr>
+          <tr><td>text.secondary on surface.elevated</td><td>8.3:1</td><td>4.5:1</td><td>pass</td></tr>
+          <tr><td>text.muted on surface.elevated</td><td>4.6:1</td><td>4.5:1</td><td>pass — do not lighten further</td></tr>
+          <tr><td>text.muted on surface.base</td><td>4.5:1</td><td>4.5:1</td><td>pass at the floor; captions on a tinted card use text.secondary</td></tr>
+          <tr><td>brand.primary.600 on white</td><td>4.4:1</td><td>4.5:1 text</td><td>fails as body text — permitted only as a large label or on a fill</td></tr>
+          <tr><td>white on brand.primary.600</td><td>4.4:1</td><td>3:1 large</td><td>pass — button labels are 14px 600, treated as large UI text</td></tr>
+          <tr><td>semantic.success · warning · error · info on white</td><td>5.32 · 5.43 · 6.57 · 5.99</td><td>4.5:1</td><td>pass</td></tr>
+        </tbody>
+      </table>
+      <div class="ds-note ds-note--rule">
+        <div class="ds-note__body"><b>Brand red is not a body-text colour.</b> At 4.4:1 it misses the normal-text floor. It is
+          legal on a filled button, as a 12px 600 micro-label on a tonal ground, and as a chart mark — never as a sentence.</div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Never colour alone</h2>
+        <span class="ds-block__note">Every state carries an icon and a word</span>
+      </div>
+      <div class="ds-do-dont">
+        <div class="ds-dd ds-dd--do">
+          <div class="ds-dd__head">Do</div>
+          <div class="ds-dd__body">
+            <div class="row gap-2 wrap">
+              <span class="chip chip--success"><span class="chip__dot">✓</span>Approved</span>
+              <span class="chip chip--error"><span class="chip__dot">✕</span>Rejected</span>
+              <span class="chip chip--warning"><span class="chip__dot">↩</span>Returned</span>
+            </div>
+            <span class="t-body">Legible in greyscale, under bright outdoor glare, and to a reader with deuteranopia.</span>
+          </div>
+        </div>
+        <div class="ds-dd ds-dd--dont">
+          <div class="ds-dd__head">Don't</div>
+          <div class="ds-dd__body">
+            <div class="row gap-3">
+              <span style="width: 12px; height: 12px; border-radius: 50%; background: var(--semantic-success)"></span>
+              <span style="width: 12px; height: 12px; border-radius: 50%; background: var(--semantic-error)"></span>
+              <span style="width: 12px; height: 12px; border-radius: 50%; background: var(--semantic-warning)"></span>
+            </div>
+            <span class="t-body">A traffic-light column. Unreadable in greyscale, and it forces every user to learn a private
+              colour code before they can read the table.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Focus and keyboard</h2>
+        <span class="ds-block__note">CRM review must be fully operable without a mouse</span>
+      </div>
+      <div class="ds-specimen ds-specimen--white ds-specimen--col">
+        <div class="row gap-4 wrap">
+          <button class="btn btn--primary" style="box-shadow: var(--focus-ring)">Focused primary</button>
+          <button class="btn btn--outlined" style="box-shadow: var(--focus-ring)">Focused outlined</button>
+          <div class="field" style="width: 240px">
+            <span class="field__label">Focused field</span>
+            <div class="field__box is-focus"><span>Md. Rafiqul</span></div>
+          </div>
+        </div>
+        <span class="t-caption">A 2px surface gap then a 2px brand ring, so focus stays visible on both white cards and tinted
+          rows. Focus is never removed — a mouse user does not see it, a keyboard user cannot work without it.</span>
+      </div>
+      <table class="ds-spec">
+        <thead><tr><th>Key</th><th>Action in a verification case</th></tr></thead>
+        <tbody>
+          <tr><td>J · K</td><td>Next / previous case in the queue without leaving the case view</td></tr>
+          <tr><td>Z</td><td>Toggle zoom-and-pan lock across both evidence images at once</td></tr>
+          <tr><td>1 · 2 · 3</td><td>Preselect Approve · Reject · Return — focus moves to the mandatory reason field</td></tr>
+          <tr><td>Enter</td><td>Submit, only once outcome and reason are both present</td></tr>
+          <tr><td>?</td><td>Shortcut sheet, reachable from the keyboard</td></tr>
+        </tbody>
+      </table>
+      <div class="ds-note ds-note--a11y">
+        <div class="ds-note__body"><b>A shortcut may not be the only route.</b> Every keyboard action above has a visible
+          control. Shortcuts make a reviewer working a 200-case queue faster; they never become the only way to do something.</div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Screen reader and zoom</h2>
+      </div>
+      <table class="ds-spec">
+        <thead><tr><th>Element</th><th>Accessible name and behaviour</th></tr></thead>
+        <tbody>
+          <tr><td>Status chip</td><td>Announced as “Status: Pending sync”. The chip is not a button and is not in the tab order.</td></tr>
+          <tr><td>Evidence thumbnail</td><td>“Attendance evidence, hidden. Activate to open the case and reveal — this view is logged.”</td></tr>
+          <tr><td>Zoom control</td><td>“Zoom in, evidence comparison, level 2 of 4.” Level is announced, not just the change.</td></tr>
+          <tr><td>Capture guidance</td><td>Live region, polite. “Face too close. Move the phone back slightly.” Announced once per state change, not per frame.</td></tr>
+          <tr><td>Lineage rail</td><td>An ordered list. Each node reads “Uploaded, completed 10:31” or “CRM decision, not started”.</td></tr>
+          <tr><td>Chart</td><td>Figure with a caption, plus a table view holding the same numbers. The table is the accessible equivalent, not an afterthought.</td></tr>
+          <tr><td>Sync indicator</td><td>“3 captures waiting to upload. Last successful sync 14 minutes ago.” Never colour or an icon alone.</td></tr>
+          <tr><td>200% zoom</td><td>No loss of critical action. Tables may scroll horizontally with a sticky identity column; the primary action stays reachable.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Sensitive evidence controls</h2>
+        <span class="ds-block__note">Privacy by default</span>
+      </div>
+      <div class="grid g-3">
+        <div class="card">
+          <div class="card__body">
+            <span class="t-micro">Veiled by default</span>
+            <div class="evidence">
+              <div class="evidence__frame evidence__frame--sm">
+                <div class="evidence__veil">
+                  <span>Evidence hidden</span>
+                  <span class="evidence__veil-note">Opening is logged</span>
+                </div>
+              </div>
+            </div>
+            <span class="t-caption">A queue thumbnail shows no face. The image resolves only inside an authorised case.</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card__body">
+            <span class="t-micro">Masked identifiers</span>
+            <dl class="kv">
+              <dt>Carpenter ID</dt><dd class="num">CRP-48812</dd>
+              <dt>Phone</dt>
+              <dd><span class="masked"><span class="masked__dots">•••••••</span><span class="num">812</span></span></dd>
+              <dt>NID</dt>
+              <dd><span class="masked"><span class="masked__dots">••••••••••</span><span class="num">4471</span>
+                <button class="masked__reveal">Reveal</button></span></dd>
+            </dl>
+            <span class="t-caption">Suffix only. The full number never appears in a field, a URL, a notification or an export —
+              and revealing it is a permissioned, logged event.</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card__body">
+            <span class="t-micro">Machine output by role</span>
+            <div class="col gap-2">
+              <div class="row gap-2"><span class="chip chip--neutral"><span class="chip__dot">○</span>Field user</span>
+                <span class="t-caption">sees no score, no band</span></div>
+              <div class="row gap-2"><span class="chip chip--info"><span class="chip__dot">◍</span>CRM</span>
+                <span class="t-caption">sees band and reasons</span></div>
+              <div class="row gap-2"><span class="chip chip--warning"><span class="chip__dot">⚙</span>Support</span>
+                <span class="t-caption">sees raw vendor data</span></div>
+            </div>
+            <span class="t-caption">Three different views of the same result. The field operator is given guidance they can act
+              on, never a number they might repeat to the participant.</span>
+          </div>
+        </div>
+      </div>
+      <table class="ds-spec">
+        <thead><tr><th>Control</th><th>Interface requirement</th></tr></thead>
+        <tbody>
+          <tr><td>Photo access</td><td>Thumbnail hidden until an authorised case is opened. Every open and every view is logged.</td></tr>
+          <tr><td>NID</td><td>Authorised suffix or minimal verified fields only. Never in a field screen, URL, notification or export.</td></tr>
+          <tr><td>Signed URLs</td><td>Short-lived viewer session. No permanent public URL; download disabled by default.</td></tr>
+          <tr><td>Reference source</td><td>Named explicitly: Verified profile photo · Authorised NID photo · Approved baseline photo · Unavailable.</td></tr>
+          <tr><td>Manual route</td><td>An explicit alternative wherever biometric processing is unavailable, inappropriate or unsuccessful.</td></tr>
+          <tr><td>Retention</td><td>Policy metadata shown to authorised admins. Raw deletion controls are not exposed to ordinary users.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Consent and purpose notice</h2>
+        <span class="ds-block__note">Language choice before acceptance</span>
+      </div>
+      <div class="ds-checks">
+        <div class="ds-check"><span class="ds-check__mark">✓</span><span>Titled “Attendance photo and identity verification” — it says what happens, not “Terms”.</span></div>
+        <div class="ds-check"><span class="ds-check__mark">✓</span><span>States ACSL, the campaign and session, the purpose, the data used, the provider category, retention, rights and contact, and what happens if the participant declines.</span></div>
+        <div class="ds-check"><span class="ds-check__mark">✓</span><span>Optional marketing consent is a separate decision from attendance identity verification, and declining it does not block attendance.</span></div>
+        <div class="ds-check"><span class="ds-check__mark">✓</span><span>Language is chosen before acceptance; the notice version, language, timestamp and outcome are all recorded.</span></div>
+        <div class="ds-check"><span class="ds-check__mark">✓</span><span>Wording is non-coercive. There is a clear manual verification path where policy permits, and it is presented as a normal option rather than a failure route.</span></div>
+      </div>
+    </section>

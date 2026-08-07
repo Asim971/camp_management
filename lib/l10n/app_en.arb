@@ -1,0 +1,47 @@
+{
+  "@@locale": "en",
+
+  "appTitle": "Campaign Management",
+
+  "campaignStatus_draft": "Draft",
+  "campaignStatus_pendingApproval": "Pending approval",
+  "campaignStatus_returned": "Returned",
+  "campaignStatus_approved": "Approved",
+  "campaignStatus_active": "Active",
+  "campaignStatus_paused": "Paused",
+  "campaignStatus_completed": "Completed",
+  "campaignStatus_cancelled": "Cancelled",
+
+  "attendanceStatus_notCaptured": "Not captured",
+  "attendanceStatus_pendingSync": "Pending sync",
+  "attendanceStatus_matchProcessing": "Match processing",
+  "attendanceStatus_crmReview": "CRM review",
+  "attendanceStatus_approved": "Approved",
+  "attendanceStatus_rejected": "Rejected",
+  "attendanceStatus_returned": "Returned",
+
+  "action_submitForApproval": "Submit for approval",
+  "action_captureAttendance": "Capture attendance",
+  "action_returnForRecapture": "Return for recapture",
+  "action_retrySync": "Retry sync",
+  "action_viewQueue": "View queue",
+
+  "notice_title": "Attendance photo and identity verification",
+  "@notice_title": {
+    "description": "Consent/purpose notice title shown before capture (§10.3)"
+  },
+  "notice_purpose": "ACSL will capture your photo for this campaign session to verify attendance against your registered profile.",
+  "notice_reviewRequired": "Review required",
+  "@notice_reviewRequired": {
+    "description": "Neutral, non-accusatory result label — never 'Fraud detected' (§2.1)"
+  },
+
+  "offline_pending": "{count, plural, =0{All synced} =1{1 item pending} other{{count} items pending}}",
+  "@offline_pending": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "offline_lastSync": "Last sync {time}",
+  "@offline_lastSync": {
+    "placeholders": { "time": { "type": "String" } }
+  }
+}

@@ -1,0 +1,88 @@
+name: acsl_campaign
+description: ACSL Carpenter Campaign Management & Attendance Verification — BMD Sales Ecosystem extension.
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+  flutter: ">=3.44.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # State & DI
+  flutter_riverpod: ^2.5.1
+
+  # Routing
+  go_router: ^14.2.0
+
+  # Models
+  freezed_annotation: ^2.4.4
+  json_annotation: ^4.9.0
+
+  # Network
+  dio: ^5.5.0
+
+  # Local persistence
+  drift: ^2.18.0
+  drift_flutter: ^0.2.0 # cross-platform opener (native + web wasm)
+  sqlite3_flutter_libs: ^0.5.24
+  path_provider: ^2.1.3
+  path: ^1.9.0
+  flutter_secure_storage: ^10.3.1
+
+  # Camera / media (mobile field)
+  camera: ^0.11.0
+  google_mlkit_face_detection: ^0.14.0
+  image: ^4.2.0
+
+  # Offline / background
+  connectivity_plus: ^7.3.1
+  workmanager: ^0.9.0
+
+  # Security
+  cryptography: ^2.7.0
+
+  # IDs (idempotency keys)
+  uuid: ^4.4.0
+
+  # L10n / analytics
+  intl: any
+  fl_chart: ^1.2.0
+
+  # Files / import
+  file_selector: ^1.1.0
+  csv: ^8.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+
+  flutter_lints: ^4.0.0
+  build_runner: ^2.4.11
+  freezed: ^2.5.7
+  json_serializable: ^6.8.0
+  drift_dev: ^2.18.0
+  mocktail: ^1.0.4
+  golden_toolkit: ^0.15.0
+  file_selector_platform_interface: ^2.7.0 # to fake the file dialog in widget tests
+
+flutter:
+  uses-material-design: true
+  generate: true # enables gen-l10n from l10n.yaml
+  assets:
+    - assets/templates/
+    - assets/e2e/ # test fixtures (fake camera image); harmless in prod builds
+    - assets/fonts/OFL.txt # SIL OFL 1.1 text the bundled fonts require
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Variable.ttf
+    - family: NotoSansBengali
+      fonts:
+        - asset: assets/fonts/NotoSansBengali-Variable.ttf

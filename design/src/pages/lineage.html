@@ -1,0 +1,246 @@
+    <div class="ds-note ds-note--rule">
+      <div class="ds-note__body"><b>Why this component exists.</b> Two of the guideline's hardest requirements are about a
+        record's position in a chain rather than its final state: capture success is not upload success, and the machine's
+        opinion is not the human's decision. Both are easy to lose when a record is reduced to one status chip. So the chain
+        itself is a component — and it renders identically on the mobile queue, the CRM case, Carpenter 360 and the audit
+        trail, because a field operator and a reviewer arguing about the same record need to be looking at the same picture.</div>
+    </div>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">The rail</h2>
+        <span class="ds-block__note">Six links · one direction · no shortcuts</span>
+      </div>
+      <div class="ds-specimen ds-specimen--white ds-specimen--col">
+        <ol class="lineage">
+          <li class="lineage__node is-done">
+            <div class="lineage__mark"><span class="lineage__dot"></span><span class="lineage__line"></span></div>
+            <span class="lineage__label">Captured</span><span class="lineage__meta">10:24 · on device</span>
+          </li>
+          <li class="lineage__node is-done">
+            <div class="lineage__mark"><span class="lineage__dot"></span><span class="lineage__line"></span></div>
+            <span class="lineage__label">Queued</span><span class="lineage__meta">10:24 · encrypted</span>
+          </li>
+          <li class="lineage__node is-done">
+            <div class="lineage__mark"><span class="lineage__dot"></span><span class="lineage__line"></span></div>
+            <span class="lineage__label">Uploaded</span><span class="lineage__meta">10:31 · 1 retry</span>
+          </li>
+          <li class="lineage__node is-done">
+            <div class="lineage__mark"><span class="lineage__dot"></span><span class="lineage__line"></span></div>
+            <span class="lineage__label">Matched</span><span class="lineage__meta">10:32 · advisory only</span>
+          </li>
+          <li class="lineage__node is-done">
+            <div class="lineage__mark"><span class="lineage__dot"></span><span class="lineage__line"></span></div>
+            <span class="lineage__label">CRM decision</span><span class="lineage__meta">11:06 · S. Ahmed</span>
+          </li>
+          <li class="lineage__node is-done">
+            <div class="lineage__mark"><span class="lineage__dot"></span></div>
+            <span class="lineage__label">Counted</span><span class="lineage__meta">included in verified</span>
+          </li>
+        </ol>
+        <span class="t-caption">A completed chain. Every node names itself and carries its own timestamp, so the record can be
+          reconstructed without opening the audit log.</span>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">The states that matter</h2>
+        <span class="ds-block__note">Solid means it happened · dashed means it has not</span>
+      </div>
+
+      <div class="ds-specimen ds-specimen--white ds-specimen--col gap-6">
+        <div class="ds-cell">
+          <span class="ds-cell__label">Waiting to upload — the field user's work is safe</span>
+          <ol class="lineage">
+            <li class="lineage__node is-done">
+              <div class="lineage__mark"><span class="lineage__dot"></span><span class="lineage__line"></span></div>
+              <span class="lineage__label">Captured</span><span class="lineage__meta">10:24</span>
+            </li>
+            <li class="lineage__node is-current">
+              <div class="lineage__mark"><span class="lineage__dot"></span><span class="lineage__line"></span></div>
+              <span class="lineage__label">Queued</span><span class="lineage__meta">waiting for network</span>
+            </li>
+            <li class="lineage__node is-pending">
+              <div class="lineage__mark"><span class="lineage__dot"></span><span class="lineage__line"></span></div>
+              <span class="lineage__label">Uploaded</span><span class="lineage__meta">—</span>
+            </li>
+            <li class="lineage__node is-pending">
+              <div class="lineage__mark"><span class="lineage__dot"></span><span class="lineage__line"></span></div>
+              <span class="lineage__label">Matched</span><span class="lineage__meta">—</span>
+            </li>
+            <li class="lineage__node is-pending">
+              <div class="lineage__mark"><span class="lineage__dot"></span><span class="lineage__line"></span></div>
+              <span class="lineage__label">CRM decision</span><span class="lineage__meta">—</span>
+            </li>
+            <li class="lineage__node is-pending">
+              <div class="lineage__mark"><span class="lineage__dot"></span></div>
+              <span class="lineage__label">Counted</span><span class="lineage__meta">—</span>
+            </li>
+          </ol>
+          <span class="t-caption">The capture link is solid and green. This is the single most important thing this component
+            communicates: the photo exists, and a delayed upload is not a reason to photograph the participant again.</span>
+        </div>
+
+        <div class="ds-cell">
+          <span class="ds-cell__label">Upload failed — retrying, still not a recapture</span>
+          <ol class="lineage">
+            <li class="lineage__node is-done">
+              <div class="lineage__mark"><span class="lineage__dot"></span><span class="lineage__line"></span></div>
+              <span class="lineage__label">Captured</span><span class="lineage__meta">09:58</span>
+            </li>
+            <li class="lineage__node is-done">
+              <div class="lineage__mark"><span class="lineage__dot"></span><span class="lineage__line"></span></div>
+              <span class="lineage__label">Queued</span><span class="lineage__meta">09:58</span>
+            </li>
+            <li class="lineage__node is-failed">
+              <div class="lineage__mark"><span class="lineage__dot"></span><span class="lineage__line"></span></div>
+              <span class="lineage__label">Upload failed</span><span class="lineage__meta">4 attempts · next 12:40</span>
+            </li>
+            <li class="lineage__node is-pending">
+              <div class="lineage__mark"><span class="lineage__dot"></span><span class="lineage__line"></span></div>
+              <span class="lineage__label">Matched</span><span class="lineage__meta">—</span>
+            </li>
+            <li class="lineage__node is-pending">
+              <div class="lineage__mark"><span class="lineage__dot"></span><span class="lineage__line"></span></div>
+              <span class="lineage__label">CRM decision</span><span class="lineage__meta">—</span>
+            </li>
+            <li class="lineage__node is-pending">
+              <div class="lineage__mark"><span class="lineage__dot"></span></div>
+              <span class="lineage__label">Counted</span><span class="lineage__meta">—</span>
+            </li>
+          </ol>
+        </div>
+
+        <div class="ds-cell">
+          <span class="ds-cell__label">No approved reference — blocked before matching, routed to manual review</span>
+          <ol class="lineage">
+            <li class="lineage__node is-done">
+              <div class="lineage__mark"><span class="lineage__dot"></span><span class="lineage__line"></span></div>
+              <span class="lineage__label">Captured</span><span class="lineage__meta">11:12</span>
+            </li>
+            <li class="lineage__node is-done">
+              <div class="lineage__mark"><span class="lineage__dot"></span><span class="lineage__line"></span></div>
+              <span class="lineage__label">Queued</span><span class="lineage__meta">11:12</span>
+            </li>
+            <li class="lineage__node is-done">
+              <div class="lineage__mark"><span class="lineage__dot"></span><span class="lineage__line"></span></div>
+              <span class="lineage__label">Uploaded</span><span class="lineage__meta">11:13</span>
+            </li>
+            <li class="lineage__node is-blocked">
+              <div class="lineage__mark"><span class="lineage__dot"></span><span class="lineage__line"></span></div>
+              <span class="lineage__label">No reference</span><span class="lineage__meta">manual route</span>
+            </li>
+            <li class="lineage__node is-current">
+              <div class="lineage__mark"><span class="lineage__dot"></span><span class="lineage__line"></span></div>
+              <span class="lineage__label">CRM decision</span><span class="lineage__meta">in queue · 3h 20m</span>
+            </li>
+            <li class="lineage__node is-pending">
+              <div class="lineage__mark"><span class="lineage__dot"></span></div>
+              <span class="lineage__label">Counted</span><span class="lineage__meta">—</span>
+            </li>
+          </ol>
+          <span class="t-caption">A blocked machine step does not break the chain. The evidence is preserved and the decision
+            moves to a human — the rail shows exactly that, rather than a dead end.</span>
+        </div>
+
+        <div class="ds-cell">
+          <span class="ds-cell__label">Returned for recapture — the chain loops back, and says so</span>
+          <ol class="lineage">
+            <li class="lineage__node is-done">
+              <div class="lineage__mark"><span class="lineage__dot"></span><span class="lineage__line"></span></div>
+              <span class="lineage__label">Captured</span><span class="lineage__meta">attempt 1 · 10:02</span>
+            </li>
+            <li class="lineage__node is-done">
+              <div class="lineage__mark"><span class="lineage__dot"></span><span class="lineage__line"></span></div>
+              <span class="lineage__label">Uploaded</span><span class="lineage__meta">10:04</span>
+            </li>
+            <li class="lineage__node is-done">
+              <div class="lineage__mark"><span class="lineage__dot"></span><span class="lineage__line"></span></div>
+              <span class="lineage__label">Matched</span><span class="lineage__meta">low quality</span>
+            </li>
+            <li class="lineage__node is-blocked">
+              <div class="lineage__mark"><span class="lineage__dot"></span><span class="lineage__line"></span></div>
+              <span class="lineage__label">Returned</span><span class="lineage__meta">10:41 · poor quality</span>
+            </li>
+            <li class="lineage__node is-current">
+              <div class="lineage__mark"><span class="lineage__dot"></span><span class="lineage__line"></span></div>
+              <span class="lineage__label">Recapture</span><span class="lineage__meta">attempt 2 · assigned</span>
+            </li>
+            <li class="lineage__node is-pending">
+              <div class="lineage__mark"><span class="lineage__dot"></span></div>
+              <span class="lineage__label">Counted</span><span class="lineage__meta">—</span>
+            </li>
+          </ol>
+          <span class="t-caption">The returned attempt stays in the record. A recapture is attempt 2, never a replacement of
+            attempt 1 — the original evidence and the reason it was rejected both remain auditable.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Vertical variant</h2>
+        <span class="ds-block__note">Narrow surfaces · same semantics</span>
+      </div>
+      <div class="ds-specimen ds-specimen--white">
+        <div style="width: 320px">
+          <ol class="lineage lineage--v">
+            <li class="lineage__node is-done">
+              <div class="lineage__mark"><span class="lineage__dot"></span><span class="lineage__line"></span></div>
+              <div class="col gap-1">
+                <span class="lineage__label">Captured</span>
+                <span class="lineage__meta">10:24 · session 3 · device BMD-A21</span>
+              </div>
+            </li>
+            <li class="lineage__node is-done">
+              <div class="lineage__mark"><span class="lineage__dot"></span><span class="lineage__line"></span></div>
+              <div class="col gap-1">
+                <span class="lineage__label">Uploaded</span>
+                <span class="lineage__meta">10:31 · after 1 retry</span>
+              </div>
+            </li>
+            <li class="lineage__node is-current">
+              <div class="lineage__mark"><span class="lineage__dot"></span><span class="lineage__line"></span></div>
+              <div class="col gap-1">
+                <span class="lineage__label">CRM review</span>
+                <span class="lineage__meta">assigned to S. Ahmed · 41m in queue</span>
+              </div>
+            </li>
+            <li class="lineage__node is-pending">
+              <div class="lineage__mark"><span class="lineage__dot"></span></div>
+              <div class="col gap-1">
+                <span class="lineage__label">Counted</span>
+                <span class="lineage__meta">not yet included in verified attendance</span>
+              </div>
+            </li>
+          </ol>
+        </div>
+        <div class="col gap-3" style="max-width: 42ch">
+          <span class="t-body">The vertical rail is used on the mobile queue detail and inside the CRM audit panel, where there
+            is room for a fuller caption per link. Nodes may be merged when a surface does not need the full chain — the mobile
+            queue collapses Queued and Uploaded into one — but the order is never rearranged and a link is never skipped
+            silently.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head"><h2 class="ds-block__title">Rules</h2></div>
+      <table class="ds-spec">
+        <thead><tr><th>Rule</th><th>Reason</th></tr></thead>
+        <tbody>
+          <tr><td>Never brand red</td><td>Red is reserved for the primary action. The rail is a report, not a control, and must never look like something to press.</td></tr>
+          <tr><td>Dashed connector = not yet</td><td>A future step and a failed step are different facts. Greying both out is the mistake this component exists to prevent.</td></tr>
+          <tr><td>Tone carries outcome, text carries identity</td><td>Colour-blind, greyscale and glare-readable by construction. Every node names itself.</td></tr>
+          <tr><td>Order is fixed</td><td>The chain is the audit story. Reordering it per screen would make two surfaces disagree about the same record.</td></tr>
+          <tr><td>An attempt is never overwritten</td><td>A recapture is attempt <i>n+1</i>. The returned attempt and its reason stay in the record.</td></tr>
+          <tr><td>Machine and human are separate links</td><td>“Matched” is advisory. “CRM decision” is the decision. Collapsing them would imply the machine decided.</td></tr>
+        </tbody>
+      </table>
+      <div class="ds-note ds-note--a11y">
+        <div class="ds-note__body"><b>Announced as an ordered list.</b> Each node reads “Uploaded, completed 10:31” or
+          “CRM decision, not started”, so a screen-reader user gets the same distinction between a pending step and a failed
+          one that a sighted user gets from the dashed connector.</div>
+      </div>
+    </section>

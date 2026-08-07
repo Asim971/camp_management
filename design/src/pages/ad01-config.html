@@ -1,0 +1,243 @@
+    <section class="ds-block">
+      <div class="ds-plate">
+        <div class="ds-plate__chrome">
+          <span class="ds-plate__dot"></span><span class="ds-plate__dot"></span><span class="ds-plate__dot"></span>
+          <span class="ds-plate__url">sales.bmd.internal/admin/configuration/attendance-windows</span>
+        </div>
+        <div class="ds-plate__body">
+          <div class="shell" data-nav="config">
+<!--@include partials/drawer-web.html-->
+            <div class="col" style="gap: 0; min-width: 0">
+              <header class="appbar">
+                <button class="icon-btn" title="Collapse navigation">☰</button>
+                <div class="crumb"><span>Configuration</span><span class="crumb__sep">/</span><b>Attendance windows</b></div>
+                <div class="row gap-2" style="margin-left: auto">
+                  <span class="context-pill is-locked">🔒 BMD · organisation scope</span>
+                  <span class="thumb" title="Kamrul Islam">KI</span>
+                </div>
+              </header>
+
+              <div class="content">
+                <div class="page-head">
+                  <div class="page-head__text">
+                    <div class="page-head__title">
+                      <h2 class="t-page">Attendance windows</h2>
+                      <span class="chip chip--info chip--lg"><span class="chip__dot">◍</span>Change pending approval</span>
+                    </div>
+                    <p class="t-body">Version 7 is active. Version 8 is drafted and waiting on approval, scheduled to take effect
+                      15 Aug 2026.</p>
+                  </div>
+                  <div class="page-head__actions">
+                    <button class="btn btn--outlined">View impact</button>
+                    <button class="btn btn--primary">Submit version 8</button>
+                  </div>
+                </div>
+
+                <div class="grid" style="grid-template-columns: 232px minmax(0, 1fr); align-items: start">
+                  <div class="card">
+                    <div class="card__body gap-2">
+                      <span class="t-micro">Configuration</span>
+                      <div class="saved-views">
+                        <a href="#"><span>Campaign types</span></a>
+                        <a href="#"><span>Statuses</span></a>
+                        <a href="#"><span>Reason codes</span><span class="t-caption num">24</span></a>
+                        <a href="#"><span>Verification SLA</span></a>
+                        <a class="is-current" href="#"><span>Attendance windows</span></a>
+                        <a href="#"><span>Geofence</span></a>
+                        <a href="#"><span>Reference priority</span></a>
+                        <a href="#"><span>Score bands</span><span class="t-caption">🔒</span></a>
+                        <a href="#"><span>Retention</span></a>
+                        <a href="#"><span>Attribution windows</span></a>
+                        <a href="#"><span>Notifications</span></a>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="col gap-6">
+                    <div class="banner banner--warning">
+                      <span class="banner__icon">⚠</span>
+                      <div class="col gap-1">
+                        <span class="banner__title">This is a high-risk change</span>
+                        <span class="banner__body">Attendance windows determine which captures are accepted. A reason, an approval
+                          and an effective date are all required, and the change cannot apply retroactively to captures that have
+                          already been decided.</span>
+                      </div>
+                    </div>
+
+                    <div class="card">
+                      <div class="card__body gap-4">
+                        <div class="spread">
+                          <span class="t-card">Version 8 · draft</span>
+                          <span class="chip chip--info"><span class="chip__dot">◍</span>Pending approval</span>
+                        </div>
+                        <div class="table-wrap" style="border: 0">
+                          <table class="tbl">
+                            <thead><tr><th>Setting</th><th>Version 7 · active</th><th>Version 8 · proposed</th><th>Effect</th></tr></thead>
+                            <tbody>
+                              <tr>
+                                <td class="tbl__primary">Pre-session tolerance</td>
+                                <td class="num">30 min</td>
+                                <td class="num" style="color: var(--semantic-info)">45 min</td>
+                                <td class="t-caption">Captures accepted from 45 minutes before the session start</td>
+                              </tr>
+                              <tr>
+                                <td class="tbl__primary">Post-session tolerance</td>
+                                <td class="num">30 min</td>
+                                <td class="num" style="color: var(--semantic-info)">45 min</td>
+                                <td class="t-caption">Captures accepted until 45 minutes after the session end</td>
+                              </tr>
+                              <tr>
+                                <td class="tbl__primary">Late capture requires override</td>
+                                <td>No</td>
+                                <td style="color: var(--semantic-info)">Yes</td>
+                                <td class="t-caption">A capture outside the window needs an authorised override and a reason</td>
+                              </tr>
+                              <tr>
+                                <td class="tbl__primary">Applies to</td>
+                                <td>All campaign types</td>
+                                <td>All campaign types</td>
+                                <td class="t-caption">Unchanged</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <div class="grid g-2" style="gap: var(--space-4)">
+                          <div class="field">
+                            <span class="field__label">Effective from <span class="req">*</span></span>
+                            <div class="field__box"><span>15 Aug 2026, 00:00</span><span class="field__affix">▤</span></div>
+                            <span class="field__help">Asia/Dhaka. Must be after every currently active session ends.</span>
+                          </div>
+                          <div class="field">
+                            <span class="field__label">Approver <span class="req">*</span></span>
+                            <div class="field__box"><span>M. Alam · Org Admin</span><span class="field__affix">⌄</span></div>
+                          </div>
+                        </div>
+                        <div class="field">
+                          <span class="field__label">Reason for change <span class="req">*</span></span>
+                          <div class="field__box field__box--area"><span>Monsoon travel delays caused 61 late-arrival captures to be
+                            rejected in July across Savar and Ashulia. Widening the tolerance to 45 minutes and requiring an override
+                            beyond that keeps the control while removing the false rejections.</span></div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="card">
+                      <div class="card__body gap-3">
+                        <span class="t-card">Impact of this change</span>
+                        <div class="grid g-3" style="gap: var(--space-4)">
+                          <div class="kpi" style="padding: 0">
+                            <span class="t-micro">Campaigns affected</span>
+                            <span class="kpi__value num-hero" style="font-size: 28px; line-height: 34px">6</span>
+                            <span class="kpi__denom">with sessions after 15 Aug</span>
+                          </div>
+                          <div class="kpi" style="padding: 0">
+                            <span class="t-micro">Sessions affected</span>
+                            <span class="kpi__value num-hero" style="font-size: 28px; line-height: 34px">19</span>
+                            <span class="kpi__denom">windows widen by 30 min total</span>
+                          </div>
+                          <div class="kpi" style="padding: 0">
+                            <span class="t-micro">Already-decided records</span>
+                            <span class="kpi__value num-hero" style="font-size: 28px; line-height: 34px">0</span>
+                            <span class="kpi__denom">no retroactive effect</span>
+                          </div>
+                        </div>
+                        <span class="footnote">Impact is computed against the current schedule and refreshes when the effective date
+                          changes.</span>
+                      </div>
+                    </div>
+
+                    <div class="card">
+                      <div class="card__body gap-3">
+                        <div class="spread">
+                          <span class="t-card">Version history</span>
+                          <button class="btn btn--text">Full audit log</button>
+                        </div>
+                        <div class="table-wrap" style="border: 0">
+                          <table class="tbl">
+                            <thead><tr><th>Version</th><th>State</th><th>Before → after</th><th>Actor</th><th>When</th>
+                              <th>Correlation ID</th></tr></thead>
+                            <tbody>
+                              <tr>
+                                <td class="c-id">v8</td>
+                                <td><span class="chip chip--info"><span class="chip__dot">◍</span>Pending approval</span></td>
+                                <td class="t-caption">tolerance 30 → 45 min · override required No → Yes</td>
+                                <td>K. Islam</td><td class="c-num">29 Jul 09:12</td><td class="c-id">corr-8a2f10</td>
+                              </tr>
+                              <tr>
+                                <td class="c-id">v7</td>
+                                <td><span class="chip chip--success"><span class="chip__dot">✓</span>Active</span></td>
+                                <td class="t-caption">tolerance 15 → 30 min</td>
+                                <td>K. Islam</td><td class="c-num">02 Apr 11:40</td><td class="c-id">corr-6c1904</td>
+                              </tr>
+                              <tr>
+                                <td class="c-id">v6</td>
+                                <td><span class="chip chip--neutral"><span class="chip__dot">○</span>Superseded</span></td>
+                                <td class="t-caption">applies-to All types → All types · reason codes added</td>
+                                <td>M. Alam</td><td class="c-num">14 Jan 08:02</td><td class="c-id">corr-5b8821</td>
+                              </tr>
+                              <tr>
+                                <td class="c-id">v5</td>
+                                <td><span class="chip chip--error"><span class="chip__dot">✕</span>Failed application</span></td>
+                                <td class="t-caption">tolerance 15 → 60 min · rolled back after 11 min</td>
+                                <td>K. Islam</td><td class="c-num">09 Jan 15:22</td><td class="c-id">corr-5a0117</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                        <span class="footnote">Version 5 was rolled back under policy after it widened windows past the next
+                          session's start. The failed attempt stays in the history — a rollback is a recorded event, not an erasure.</span>
+                      </div>
+                    </div>
+
+                    <div class="card">
+                      <div class="card__body gap-3">
+                        <span class="t-card">Not shown at your role</span>
+                        <div class="list">
+                          <div class="list__item" style="padding: var(--space-3) 0">
+                            <div class="grow col gap-1"><span class="t-strong">Match score bands</span>
+                              <span class="t-caption">Raw thresholds are visible to Security and Product only. Business roles see
+                                High, Medium, Low and No reference.</span></div>
+                            <span class="chip chip--neutral"><span class="chip__dot">🔒</span>Restricted</span>
+                          </div>
+                          <div class="list__item" style="padding: var(--space-3) 0">
+                            <div class="grow col gap-1"><span class="t-strong">Verification vendor credentials</span>
+                              <span class="t-caption">Never displayed in this product, at any role.</span></div>
+                            <span class="chip chip--neutral"><span class="chip__dot">🔒</span>Restricted</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head"><h2 class="ds-block__title">Specification</h2></div>
+      <table class="ds-spec">
+        <thead><tr><th>Dimension</th><th>Specification</th></tr></thead>
+        <tbody>
+          <tr><td>Primary users</td><td>Org or BMD Admin, Product, Security, Support, Auditor</td></tr>
+          <tr><td>Categories</td><td>Campaign types · statuses · reason codes · SLA · attendance windows · geofence · reference priority · score bands · retention · attribution windows · notifications</td></tr>
+          <tr><td>Audit row</td><td>Before and after, actor, time, scope and correlation ID</td></tr>
+          <tr><td>Mobile</td><td>Read-only access is optional. Configuration is desktop-only.</td></tr>
+          <tr><td>Primary actions</td><td>Create version · schedule effective date · approve change · view impact · roll back under policy · retry and reconcile</td></tr>
+          <tr><td>Required states</td><td>Draft config · pending approval · active · scheduled · superseded · failed application</td></tr>
+        </tbody>
+      </table>
+      <div class="ds-note ds-note--rule">
+        <div class="ds-note__body"><b>Configuration is versioned, dated and reversible — and the interface says so.</b> Every
+          high-risk change carries a reason, an approver and an effective date, and the impact panel answers “what does this break”
+          before the change is submitted rather than after it is discovered.</div>
+      </div>
+      <div class="ds-note ds-note--privacy">
+        <div class="ds-note__body"><b>Restricted settings are listed but not shown.</b> An admin who cannot see score bands is told
+          they exist, who can see them, and what the business-facing equivalent is. Hiding the row entirely produces a support
+          ticket; showing the raw threshold produces a security incident.</div>
+      </div>
+    </section>

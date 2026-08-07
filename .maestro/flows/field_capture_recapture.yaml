@@ -1,0 +1,41 @@
+# P-04 quality path: a failing capture surfaces "Review required" with issues
+# and only offers Recapture (Submit hidden); a second, passing capture submits.
+# Prereq: E2E launched with QUALITY=fail, cycling to pass on the 2nd capture.
+appId: ${APP_ID}
+tags:
+  - field
+  - android
+---
+- clearState
+- launchApp:
+    arguments:
+      E2E: true
+      LOCALE: en
+      ROLE: field_user
+      QUALITY: fail # first capture fails quality; second passes
+- tapOn:
+    id: "dev_open_capture" # opens /capture/SESSION_E2E/CARP_E2E directly
+
+- tapOn:
+    id: "capture_accept"
+- tapOn:
+    id: "capture_ready"
+- tapOn:
+    id: "capture_shutter"
+
+# Failing quality: neutral, non-accusatory copy; Submit must NOT be offered.
+- assertVisible: "Review required before submitting"
+- assertNotVisible:
+    id: "capture_submit"
+- assertVisible:
+    id: "capture_recapture"
+- tapOn:
+    id: "capture_recapture"
+
+# Second capture passes (E2E cycles the fixture) -> submit succeeds.
+- tapOn:
+    id: "capture_shutter"
+- assertVisible: "Capture looks good"
+- tapOn:
+    id: "capture_submit"
+- assertVisible: "Attendance captured and queued"

@@ -1,0 +1,40 @@
+# M-02: the mandatory second identity cue gates progress to capture, and
+# short queries return nothing. Guards against capturing the wrong carpenter.
+appId: ${APP_ID}
+tags:
+  - field
+  - android
+---
+- runFlow: ../subflows/launch_as_field_user.yaml
+- tapOn:
+    id: "dev_open_search"
+
+# Below the 2-char minimum: no results shown.
+- tapOn:
+    id: "search_field"
+- inputText: "k"
+- assertNotVisible:
+    id: "search_result"
+
+# Valid query returns matches.
+- inputText: "ar" # now "kar"
+- assertVisible:
+    id: "search_result"
+- tapOn:
+    id: "search_result"
+    index: 0
+
+# Confirm sheet: Continue is disabled until the cue is acknowledged.
+- assertVisible:
+    id: "confirm_continue"
+    enabled: false
+- tapOn:
+    id: "confirm_ack"
+- assertVisible:
+    id: "confirm_continue"
+    enabled: true
+- tapOn:
+    id: "confirm_continue"
+
+# Landed on the capture purpose notice for the chosen carpenter.
+- assertVisible: "Attendance photo and identity verification"

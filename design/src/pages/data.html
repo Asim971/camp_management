@@ -1,0 +1,218 @@
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">KPI anatomy</h2>
+        <span class="ds-block__note">Label · value · denominator · definition · source · freshness · drill-down</span>
+      </div>
+      <div class="ds-do-dont">
+        <div class="ds-dd ds-dd--do">
+          <div class="ds-dd__head">Do — a metric you can defend</div>
+          <div class="ds-dd__body">
+            <div class="card">
+              <div class="kpi">
+                <span class="kpi__label"><span class="t-micro">Verified attendance</span>
+                  <span class="kpi__info" title="Distinct carpenters with a CRM-approved attendance record, within the campaign's session windows. Excludes pending sync, in-review and rejected.">i</span></span>
+                <span class="kpi__value num-hero">1,107</span>
+                <span class="kpi__denom">of 1,184 registered · <b>93.5%</b></span>
+                <div class="kpi__foot">
+                  <span class="delta delta--up">▲ 4.1 pts</span><span>vs previous campaign</span>
+                </div>
+                <div class="kpi__foot">
+                  <span>attendance + verification facts</span><span>·</span><span>refreshed 09:42</span>
+                </div>
+              </div>
+            </div>
+            <span class="t-body">Every question a reader would raise is answered on the card: what it counts, out of what, how
+              it was defined, where it came from, and how stale it is.</span>
+          </div>
+        </div>
+        <div class="ds-dd ds-dd--dont">
+          <div class="ds-dd__head">Don't — a vanity count</div>
+          <div class="ds-dd__body">
+            <div class="card">
+              <div class="kpi">
+                <span class="t-micro">Total attendance</span>
+                <span class="kpi__value num-hero">1,184</span>
+              </div>
+            </div>
+            <span class="t-body">Attendance of what — captured, verified, or merely registered? Measured when? A number with no
+              denominator and no definition will be quoted in a board pack and cannot be traced back.</span>
+          </div>
+        </div>
+      </div>
+      <div class="ds-note ds-note--rule">
+        <div class="ds-note__body"><b>Activity is not outcome.</b> Registration and capture counts are activity. Verified
+          attendance and canonical order quantity are outcomes. They are never placed in the same KPI row, because a reader
+          scanning a row of four numbers will treat them as the same kind of thing.</div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Exception cards</h2>
+        <span class="ds-block__note">The dashboard's opening block, not its footer</span>
+      </div>
+      <div class="grid g-4">
+        <div class="card exc exc--error">
+          <span class="t-micro">SLA breached</span>
+          <span class="exc__count num-hero">14</span>
+          <div class="exc__age">
+            <div class="agebar"><div class="agebar__fill agebar__fill--error" style="width: 86%"></div></div>
+            <span class="t-caption num">oldest 21h</span>
+          </div>
+          <span class="t-caption">CRM verification · unassigned 6</span>
+          <a class="t-caption" href="#">Open queue →</a>
+        </div>
+        <div class="card exc exc--warning">
+          <span class="t-micro">Pending sync</span>
+          <span class="exc__count num-hero">41</span>
+          <div class="exc__age">
+            <div class="agebar"><div class="agebar__fill" style="width: 44%"></div></div>
+            <span class="t-caption num">oldest 4h</span>
+          </div>
+          <span class="t-caption">7 devices · 3 sessions</span>
+          <a class="t-caption" href="#">View device health →</a>
+        </div>
+        <div class="card exc exc--warning">
+          <span class="t-micro">No reference</span>
+          <span class="exc__count num-hero">23</span>
+          <div class="exc__age">
+            <div class="agebar"><div class="agebar__fill" style="width: 60%"></div></div>
+            <span class="t-caption num">oldest 9h</span>
+          </div>
+          <span class="t-caption">Routed to manual review</span>
+          <a class="t-caption" href="#">Open cases →</a>
+        </div>
+        <div class="card exc exc--info">
+          <span class="t-micro">Reconciliation gap</span>
+          <span class="exc__count num-hero">2</span>
+          <div class="exc__age">
+            <div class="agebar"><div class="agebar__fill agebar__fill--ok" style="width: 12%"></div></div>
+            <span class="t-caption num">oldest 40m</span>
+          </div>
+          <span class="t-caption">Order feed behind by 41 min</span>
+          <a class="t-caption" href="#">Open operations →</a>
+        </div>
+      </div>
+      <div class="ds-note">
+        <div class="ds-note__body"><b>The age bar is the point.</b> A count alone does not tell an operator whether to act now.
+          Fourteen breaches whose oldest is twenty-one hours is a different morning from fourteen whose oldest is forty minutes,
+          and the hairline bar makes that difference readable without a second click.</div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Operational table</h2>
+        <span class="ds-block__note">Sticky header · 46px rows · status, owner and SLA before the rest</span>
+      </div>
+      <div class="table-wrap">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th style="width: 44px"><span class="check"></span></th>
+              <th>Campaign</th><th>Status</th><th>Owner</th><th class="c-num">SLA age</th>
+              <th>Territory</th><th class="c-num">Target</th><th class="c-num">Verified</th><th>Next action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="is-selected">
+              <td><span class="check is-on"></span></td>
+              <td class="tbl__primary">Mistri Meet — Savar Cluster</td>
+              <td><span class="chip chip--warning"><span class="chip__dot">↩</span>Returned</span></td>
+              <td>F. Rahman</td><td class="c-num">2d 04h</td><td>Savar</td>
+              <td class="c-num">1,200</td><td class="c-num">—</td>
+              <td><a href="#">Fix and resubmit</a></td>
+            </tr>
+            <tr>
+              <td><span class="check"></span></td>
+              <td class="tbl__primary">Carpenter Skill Camp — Gazipur</td>
+              <td><span class="chip chip--info"><span class="chip__dot">◍</span>Pending approval</span></td>
+              <td>S. Nasrin</td><td class="c-num">18h 40m</td><td>Gazipur</td>
+              <td class="c-num">800</td><td class="c-num">—</td>
+              <td><a href="#">Awaiting approver</a></td>
+            </tr>
+            <tr>
+              <td><span class="check"></span></td>
+              <td class="tbl__primary">Rod &amp; Sheet Clinic — Narayanganj</td>
+              <td><span class="chip chip--info"><span class="chip__dot">●</span>Active</span></td>
+              <td>M. Hasan</td><td class="c-num">—</td><td>Narayanganj</td>
+              <td class="c-num">640</td><td class="c-num">411</td>
+              <td><a href="#">Open session 2</a></td>
+            </tr>
+            <tr>
+              <td><span class="check"></span></td>
+              <td class="tbl__primary">Mistri Meet — Cumilla</td>
+              <td><span class="chip chip--success"><span class="chip__dot">✓</span>Completed</span></td>
+              <td>F. Rahman</td><td class="c-num">—</td><td>Cumilla</td>
+              <td class="c-num">500</td><td class="c-num">468</td>
+              <td><a href="#">Review outcome</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="ds-specimen ds-specimen--white ds-specimen--col ds-specimen--tight">
+        <span class="t-micro">Bulk selection rule</span>
+        <div class="row gap-3 wrap">
+          <span class="t-body"><b>2 selected</b></span>
+          <button class="btn btn--outlined">Assign to reviewer</button>
+          <button class="btn btn--outlined">Export selected</button>
+          <button class="btn" disabled title="Decisions are made one case at a time">Approve selected</button>
+        </div>
+        <span class="t-caption">Bulk selection is offered only where the underlying action can be safely batched. Assignment is
+          reversible, so it batches. A verification decision is not, so it never does — and the disabled control says why.</span>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Table to card, on a narrow viewport</h2>
+        <span class="ds-block__note">Status and primary action survive; metadata collapses</span>
+      </div>
+      <div class="ds-devices">
+        <div class="ds-cell">
+          <span class="ds-cell__label">Mobile · two-line list item</span>
+          <div class="card" style="width: 358px">
+            <div class="list">
+              <div class="list__item">
+                <div class="grow col gap-1">
+                  <span class="t-strong">Mistri Meet — Savar Cluster</span>
+                  <span class="t-caption">04 Aug · Savar · 1,200 target</span>
+                  <div class="row gap-2">
+                    <span class="chip chip--warning"><span class="chip__dot">↩</span>Returned</span>
+                    <span class="t-caption num">2d 04h</span>
+                  </div>
+                </div>
+                <a class="t-caption" href="#">Fix →</a>
+              </div>
+              <div class="list__item">
+                <div class="grow col gap-1">
+                  <span class="t-strong">Rod &amp; Sheet Clinic — Narayanganj</span>
+                  <span class="t-caption">Session 2 active · 411 of 640 verified</span>
+                  <div class="row gap-2">
+                    <span class="chip chip--info"><span class="chip__dot">●</span>Active</span>
+                  </div>
+                </div>
+                <a class="t-caption" href="#">Open →</a>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col gap-3" style="max-width: 46ch">
+          <span class="t-body">The card keeps the campaign name, the status, the one number that matters and the next action.
+            Owner, full territory path and SLA precision move into the detail view.</span>
+          <span class="t-body">What does <i>not</i> happen: the status chip is not dropped to save a line, and the next action
+            does not become an overflow menu. Those are the two things a user on a phone came for.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head"><h2 class="ds-block__title">Rules</h2></div>
+      <div class="ds-checks">
+        <div class="ds-check"><span class="ds-check__mark">✓</span><span>Row order is action priority — exceptions and imminent dates first. Alphabetical is never the default for an operational queue.</span></div>
+        <div class="ds-check"><span class="ds-check__mark">✓</span><span>Numeric columns are right-aligned with tabular figures, so magnitudes compare down the column.</span></div>
+        <div class="ds-check"><span class="ds-check__mark">✓</span><span>Row click opens the detail; the overflow menu holds only permitted actions, and hides rather than disables the ones the role cannot perform.</span></div>
+        <div class="ds-check"><span class="ds-check__mark">✓</span><span>In a verification context, a photo is a controlled evidence thumbnail — veiled, logged on open — never a decorative avatar.</span></div>
+        <div class="ds-check"><span class="ds-check__mark">✓</span><span>A KPI card that is a rate always shows its denominator on the card, not in a tooltip.</span></div>
+      </div>
+    </section>

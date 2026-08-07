@@ -1,0 +1,211 @@
+    <div class="ds-note ds-note--rule">
+      <div class="ds-note__body"><b>An error explains the correction and preserves the user's work.</b> That single sentence
+        decides most of this page. A field user who loses a capture because of a network failure will stop trusting the app, and
+        a campaign admin who loses a half-built wizard will build it in a spreadsheet instead.</div>
+    </div>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Loading</h2>
+        <span class="ds-block__note">Skeletons shaped like the content · never a centred spinner</span>
+      </div>
+      <div class="ds-specimen">
+        <div class="card" style="width: 300px">
+          <div class="card__body">
+            <div class="skel skel--40"></div>
+            <div class="skel" style="height: 34px; width: 60%"></div>
+            <div class="skel skel--80"></div>
+            <div class="skel skel--60"></div>
+          </div>
+        </div>
+        <div class="card grow" style="min-width: 380px">
+          <div class="card__body gap-4">
+            <div class="row gap-3"><div class="skel" style="height: 40px; width: 40px; border-radius: var(--radius-1)"></div>
+              <div class="col grow gap-2"><div class="skel skel--60"></div><div class="skel skel--40"></div></div></div>
+            <div class="row gap-3"><div class="skel" style="height: 40px; width: 40px; border-radius: var(--radius-1)"></div>
+              <div class="col grow gap-2"><div class="skel skel--80"></div><div class="skel skel--40"></div></div></div>
+            <div class="row gap-3"><div class="skel" style="height: 40px; width: 40px; border-radius: var(--radius-1)"></div>
+              <div class="col grow gap-2"><div class="skel skel--60"></div><div class="skel skel--40"></div></div></div>
+          </div>
+        </div>
+        <div class="col gap-3" style="max-width: 34ch">
+          <span class="t-body">A skeleton in the shape of the result stops the layout jumping when data lands, and tells the user
+            what kind of thing is coming.</span>
+          <span class="t-caption">A bare spinner is acceptable only inside a button that is already labelled with the action.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Empty</h2>
+        <span class="ds-block__note">Three different empties, three different next steps</span>
+      </div>
+      <div class="grid g-3">
+        <div class="card">
+          <div class="state">
+            <div class="state__icon">▤</div>
+            <span class="state__title">No campaigns in your scope yet</span>
+            <span class="state__body">Campaigns you own or approve will appear here. Create one to get started.</span>
+            <button class="btn btn--primary">Create campaign</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="state">
+            <div class="state__icon">⚟</div>
+            <span class="state__title">No campaigns match these filters</span>
+            <span class="state__body">62 campaigns are in your scope. Try removing “Returned” or widening the date range.</span>
+            <button class="btn btn--outlined">Clear 3 filters</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="state">
+            <div class="state__icon">✓</div>
+            <span class="state__title">Your queue is clear</span>
+            <span class="state__body">Nothing is assigned to you. 31 unassigned cases are waiting, 6 of them nearing SLA.</span>
+            <button class="btn btn--tonal">View unassigned</button>
+          </div>
+        </div>
+      </div>
+      <div class="ds-note">
+        <div class="ds-note__body">An empty state that says only “No results” wastes the one moment the user is most willing to
+          be told what to do. Each of these names the situation, gives the number that puts it in context, and offers the single
+          most likely next action.</div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Failure and recovery</h2>
+        <span class="ds-block__note">From §9.4 — every failure has a designed experience</span>
+      </div>
+      <div class="grid g-2">
+        <div class="card">
+          <div class="card__body">
+            <span class="t-micro">Sales Eco profile API unavailable</span>
+            <div class="banner banner--warning">
+              <span class="banner__icon">⟳</span>
+              <div class="col gap-1">
+                <span class="banner__title">Registration saved · profile confirmation pending</span>
+                <span class="banner__body">The Sales Eco master is not responding. Your 3 registrations are held and will
+                  reconcile automatically. They show as Pending profile sync until then.</span>
+              </div>
+            </div>
+            <span class="t-caption">No local profile is created. There is no path here that produces a shadow master record.</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card__body">
+            <span class="t-micro">Media upload failing</span>
+            <div class="banner banner--warning">
+              <span class="banner__icon">⇡</span>
+              <div class="col gap-1">
+                <span class="banner__title">3 captures waiting to upload</span>
+                <span class="banner__body">All 3 photos are saved and encrypted on this device. Retry runs automatically; next
+                  attempt in 4 minutes.</span>
+              </div>
+              <div class="banner__action"><button class="btn btn--outlined">Retry now</button></div>
+            </div>
+            <span class="t-caption">Nothing here suggests recapturing. Capture succeeded; only the upload has not.</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card__body">
+            <span class="t-micro">Face provider unavailable</span>
+            <div class="banner banner--info">
+              <span class="banner__icon">◍</span>
+              <div class="col gap-1">
+                <span class="banner__title">Comparison delayed · evidence preserved</span>
+                <span class="banner__body">Automatic comparison is unavailable. These 12 records are routed to manual review and
+                  keep their place in the SLA queue.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card__body">
+            <span class="t-micro">Concurrent CRM decision</span>
+            <div class="banner banner--error">
+              <span class="banner__icon">⚠</span>
+              <div class="col gap-1">
+                <span class="banner__title">S. Ahmed decided this case 40 seconds ago</span>
+                <span class="banner__body">Approved, reason “Match confirmed”. Your draft reason was not submitted and is shown
+                  below in case you want to raise a quality-audit flag.</span>
+              </div>
+              <div class="banner__action"><button class="btn btn--outlined">Open next case</button></div>
+            </div>
+            <span class="t-caption">The case is version-checked on submit. The loser of the race is told who won and what they
+              decided — never just “conflict”.</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card__body">
+            <span class="t-micro">Order feed delayed</span>
+            <div class="banner banner--warning">
+              <span class="banner__icon">◷</span>
+              <div class="col gap-1">
+                <span class="banner__title">Order data is 41 minutes behind</span>
+                <span class="banner__body">Attendance figures are current. Order contribution and ROI below exclude orders
+                  placed after 09:01 and will rise when the feed catches up.</span>
+              </div>
+            </div>
+            <span class="t-caption">A delayed feed shows a delayed-data banner and the last refresh — never a misleading zero.</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card__body">
+            <span class="t-micro">Notification delivery failed</span>
+            <div class="banner">
+              <span class="banner__icon">⚙</span>
+              <div class="col gap-1">
+                <span class="banner__title">Approval recorded · 1 notification not delivered</span>
+                <span class="banner__body">The workflow is committed. The approver's email bounced; operations has been
+                  notified.</span>
+              </div>
+            </div>
+            <span class="t-caption">A failed notification never implies a failed workflow, and this detail is surfaced only to
+              support and operations roles.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head">
+        <h2 class="ds-block__title">Permission and blocked</h2>
+      </div>
+      <div class="grid g-3">
+        <div class="card">
+          <div class="state state--denied">
+            <div class="state__icon">🔒</div>
+            <span class="state__title">You don't have access to campaign approval</span>
+            <span class="state__body">Approval is limited to the Campaign Approver role, and an approver cannot approve a
+              campaign they created. Ask an Org Admin if you believe this is wrong.</span>
+            <span class="t-caption num">Reference SEC-403 · your roles: Campaign Admin, Field User</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="state state--denied">
+            <div class="state__icon">⌖</div>
+            <span class="state__title">Location permission is required</span>
+            <span class="state__body">This session enforces a venue geofence, so attendance capture needs location access.
+              Open Settings → Apps → BMD Campaign → Permissions → Location.</span>
+            <button class="btn btn--primary">Open settings</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="state state--error">
+            <div class="state__icon">⚠</div>
+            <span class="state__title">Couldn't load this case</span>
+            <span class="state__body">The evidence viewer session expired. Reopening creates a new session and logs the access
+              again — nothing about your queue position changes.</span>
+            <button class="btn btn--primary">Reopen case</button>
+          </div>
+        </div>
+      </div>
+      <div class="ds-note ds-note--a11y">
+        <div class="ds-note__body"><b>A permission-denied state names the rule, not just the refusal.</b> “You don't have access”
+          sends the user to a support ticket. “Approval is limited to the Approver role, and an approver cannot approve their own
+          campaign” tells them whether to escalate or to ask a colleague — and the reference code makes the ticket short.</div>
+      </div>
+    </section>

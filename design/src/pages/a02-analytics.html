@@ -1,0 +1,403 @@
+    <section class="ds-block">
+      <div class="ds-plate">
+        <div class="ds-plate__chrome">
+          <span class="ds-plate__dot"></span><span class="ds-plate__dot"></span><span class="ds-plate__dot"></span>
+          <span class="ds-plate__url">sales.bmd.internal/analytics/campaigns?period=q3&amp;territory=dhaka-north</span>
+        </div>
+        <div class="ds-plate__body">
+          <div class="shell" data-nav="analytics">
+<!--@include partials/drawer-web.html-->
+            <div class="col" style="gap: 0; min-width: 0">
+              <header class="appbar">
+                <button class="icon-btn" title="Collapse navigation">☰</button>
+                <div class="crumb"><span>Analytics</span><span class="crumb__sep">/</span><b>Campaign performance and ROI</b></div>
+                <div class="row gap-2" style="margin-left: auto">
+                  <span class="context-pill is-locked">🔒 Dhaka North · BMD</span>
+                  <span class="thumb" title="Rezaul Chowdhury">RC</span>
+                </div>
+              </header>
+
+              <div class="content">
+                <div class="page-head">
+                  <div class="page-head__text">
+                    <div class="page-head__title"><h2 class="t-page">Campaign performance and ROI</h2></div>
+                    <p class="t-body">Q3 FY26 · 4 campaigns · Dhaka North · last refreshed 09:42</p>
+                  </div>
+                  <div class="page-head__actions">
+                    <button class="btn btn--outlined">Compare campaigns</button>
+                    <button class="btn btn--primary">Export dataset</button>
+                  </div>
+                </div>
+
+                <div class="filterbar" style="position: static; margin-bottom: var(--space-4)">
+                  <span class="select">Period · Q3 FY26 <span>⌄</span></span>
+                  <span class="select">Campaign · all 4 <span>⌄</span></span>
+                  <span class="select">Territory · Dhaka North <span>⌄</span></span>
+                  <span class="select">Product · all <span>⌄</span></span>
+                  <button class="btn btn--outlined">⚟ More</button>
+                  <div class="viewswitch" style="margin-left: auto"><button class="is-on">Chart</button><button>Table</button></div>
+                </div>
+
+                <div class="banner banner--warning" style="margin-bottom: var(--space-6)">
+                  <span class="banner__icon">◷</span>
+                  <div class="col gap-1">
+                    <span class="banner__title">Two data quality notes for this period</span>
+                    <span class="banner__body">Order feed is 41 minutes behind, so contribution figures will rise. Skill Camp —
+                      Bogura has 104 registrations across one session and is below the minimum sample for ranking.</span>
+                  </div>
+                </div>
+
+                <!-- exceptions first, even here -->
+                <div class="section">
+                  <div class="section__head"><h3 class="t-section">Data you should know about before reading the rest</h3></div>
+                  <div class="grid g-4">
+                    <div class="card exc exc--warning">
+                      <span class="t-micro">Not yet verified</span>
+                      <span class="exc__count num-hero">141</span>
+                      <span class="t-caption">Excluded from every figure below</span>
+                      <a class="t-caption" href="#">Open queue →</a>
+                    </div>
+                    <div class="card exc exc--info">
+                      <span class="t-micro">Reconciliation gap</span>
+                      <span class="exc__count num-hero">2</span>
+                      <span class="t-caption">Orders with no matching canonical ID</span>
+                      <a class="t-caption" href="#">Operations →</a>
+                    </div>
+                    <div class="card exc exc--warning">
+                      <span class="t-micro">Incomplete cost</span>
+                      <span class="exc__count num-hero">1</span>
+                      <span class="t-caption">Bogura has no budget actuals — ROI excludes it</span>
+                      <a class="t-caption" href="#">Finance →</a>
+                    </div>
+                    <div class="card exc exc--info">
+                      <span class="t-micro">Small sample</span>
+                      <span class="exc__count num-hero">1</span>
+                      <span class="t-caption">Bogura, 104 registrations</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- funnel + verification trend -->
+                <div class="section">
+                  <div class="section__head"><h3 class="t-section">Conversion and verification</h3></div>
+                  <div class="grid" style="grid-template-columns: minmax(0, 1fr) minmax(0, 1fr)">
+                    <div class="card">
+                      <div class="card__body gap-4">
+                        <div class="chart__head">
+                          <div class="col gap-1"><span class="t-card">Conversion funnel</span>
+                            <span class="chart__meta">4 campaigns · click a stage to open its list</span></div>
+                        </div>
+                        <div class="funnel">
+                          <div class="fstage">
+                            <span class="fstage__label">Target</span>
+                            <div class="fstage__track"><div class="fstage__bar" style="width: 100%; background: var(--funnel-1)"></div></div>
+                            <span class="fstage__rate"><b class="fstage__val">3,140</b></span>
+                          </div>
+                          <div class="fstage">
+                            <span class="fstage__label">Registered</span>
+                            <div class="fstage__track"><div class="fstage__bar" style="width: 94.2%; background: var(--funnel-2)"></div></div>
+                            <span class="fstage__rate"><b class="fstage__val">2,958</b> · 94.2%</span>
+                          </div>
+                          <div class="fstage">
+                            <span class="fstage__label">Captured</span>
+                            <div class="fstage__track"><div class="fstage__bar" style="width: 78.0%; background: var(--funnel-3)"></div></div>
+                            <span class="fstage__rate"><b class="fstage__val">2,449</b> · 82.8%</span>
+                          </div>
+                          <div class="fstage">
+                            <span class="fstage__label">Verified</span>
+                            <div class="fstage__track"><div class="fstage__bar" style="width: 73.5%; background: var(--funnel-4)"></div></div>
+                            <span class="fstage__rate"><b class="fstage__val">2,308</b> · 94.2%</span>
+                          </div>
+                          <div class="fstage">
+                            <span class="fstage__label">Ordered in window</span>
+                            <div class="fstage__track"><div class="fstage__bar" style="width: 13.1%; background: var(--funnel-5)"></div></div>
+                            <span class="fstage__rate"><b class="fstage__val">412</b> · 17.8%</span>
+                          </div>
+                        </div>
+                        <span class="footnote">The last stage is campaign-linked contribution: distinct canonical orders from
+                          verified attendees inside the 30-day window. It is not a claim that the campaign caused them.</span>
+                      </div>
+                    </div>
+
+                    <div class="card">
+                      <div class="card__body gap-4">
+                        <div class="chart__head">
+                          <div class="col gap-1"><span class="t-card">Verification mix</span>
+                            <span class="chart__meta">2,449 captured · recommendation and decision kept apart</span></div>
+                        </div>
+                        <div class="col gap-4">
+                          <div class="col gap-2">
+                            <span class="t-micro">Machine recommendation · advisory</span>
+                            <div class="stack">
+                              <div class="stack__seg" style="width: 62%; background: var(--funnel-5)">High 62%</div>
+                              <div class="stack__seg" style="width: 21%; background: var(--funnel-4)">21%</div>
+                              <div class="stack__seg" style="width: 12%; background: var(--funnel-3)">12%</div>
+                              <div class="stack__seg" style="width: 5%; background: var(--semantic-warning)"></div>
+                            </div>
+                            <div class="legend">
+                              <span class="legend__item"><span class="legend__swatch" style="background: var(--funnel-5)"></span>High</span>
+                              <span class="legend__item"><span class="legend__swatch" style="background: var(--funnel-4)"></span>Medium 21%</span>
+                              <span class="legend__item"><span class="legend__swatch" style="background: var(--funnel-3)"></span>Low 12%</span>
+                              <span class="legend__item"><span class="legend__swatch" style="background: var(--semantic-warning)"></span>⃠ No reference 5%</span>
+                            </div>
+                          </div>
+                          <div class="col gap-2">
+                            <span class="t-micro">CRM decision · final</span>
+                            <div class="stack">
+                              <div class="stack__seg" style="width: 88%; background: var(--semantic-success)">Approved 88%</div>
+                              <div class="stack__seg" style="width: 6%; background: var(--semantic-error)">6%</div>
+                              <div class="stack__seg" style="width: 4%; background: var(--semantic-warning)"></div>
+                              <div class="stack__seg" style="width: 2%; background: var(--semantic-info)"></div>
+                            </div>
+                            <div class="legend">
+                              <span class="legend__item"><span class="legend__swatch" style="background: var(--semantic-success)"></span>✓ Approved 88%</span>
+                              <span class="legend__item"><span class="legend__swatch" style="background: var(--semantic-error)"></span>✕ Rejected 6%</span>
+                              <span class="legend__item"><span class="legend__swatch" style="background: var(--semantic-warning)"></span>↩ Returned 4%</span>
+                              <span class="legend__item"><span class="legend__swatch" style="background: var(--semantic-info)"></span>◍ In review 2%</span>
+                            </div>
+                          </div>
+                        </div>
+                        <span class="footnote">47 records recommended “Low” were approved by a reviewer, and 12 recommended “High”
+                          were rejected. That divergence is a quality-audit signal, not an error.</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- trend -->
+                <div class="section">
+                  <div class="section__head"><h3 class="t-section">Trend</h3></div>
+                  <div class="card">
+                    <div class="card__body gap-4">
+                      <div class="chart__head">
+                        <div class="col gap-1"><span class="t-card">Verified attendance and open review, by day</span>
+                          <span class="chart__meta">Daily · 27 Jul – 05 Aug 2026 · Asia/Dhaka · verification facts · 09:42</span></div>
+                        <div class="viewswitch"><button class="is-on">Chart</button><button>Table</button></div>
+                      </div>
+                      <svg class="plot" viewBox="0 0 760 250" role="img" aria-labelledby="a02-t a02-d">
+                        <title id="a02-t">Verified attendance and cases in review, daily, 27 July to 5 August 2026</title>
+                        <desc id="a02-d">Verified attendance rises from 96 to 168 per day. Cases in review peak at 66 on 30 July.
+                          No data on 2 August because of a feed outage.</desc>
+                        <line class="grid-line" x1="56" y1="24" x2="660" y2="24"></line>
+                        <line class="grid-line" x1="56" y1="71.5" x2="660" y2="71.5"></line>
+                        <line class="grid-line" x1="56" y1="119" x2="660" y2="119"></line>
+                        <line class="grid-line" x1="56" y1="166.5" x2="660" y2="166.5"></line>
+                        <line class="axis-line" x1="56" y1="214" x2="660" y2="214"></line>
+                        <text class="tick" x="48" y="28" text-anchor="end">200</text>
+                        <text class="tick" x="48" y="75.5" text-anchor="end">150</text>
+                        <text class="tick" x="48" y="123" text-anchor="end">100</text>
+                        <text class="tick" x="48" y="170.5" text-anchor="end">50</text>
+                        <text class="tick" x="48" y="218" text-anchor="end">0</text>
+                        <text class="tick" x="56" y="232" text-anchor="middle">27 Jul</text>
+                        <text class="tick" x="190.2" y="232" text-anchor="middle">29 Jul</text>
+                        <text class="tick" x="324.4" y="232" text-anchor="middle">31 Jul</text>
+                        <text class="tick" x="458.7" y="232" text-anchor="middle">02 Aug</text>
+                        <text class="tick" x="592.9" y="232" text-anchor="middle">04 Aug</text>
+                        <path class="series-line" stroke="var(--series-2)"
+                          d="M56,193.1 L123.1,187.4 L190.2,175.05 L257.3,151.3 L324.4,177.9 L391.6,186.45 L458.7,172.2 L525.8,184.55 L592.9,191.2 L660,188.35"></path>
+                        <path class="series-line" stroke="var(--series-1)"
+                          d="M56,122.8 L123.1,101.9 L190.2,88.6 L257.3,99.05 L324.4,76.25 L391.6,63.9"></path>
+                        <path class="series-line gap-line" stroke="var(--series-1)" d="M391.6,63.9 L525.8,60.1"></path>
+                        <path class="series-line" stroke="var(--series-1)" d="M525.8,60.1 L592.9,48.7 L660,54.4"></path>
+                        <circle class="series-dot" cx="56" cy="122.8" fill="var(--series-1)"></circle>
+                        <circle class="series-dot" cx="123.1" cy="101.9" fill="var(--series-1)"></circle>
+                        <circle class="series-dot" cx="190.2" cy="88.6" fill="var(--series-1)"></circle>
+                        <circle class="series-dot" cx="257.3" cy="99.05" fill="var(--series-1)"></circle>
+                        <circle class="series-dot" cx="324.4" cy="76.25" fill="var(--series-1)"></circle>
+                        <circle class="series-dot" cx="391.6" cy="63.9" fill="var(--series-1)"></circle>
+                        <circle class="series-dot" cx="525.8" cy="60.1" fill="var(--series-1)"></circle>
+                        <circle class="series-dot" cx="592.9" cy="48.7" fill="var(--series-1)"></circle>
+                        <circle class="series-dot" cx="660" cy="54.4" fill="var(--series-1)"></circle>
+                        <circle class="series-dot" cx="56" cy="193.1" fill="var(--series-2)"></circle>
+                        <circle class="series-dot" cx="123.1" cy="187.4" fill="var(--series-2)"></circle>
+                        <circle class="series-dot" cx="190.2" cy="175.05" fill="var(--series-2)"></circle>
+                        <circle class="series-dot" cx="257.3" cy="151.3" fill="var(--series-2)"></circle>
+                        <circle class="series-dot" cx="324.4" cy="177.9" fill="var(--series-2)"></circle>
+                        <circle class="series-dot" cx="391.6" cy="186.45" fill="var(--series-2)"></circle>
+                        <circle class="series-dot" cx="458.7" cy="172.2" fill="var(--series-2)"></circle>
+                        <circle class="series-dot" cx="525.8" cy="184.55" fill="var(--series-2)"></circle>
+                        <circle class="series-dot" cx="592.9" cy="191.2" fill="var(--series-2)"></circle>
+                        <circle class="series-dot" cx="660" cy="188.35" fill="var(--series-2)"></circle>
+                        <line class="grid-line" x1="458.7" y1="24" x2="458.7" y2="214" stroke-dasharray="2 3"></line>
+                        <text class="tick" x="458.7" y="18" text-anchor="middle">no data</text>
+                        <text class="dlabel" x="668" y="58.4" fill="var(--chart-ink)">Verified 168</text>
+                        <text class="dlabel" x="668" y="192.35" fill="var(--chart-ink)">In review 27</text>
+                      </svg>
+                      <div class="legend">
+                        <span class="legend__item"><span class="legend__swatch" style="background: var(--series-1)"></span>Verified attendance</span>
+                        <span class="legend__item"><span class="legend__swatch" style="background: var(--series-2)"></span>Cases in review</span>
+                        <span class="legend__item"><span class="legend__swatch" style="background: var(--border-strong)"></span>Dashed — no data recorded</span>
+                      </div>
+                      <span class="footnote">2 August is missing: the verification feed was down all day. The gap is dashed and
+                        marked, and the daily average excludes it rather than treating it as a zero.</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- contribution, attribution and cost -->
+                <div class="section">
+                  <div class="section__head">
+                    <h3 class="t-section">Campaign-linked contribution</h3>
+                    <span class="t-caption">Contribution — not incremental uplift, not proven causality</span>
+                  </div>
+                  <div class="grid g-4">
+                    <div class="card"><div class="kpi">
+                      <span class="kpi__label"><span class="t-micro">Distinct orders</span>
+                        <span class="kpi__info" title="Distinct canonical order IDs from verified attendees within 30 days of a verified attendance.">i</span></span>
+                      <span class="kpi__value num-hero">412</span>
+                      <span class="kpi__denom">from 2,308 verified · 17.8%</span>
+                      <div class="kpi__foot"><span>order facts</span><span>·</span><span>09:01 delayed</span></div>
+                    </div></div>
+                    <div class="card"><div class="kpi">
+                      <span class="kpi__label"><span class="t-micro">Canonical pieces</span>
+                        <span class="kpi__info" title="Pieces is canonical. MT and RFT are secondary conversions with a source and version.">i</span></span>
+                      <span class="kpi__value num-hero">18,402</span>
+                      <span class="kpi__denom">≈ 158.2 MT · conversion v4</span>
+                      <div class="kpi__foot"><span>order facts</span><span>·</span><span>09:01 delayed</span></div>
+                    </div></div>
+                    <div class="card"><div class="kpi">
+                      <span class="kpi__label"><span class="t-micro">Repeat within 90 days</span>
+                        <span class="kpi__info" title="Verified attendees with two or more distinct canonical orders in the 90 days after attendance.">i</span></span>
+                      <span class="kpi__value num-hero">31.6%</span>
+                      <span class="kpi__denom">130 of 412 ordering attendees</span>
+                      <div class="kpi__foot"><span class="delta delta--up">▲ 3.4 pts</span><span>vs Q2</span></div>
+                    </div></div>
+                    <div class="card"><div class="kpi">
+                      <span class="kpi__label"><span class="t-micro">Cost per verified attendee</span>
+                        <span class="kpi__info" title="Approved campaign spend divided by verified attendance. Excludes Skill Camp — Bogura, which has no budget actuals.">i</span></span>
+                      <span class="kpi__value num-hero">৳ 261</span>
+                      <span class="kpi__denom">3 of 4 campaigns · Bogura excluded</span>
+                      <div class="kpi__foot"><span>finance actuals</span><span>·</span><span>28 Jul</span></div>
+                    </div></div>
+                  </div>
+
+                  <div class="grid" style="grid-template-columns: minmax(0, 1fr) minmax(0, 1fr)">
+                    <div class="card">
+                      <div class="card__body gap-4">
+                        <div class="chart__head">
+                          <div class="col gap-1"><span class="t-card">Pieces by campaign</span>
+                            <span class="chart__meta">Canonical pieces · 30-day windows</span></div>
+                        </div>
+                        <div class="ranked">
+                          <div class="rbar">
+                            <span class="rbar__label">Mistri Meet — Cumilla</span>
+                            <div class="rbar__track"><div class="rbar__fill" style="width: 100%"></div></div>
+                            <span class="rbar__val">7,240</span>
+                          </div>
+                          <div class="rbar">
+                            <span class="rbar__label">Rod Clinic — Savar</span>
+                            <div class="rbar__track"><div class="rbar__fill" style="width: 56.9%"></div></div>
+                            <span class="rbar__val">4,120</span>
+                          </div>
+                          <div class="rbar">
+                            <span class="rbar__label">Mistri Meet — Savar Q2</span>
+                            <div class="rbar__track"><div class="rbar__fill" style="width: 87.6%"></div></div>
+                            <span class="rbar__val">6,300</span>
+                          </div>
+                          <div class="rbar">
+                            <span class="rbar__label">Skill Camp — Bogura</span>
+                            <div class="rbar__track"><div class="rbar__fill" style="width: 10.2%"></div></div>
+                            <span class="rbar__val">742</span>
+                          </div>
+                          <div class="rbar">
+                            <span class="rbar__label"></span>
+                            <span class="rbar__note">⚠ Bogura is below the minimum sample and is not ranked</span>
+                            <span></span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="card">
+                      <div class="card__body gap-4">
+                        <span class="t-card">Attribution</span>
+                        <div class="table-wrap" style="border: 0">
+                          <table class="tbl">
+                            <thead><tr><th>Credit type</th><th class="c-num">Orders credited</th><th class="c-num">Pieces credited</th></tr></thead>
+                            <tbody>
+                              <tr><td>Campaign</td><td class="c-num">412</td><td class="c-num">18,402</td></tr>
+                              <tr><td>Field officer</td><td class="c-num">388</td><td class="c-num">17,120</td></tr>
+                              <tr><td>Dealer</td><td class="c-num">401</td><td class="c-num">18,004</td></tr>
+                              <tr><td>CRM</td><td class="c-num">96</td><td class="c-num">3,880</td></tr>
+                              <tr style="background: var(--bmd-red-50)">
+                                <td class="tbl__primary">Executive total</td>
+                                <td class="c-num tbl__primary">412</td><td class="c-num tbl__primary">18,402</td></tr>
+                            </tbody>
+                          </table>
+                        </div>
+                        <div class="banner banner--info">
+                          <span class="banner__icon">◍</span>
+                          <div class="col gap-1">
+                            <span class="banner__title">Credits overlap by design; the total does not</span>
+                            <span class="banner__body">One order can carry several credits. The executive row counts each canonical
+                              order ID once — it is not the sum of the rows above it.</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="section">
+                  <div class="section__head">
+                    <h3 class="t-section">Drill-down</h3>
+                    <span class="t-caption">Organisation → campaign → territory → session → carpenter → canonical order</span>
+                  </div>
+                  <div class="table-wrap">
+                    <table class="tbl">
+                      <thead>
+                        <tr><th>Campaign</th><th class="c-num">Target</th><th class="c-num">Registered</th>
+                          <th class="c-num">Verified</th><th class="c-num">Verified rate</th>
+                          <th class="c-num">Orders</th><th class="c-num">Pieces</th>
+                          <th class="c-num">Cost / verified</th><th>Notes</th></tr>
+                      </thead>
+                      <tbody>
+                        <tr><td class="tbl__primary">Mistri Meet — Cumilla</td>
+                          <td class="c-num">500</td><td class="c-num">500</td><td class="c-num">468</td><td class="c-num">93.6%</td>
+                          <td class="c-num">168</td><td class="c-num">7,240</td><td class="c-num">৳ 244</td><td class="t-caption">—</td></tr>
+                        <tr><td class="tbl__primary">Mistri Meet — Savar Q2</td>
+                          <td class="c-num">900</td><td class="c-num">886</td><td class="c-num">846</td><td class="c-num">95.5%</td>
+                          <td class="c-num">142</td><td class="c-num">6,300</td><td class="c-num">৳ 259</td><td class="t-caption">—</td></tr>
+                        <tr><td class="tbl__primary">Rod Clinic — Savar</td>
+                          <td class="c-num">640</td><td class="c-num">640</td><td class="c-num">411</td><td class="c-num">64.2%</td>
+                          <td class="c-num">78</td><td class="c-num">4,120</td><td class="c-num">৳ 282</td>
+                          <td><span class="chip chip--info"><span class="chip__dot">●</span>In progress</span></td></tr>
+                        <tr><td class="tbl__primary">Skill Camp — Bogura</td>
+                          <td class="c-num">1,100</td><td class="c-num">104</td><td class="c-num">96</td><td class="c-num">92.3%</td>
+                          <td class="c-num">24</td><td class="c-num">742</td><td class="c-num">—</td>
+                          <td><span class="chip chip--warning"><span class="chip__dot">◌</span>Small sample · no cost data</span></td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-block">
+      <div class="ds-block__head"><h2 class="ds-block__title">Specification</h2></div>
+      <table class="ds-spec">
+        <thead><tr><th>Dimension</th><th>Specification</th></tr></thead>
+        <tbody>
+          <tr><td>Primary users</td><td>Management, Marketing, Product, Finance Control</td></tr>
+          <tr><td>Layout</td><td>Filter header · exception cards · funnel · verification trend · order count, pieces and product mix · attribution panel · repeat windows · cost and ROI when approved · drill table</td></tr>
+          <tr><td>Mobile</td><td>Summary cards and a limited trend. Attribution and ROI stay desktop-first.</td></tr>
+          <tr><td>Primary actions</td><td>Change filters · compare campaigns · open underlying records · export authorised dataset</td></tr>
+          <tr><td>Required states</td><td>Data delayed · insufficient baseline · incomplete cost · order reconciliation gap · small sample</td></tr>
+        </tbody>
+      </table>
+      <div class="ds-note ds-note--rule">
+        <div class="ds-note__body"><b>The label is the control.</b> Everything on this page is titled “campaign-linked
+          contribution”. Incremental uplift and ROI are separate, later, differently-labelled things that require an approved
+          methodology. A dashboard that quietly calls contribution “impact” is how an organisation ends up defending a number it
+          cannot support.</div>
+      </div>
+      <div class="ds-note">
+        <div class="ds-note__body"><b>Exclusions are stated on the figure that excludes them.</b> Cost per verified attendee says
+          “Bogura excluded” on the card itself, not in a footnote at the bottom of the page — because the card is what gets
+          screenshotted into a deck.</div>
+      </div>
+    </section>

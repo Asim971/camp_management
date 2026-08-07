@@ -1,0 +1,11 @@
+# Shared setup: clear state and launch in E2E mode as a CRM Verifier.
+appId: ${APP_ID}
+---
+- clearState
+- launchApp:
+    arguments:
+      E2E: true
+      LOCALE: en
+      ROLE: crm_verifier
+- assertVisible:
+    id: "dev_launcher"

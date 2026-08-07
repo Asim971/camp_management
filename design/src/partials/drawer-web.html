@@ -1,0 +1,32 @@
+<!-- Shared Sales Ecosystem navigation drawer. The enclosing .shell carries
+     data-nav (and optionally data-sub) to mark the current module. -->
+<nav class="drawer">
+  <div class="drawer__brand">
+    <span class="drawer__mark">BMD</span>
+    <div class="col" style="gap: 0">
+      <span class="drawer__product">Sales Ecosystem</span>
+      <span class="t-caption">Anwar Group</span>
+    </div>
+  </div>
+  <a class="nav-item" href="#"><span class="nav-item__icon">⌂</span>Home</a>
+  <a class="nav-item" href="#"><span class="nav-item__icon">◱</span>Orders</a>
+  <a class="nav-item" href="#"><span class="nav-item__icon">☰</span>Carpenters</a>
+  <div class="drawer__group"><span class="t-micro">Campaign management</span></div>
+  <a class="nav-item" data-nav-id="campaigns" href="#"><span class="nav-item__icon">◈</span>Campaigns
+    <span class="nav-item__count">3</span></a>
+  <div class="nav-sub">
+    <a data-sub-id="dashboard" href="#">Dashboard</a>
+    <a data-sub-id="all" href="#">All campaigns</a>
+    <a data-sub-id="mine" href="#">My campaigns</a>
+    <a data-sub-id="approval" href="#">Approval queue</a>
+    <a data-sub-id="templates" href="#">Templates</a>
+  </div>
+  <a class="nav-item" data-nav-id="sessions" href="#"><span class="nav-item__icon">▤</span>Sessions</a>
+  <a class="nav-item" data-nav-id="participants" href="#"><span class="nav-item__icon">☑</span>Participants</a>
+  <a class="nav-item" data-nav-id="verification" href="#"><span class="nav-item__icon">◍</span>Verification
+    <span class="nav-item__count">28</span></a>
+  <a class="nav-item" data-nav-id="analytics" href="#"><span class="nav-item__icon">◔</span>Analytics</a>
+  <div class="drawer__group"><span class="t-micro">Administration</span></div>
+  <a class="nav-item" data-nav-id="config" href="#"><span class="nav-item__icon">⚙</span>Configuration</a>
+  <a class="nav-item" data-nav-id="operations" href="#"><span class="nav-item__icon">⚟</span>Operations</a>
+</nav>

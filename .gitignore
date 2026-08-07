@@ -1,0 +1,48 @@
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+.pub-cache/
+.pub/
+android/local.properties
+android/.gradle/
+android/.kotlin/
+
+# Generated
+*.g.dart
+*.freezed.dart
+lib/l10n/generated/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Claude Code local settings (per-user permissions)
+.claude/settings.local.json
+
+# Subagent-driven-development scratch (ledger, briefs, review packages)
+.superpowers/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets / env
+*.env
+# tool/scripts/flavors.env is the tracked, non-secret single source of truth
+# for flavor -> API URL mapping (no credentials) — see tool/scripts/run.ps1.
+!tool/scripts/flavors.env
+android/key.properties
+android/app/upload-keystore.jks
+
+# Platform (regenerate with `flutter create .`)
+ios/
+macos/
+linux/
+windows/
+
+# design system render scratch
+design/.render/

@@ -1,0 +1,79 @@
+name: goldens
+
+# Manual only. Baselines cannot be generated on the development machine --
+# there is no Linux Flutter toolchain there -- so this job produces them on the
+# same runner that verifies them, and uploads them for a human to commit.
+# It deliberately does NOT write to the repository: the gate stays read-only,
+# so a pull request can never make CI commit on its behalf.
+on:
+  workflow_dispatch:
+  # `workflow_dispatch` alone is not yet enough: GitHub only exposes it for
+  # workflows that exist on the **default branch**, and `main` still holds
+  # nothing but README.md. Until `.github/` reaches `main`, dispatch 404s
+  # ("workflow goldens.yml not found on the default branch") and the triggers
+  # below are the only way to run this job.
+  #
+  # The `push` block was tried first and never fired -- GitHub did not register
+  # this workflow at all, so it produced no runs. `pull_request` is the trigger
+  # that demonstrably works on this branch, since it is how CI runs here; adding
+  # it is what finally generated the baselines.
+  #
+  # REMOVE BOTH once `.github/` is on `main` and dispatch works. Not before:
+  # deleting them now would leave no way to regenerate a baseline at all.
+  #
+  # Both are scoped by `paths` to this file, which is what keeps an automatic
+  # `--update-goldens` from being dangerous -- the job can only fire on a commit
+  # that edits this workflow, never on ordinary product changes, and it uploads
+  # an artifact for a human to commit rather than writing to the repository.
+  push:
+    branches: [feat/campaign-management-flutter-scaffold]
+    paths:
+      - '.github/workflows/goldens.yml'
+  pull_request:
+    paths:
+      - '.github/workflows/goldens.yml'
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: 3.44.8
+
+jobs:
+  update:
+    name: regenerate golden baselines
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Generate localizations
+        run: flutter gen-l10n
+
+      - name: Run code generation
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Regenerate baselines
+        run: flutter test test/golden --update-goldens
+
+      # `always()` because a partial run is the case where this artifact matters
+      # most: if one section overflows, the other baselines were still generated
+      # and are still worth collecting, and without this the step is skipped and
+      # every one of them is discarded with the runner. That is exactly what
+      # happened on the first run of this workflow.
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-baselines
+          path: test/golden/goldens
+          retention-days: 14
+          if-no-files-found: error
