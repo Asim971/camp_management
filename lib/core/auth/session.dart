@@ -1,17 +1,21 @@
 import 'rbac.dart';
 
-/// Authenticated session state. Tokens live in secure storage, never here in
-/// plaintext beyond the in-memory access token used for the Authorization
-/// header. Refresh is handled by the auth interceptor.
+/// Authenticated session state.
 ///
-/// The unauthenticated state is represented as a `null` [Session] (see
-/// `authControllerProvider` in di/providers.dart), not a sentinel object.
+/// Both tokens are held in memory here. The REFRESH token is additionally
+/// persisted on mobile (see `TokenStore`); on web nothing is persisted, so a
+/// reload signs the user out. The ACCESS token is never persisted anywhere -
+/// it is short-lived and re-derivable from refresh.
+///
+/// Signed-out is represented by `AuthSignedOut`, not by a null Session (see
+/// `AuthState` in session_manager.dart).
 class Session {
   const Session({
     required this.userId,
     required this.displayName,
     required this.scope,
     required this.accessToken,
+    required this.refreshToken,
     required this.expiresAt,
   });
 
@@ -19,6 +23,7 @@ class Session {
   final String displayName;
   final AccessScope scope;
   final String accessToken;
+  final String refreshToken;
   final DateTime expiresAt;
 
   bool get isExpired => DateTime.now().isAfter(expiresAt);

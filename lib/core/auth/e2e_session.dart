@@ -36,6 +36,7 @@ Session buildE2ESession(String role) {
       organizationId: 'ORG_E2E',
     ),
     accessToken: 'e2e-token',
+    refreshToken: 'e2e-refresh',
     expiresAt: DateTime(2999),
   );
 }

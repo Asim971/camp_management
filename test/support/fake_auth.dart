@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:acsl_campaign/core/auth/auth_service.dart';
+import 'package:acsl_campaign/core/auth/token_store.dart';
 import 'package:acsl_campaign/core/result/result.dart';
 
 /// Fixed instant so token-expiry assertions never depend on wall-clock timing.
@@ -74,5 +75,30 @@ class ScriptedAuthService implements AuthService {
   Future<Result<void>> logout(String refreshToken) async {
     logoutCalls++;
     return logoutResult;
+  }
+}
+
+/// In-memory [TokenStore] standing in for either platform, so a test can model
+/// "mobile with a stored token" and "web that stores nothing" without kIsWeb.
+class FakeTokenStore implements TokenStore {
+  FakeTokenStore([this.value]);
+
+  String? value;
+  int persistCalls = 0;
+  int clearCalls = 0;
+
+  @override
+  Future<void> persist(String refreshToken) async {
+    persistCalls++;
+    value = refreshToken;
+  }
+
+  @override
+  Future<String?> read() async => value;
+
+  @override
+  Future<void> clear() async {
+    clearCalls++;
+    value = null;
   }
 }
