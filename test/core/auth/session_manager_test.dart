@@ -21,7 +21,13 @@ class _GatedTokenStore implements TokenStore {
 
   @override
   Future<void> persist(String refreshToken) async {
-    if (persistGate != null) await persistGate!.future;
+    // Only the call that actually captures the gate waits on it - later
+    // calls must not coincidentally queue up behind the same completer, or a
+    // test could look ordered for reasons that have nothing to do with
+    // SessionManager's own write-ordering guarantee.
+    final gate = persistGate;
+    persistGate = null;
+    if (gate != null) await gate.future;
     value = refreshToken;
   }
 
@@ -409,8 +415,11 @@ void main() {
         await manager.signIn('bob', 'pw');
 
         // Gate the NEXT persist - the one the pending refresh below will
-        // attempt - so it stays in flight while signOut runs.
-        tokens.persistGate = Completer<void>();
+        // attempt - so it stays in flight while signOut runs. Held locally,
+        // not re-read from tokens.persistGate, since the store nulls that
+        // field once a call captures it.
+        final gate = Completer<void>();
+        tokens.persistGate = gate;
 
         final pendingRefresh = manager.refresh();
         await pumpEventQueue(); // let the refresh's network call resolve and _adopt reach the gated persist
@@ -419,7 +428,7 @@ void main() {
         expect(manager.state, isA<AuthSignedOut>());
         expect(tokens.value, isNull);
 
-        tokens.persistGate!.complete();
+        gate.complete();
         await pendingRefresh;
 
         // Assert again after the stale persist lands, not just after
@@ -461,5 +470,110 @@ void main() {
         manager.dispose();
       },
     );
+  });
+
+  group('store write ordering — two independent writes cannot invert', () {
+    test('a stale sign-in whose persist parks mid-flight cannot leave storage '
+        'disagreeing with a newer sign-in', () async {
+      // Round 2's generation check protects a single write against a
+      // later signOut/emit, but two SEPARATE writes (one per sign-in) race
+      // each other on completion order, not call order - checking
+      // generation says nothing about which write's I/O lands last. Gate
+      // only the first persist so it parks mid-flight while a second,
+      // fully independent sign-in runs its own persist to completion.
+      final tokens = _GatedTokenStore();
+      final manager = SessionManager(
+        service: ScriptedAuthService(
+          loginResults: [
+            Ok(testTokens()), // user 1: access-1 / refresh-1
+            Ok(testTokens(access: 'access-2', refresh: 'refresh-2')),
+          ],
+        ),
+        tokens: tokens,
+        now: () => kTestNow,
+      );
+
+      // Held locally, not re-read from tokens.persistGate: the store nulls
+      // its own field once a call captures it, so completing through a
+      // fresh field read could silently complete nothing if ordering
+      // already broke and a second call consumed the gate first.
+      final gate = Completer<void>();
+      tokens.persistGate = gate;
+      final signIn1 = manager.signIn('user1', 'pw');
+      await pumpEventQueue(); // let it reach the gated persist('refresh-1')
+
+      final signIn2 = manager.signIn('user2', 'pw');
+      await pumpEventQueue(); // its persist('refresh-2') is now queued too
+
+      gate.complete();
+      await signIn1;
+      await signIn2;
+
+      // State and storage must agree - both must point at user 2. State
+      // alone passing here is not enough: the bug this closes is exactly
+      // storage disagreeing with state (see fix round 3 in the report).
+      expect(manager.state, isA<AuthSignedIn>());
+      final session = (manager.state as AuthSignedIn).session;
+      expect(session.accessToken, 'access-2');
+      expect(tokens.value, 'refresh-2');
+      manager.dispose();
+    });
+
+    test('the write queue orders a clear enqueued after a persist, not only '
+        'two persists', () async {
+      // Proves the queue orders *mutations*, not merely two calls of the
+      // same kind. A THIRD sign-in matters here, not just two: with only
+      // one persist (user 1) and one clear (user 2), _persistIfCurrent's
+      // own "nothing newer queued" fallback (_lastPersistGeneration) would
+      // coincidentally also fix the outcome, proving nothing about the
+      // queue itself. Interposing user 2's own valid persist moves
+      // _lastPersistGeneration past user 1's, neutralising that fallback,
+      // so only the queue's ordering is left to make user 3's clear beat
+      // user 1's parked, stale persist to the finish.
+      final tokens = _GatedTokenStore();
+      final manager = SessionManager(
+        service: ScriptedAuthService(
+          loginResults: [
+            Ok(testTokens()), // user 1: parks inside persist('refresh-1')
+            Ok(testTokens(access: 'access-2', refresh: 'refresh-2')),
+            Ok(
+              testTokens(
+                // Unmappable role: _adopt's claims-parse-failure branch
+                // enqueues a clear() instead of a persist().
+                claims: {
+                  'userId': 'u-3',
+                  'organizationId': 'ORG_1',
+                  'roles': ['galactic_overlord'],
+                  'permissions': <String>[],
+                },
+              ),
+            ),
+          ],
+        ),
+        tokens: tokens,
+        now: () => kTestNow,
+      );
+
+      final gate = Completer<void>();
+      tokens.persistGate = gate;
+      final signIn1 = manager.signIn('user1', 'pw');
+      await pumpEventQueue(); // parks inside persist('refresh-1')
+
+      final signIn2 = manager.signIn('user2', 'pw');
+      await pumpEventQueue(); // its persist('refresh-2') queues behind it
+
+      final signIn3 = manager.signIn('user3', 'pw');
+      await pumpEventQueue(); // its rejection queues a clear() behind both
+
+      gate.complete();
+      await signIn1;
+      await signIn2;
+      await signIn3;
+
+      // Enqueue order was persist(refresh-1), persist(refresh-2), clear() -
+      // the clear must have the final word.
+      expect(tokens.value, isNull);
+      manager.dispose();
+    });
   });
 }

@@ -92,6 +92,35 @@ class SessionManager {
   /// stale by the time it completes and must not touch state or storage.
   int _generation = 0;
 
+  /// FIFO queue forcing every adopt-path token-store mutation to *complete*
+  /// in the order it was *enqueued*, not the order its underlying I/O happens
+  /// to finish in. Two independent async writes to the same key otherwise
+  /// race on completion order alone: a slow, stale `persist()` can land after
+  /// a perfectly current one and silently overwrite it, even though both
+  /// passed their generation check when they started. Chaining every
+  /// mutation through this one future makes that inversion structurally
+  /// impossible rather than merely checked-for.
+  ///
+  /// [signOut]'s own `clear()` deliberately does NOT go through this queue -
+  /// see the comment there.
+  Future<void> _storeQueue = Future<void>.value();
+
+  /// The generation of the most recently *enqueued* persist, regardless of
+  /// whether it has completed yet. Lets a stale persist's post-write check
+  /// tell "nothing newer has been queued behind me, so nobody else will fix
+  /// storage" apart from "a newer one is already queued and will win by
+  /// ordering" - see [_persistIfCurrent].
+  int _lastPersistGeneration = 0;
+
+  Future<void> _enqueue(Future<void> Function() op) {
+    final result = _storeQueue.then((_) => op());
+    // The queue itself must never end up permanently rejected - that would
+    // wedge every later mutation behind a dead future - so swallow the error
+    // here. The caller of this specific op still sees it via [result].
+    _storeQueue = result.then((_) {}, onError: (_) {});
+    return result;
+  }
+
   AuthState get state => _state;
   Stream<AuthState> get changes => _changes.stream;
 
@@ -110,22 +139,34 @@ class SessionManager {
   }
 
   /// Persists [refreshToken] for [generation], undoing the write if the
-  /// generation moved while the write itself was in flight.
+  /// generation moved while the write itself was in flight and nothing newer
+  /// has since been queued to fix it.
   ///
   /// A pre-write check alone is not enough: `persist` can be a real Keystore
   /// write wide enough for a `signOut()` to start *and finish* entirely
-  /// during it, in which case our write lands in storage *after*
-  /// `signOut`'s `clear()` already did, silently resurrecting the cleared
-  /// token. So this also re-checks after the write and, if now stale and
-  /// nothing newer has since signed in, clears it back out. It leaves
-  /// storage alone when a newer sign-in is current, since that flow's own
-  /// persist holds the truth and must not be clobbered by an older one's
-  /// cleanup. Returns whether the write is still considered valid.
+  /// during it, in which case our write lands in storage *after* `signOut`'s
+  /// (deliberately un-queued) `clear()` already did, silently resurrecting
+  /// the cleared token - so this also re-checks after the write.
+  ///
+  /// The undo is conditional on [generation] still being the *latest queued*
+  /// persist ([_lastPersistGeneration]), not on `_state is AuthSignedIn`: an
+  /// earlier version checked state instead, but state and storage do not
+  /// update atomically - a newer sign-in's persist can finish and be
+  /// reflected in storage microtasks *before* its own `_emit` runs, so
+  /// checking state let an older write's "helpful" cleanup wipe a newer,
+  /// already-written token that state hadn't caught up to yet. Checking
+  /// against the queue position instead is exact: if a newer persist has
+  /// already been enqueued, the queue's own ordering - not this cleanup -
+  /// guarantees it has (or will have) the final word, so clearing here would
+  /// only reintroduce the inversion this queue exists to close.
   Future<bool> _persistIfCurrent(int generation, String refreshToken) async {
     if (!_isCurrent(generation)) return false;
-    await _tokens.persist(refreshToken);
+    _lastPersistGeneration = generation;
+    await _enqueue(() => _tokens.persist(refreshToken));
     if (!_isCurrent(generation)) {
-      if (_state is! AuthSignedIn) await _tokens.clear();
+      if (generation == _lastPersistGeneration) {
+        await _enqueue(_tokens.clear);
+      }
       return false;
     }
     return true;
@@ -222,6 +263,12 @@ class SessionManager {
     _generation++;
     _inFlightRefresh = null;
     _emit(const AuthSignedOut());
+    // Deliberately NOT routed through _enqueue: sign-out is local-first and
+    // must clear storage immediately, even if an older, already-dispatched
+    // adopt-path write is still parked mid-flight in the queue (that write's
+    // own post-completion check in _persistIfCurrent is what undoes it - the
+    // queue only orders writes that have not been dispatched yet, and this
+    // one already has been by the time signOut runs).
     await _tokens.clear();
     if (token != null) await _service.logout(token);
   }
@@ -236,7 +283,7 @@ class SessionManager {
       return null;
     }
     if (result case Err()) {
-      await _tokens.clear();
+      await _enqueue(_tokens.clear);
       _emitIfCurrent(generation, const AuthSignedOut());
       return null;
     }
@@ -265,7 +312,7 @@ class SessionManager {
     final parsed = parseScopeClaims(tokens.claims);
     if (parsed case Err(:final failure)) {
       if (_isCurrent(generation)) {
-        await _tokens.clear();
+        await _enqueue(_tokens.clear);
         _emitIfCurrent(generation, const AuthSignedOut());
       }
       return Err(failure);
