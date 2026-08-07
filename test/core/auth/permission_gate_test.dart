@@ -92,6 +92,7 @@ void main() {
         child: PermissionGate.disabled(
           Permission.campaignApprove,
           reason: 'Only a Campaign Approver can approve this campaign.',
+          label: 'Approve',
           child: ElevatedButton(
             onPressed: () => tapped = true,
             child: const Text('Approve'),
@@ -115,6 +116,7 @@ void main() {
         child: PermissionGate.disabled(
           Permission.campaignApprove,
           reason: 'Only a Campaign Approver can approve this campaign.',
+          label: 'Approve',
           child: ElevatedButton(
             onPressed: () => tapped = true,
             child: const Text('Approve'),
@@ -131,25 +133,29 @@ void main() {
       tester,
     ) async {
       // T-3.4.1's accessibility gate checks this: a mouse-only explanation is
-      // no explanation for a keyboard or screen-reader user.
+      // no explanation for a keyboard or screen-reader user. A bare Text
+      // child (as this test used to use) is not a semantics boundary, so
+      // everything merges into one node and hides the real bug: a real
+      // control like ElevatedButton wraps itself in its OWN Semantics
+      // boundary reporting `enabled: true`, and that boundary node - not the
+      // gate's - is the one a screen reader actually focuses.
       const reason = 'Only a Campaign Approver can approve this campaign.';
       await pump(
         tester,
         auth: signedIn(const {}),
-        child: const PermissionGate.disabled(
+        child: PermissionGate.disabled(
           Permission.campaignApprove,
           reason: reason,
-          child: Text('Approve'),
+          label: 'Approve',
+          child: ElevatedButton(onPressed: () {}, child: const Text('Approve')),
         ),
       );
 
-      final semantics = tester.getSemantics(find.text('Approve'));
+      final semantics = tester.getSemantics(find.byType(ElevatedButton));
       expect(semantics.flagsCollection.isEnabled, Tristate.isFalse);
       expect(
-        tester
-            .widgetList<Semantics>(find.byType(Semantics))
-            .any((s) => s.properties.hint?.contains(reason) ?? false),
-        isTrue,
+        semantics.hint,
+        contains(reason),
         reason:
             'the denial reason must reach the semantics tree as a hint, '
             'after the label and the disabled state, not as the label '
@@ -170,6 +176,7 @@ void main() {
         child: PermissionGate.disabled(
           Permission.campaignApprove,
           reason: 'Only a Campaign Approver can approve this campaign.',
+          label: 'Approve',
           child: ElevatedButton(onPressed: () {}, child: const Text('Approve')),
         ),
       );
@@ -193,6 +200,7 @@ void main() {
         child: PermissionGate.disabled(
           Permission.campaignApprove,
           reason: 'Only a Campaign Approver can approve this campaign.',
+          label: 'Approve',
           child: ElevatedButton(onPressed: () {}, child: const Text('Approve')),
         ),
       );
