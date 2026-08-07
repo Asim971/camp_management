@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/shell/app_shell.dart';
 import '../../../app/theme/tokens.dart';
+import '../../../core/auth/permission_gate.dart';
+import '../../../core/auth/rbac.dart';
 import '../../../core/design_system/bmd_button.dart';
 import '../../../core/design_system/bmd_data_table.dart';
 import '../../../core/design_system/status_chip.dart';
@@ -24,10 +26,15 @@ class CampaignListScreen extends ConsumerWidget {
     return AppShell(
       title: 'Campaigns',
       actions: [
-        IconButton(
-          tooltip: 'Create campaign',
-          icon: const Icon(Icons.add),
-          onPressed: () => context.go('/campaigns/new'),
+        PermissionGate.disabled(
+          Permission.campaignCreate,
+          reason: 'Only a Campaign Creator can create a campaign.',
+          label: 'Create campaign',
+          child: IconButton(
+            tooltip: 'Create campaign',
+            icon: const Icon(Icons.add),
+            onPressed: () => context.go('/campaigns/new'),
+          ),
         ),
       ],
       body: async.when(
