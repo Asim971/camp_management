@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/auth/rbac.dart';
+import '../../core/auth/session_manager.dart';
 import '../../core/design_system/placeholder_screen.dart';
 import '../../features/bulk_import/presentation/bulk_import_screen.dart';
 import '../../features/camera_capture/presentation/capture_flow_screen.dart';
@@ -18,6 +18,14 @@ import '../../features/offline_queue/presentation/offline_queue_screen.dart';
 import '../../features/registration/presentation/registration_workspace_screen.dart';
 import '../di/providers.dart';
 import 'route_guards.dart';
+import 'route_table.dart';
+
+// TEMPORARY (removed in the providers-wiring task): bridges the old
+// authControllerProvider to the new AuthState shape.
+final authStateProvider = Provider<AuthState>((ref) {
+  final session = ref.watch(authControllerProvider);
+  return session == null ? const AuthSignedOut() : AuthSignedIn(session);
+});
 
 /// App router. Redirect guards enforce auth + RBAC scope before a route builds
 /// (§7). Deep-linkable web URLs, but NEVER PII/media tokens in the path.
@@ -28,12 +36,12 @@ final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: config.e2e ? '/dev' : '/',
     redirect: (context, state) {
-      final session = ref.read(authControllerProvider);
-      final required = _requiredPermission(state.matchedLocation);
+      final auth = ref.read(authStateProvider);
       return guards.evaluate(
-        session: session,
+        auth: auth,
+        fullPath: state.fullPath,
         location: state.matchedLocation,
-        required: required,
+        intended: state.uri.queryParameters['from'],
       );
     },
     // Rebuild redirects when auth changes.
@@ -141,29 +149,32 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
-/// Maps a location to the permission it demands (extend as features land).
-Permission? _requiredPermission(String location) {
-  if (location.startsWith('/campaigns/new')) return Permission.campaignCreate;
-  if (location.startsWith('/campaigns/') && location.endsWith('/approve')) {
-    return Permission.campaignApprove;
-  }
-  if (location.endsWith('/import')) return Permission.bulkImport;
-  if (location.endsWith('/register')) return Permission.campaignCreate;
-  if (location.startsWith('/verification')) {
-    return Permission.verificationDecide;
-  }
-  if (location.startsWith('/capture') ||
-      location.startsWith('/search') ||
-      location.startsWith('/queue')) {
-    return Permission.attendanceCapture;
-  }
-  if (location.startsWith('/analytics')) return Permission.export;
-  return null;
-}
+/// The route templates the router registers, for the exhaustiveness test in
+/// `route_table_test.dart`. Kept beside the route definitions so the two
+/// cannot drift: if a GoRoute is added here it must be listed here too, and
+/// the test then demands a matching `routeTable` entry.
+Set<String> registeredRoutePaths({required bool devRoutesEnabled}) => {
+  '/login',
+  '/forbidden',
+  if (devRoutesEnabled) ...devOnlyPaths,
+  '/',
+  '/campaigns',
+  '/campaigns/new',
+  '/campaigns/:id',
+  '/campaigns/:id/approve',
+  '/campaigns/:id/register',
+  '/campaigns/:id/import',
+  '/verification',
+  '/verification/cases/:id',
+  '/search/:sessionId',
+  '/capture/:sessionId/:carpenterId',
+  '/queue',
+  '/analytics',
+};
 
 /// Bridges Riverpod auth state to GoRouter's Listenable refresh.
 class _AuthListenable extends ChangeNotifier {
   _AuthListenable(Ref ref) {
-    ref.listen(authControllerProvider, (_, __) => notifyListeners());
+    ref.listen(authStateProvider, (_, __) => notifyListeners());
   }
 }
