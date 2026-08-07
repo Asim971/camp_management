@@ -36,8 +36,8 @@ class PermissionGate extends ConsumerWidget {
   final Permission permission;
   final Widget child;
 
-  /// Why the action is unavailable. Reaches the semantics tree, not only a
-  /// hover tooltip.
+  /// Why the action is unavailable. Reaches the semantics tree as a `hint`,
+  /// not only a hover tooltip.
   final String? reason;
 
   final _GateMode _mode;
@@ -57,7 +57,13 @@ class PermissionGate extends ConsumerWidget {
       _GateMode.disabled => Tooltip(
         message: reason!,
         child: Semantics(
-          label: reason,
+          // The reason is supplementary detail, not the primary label: it
+          // belongs in `hint` so a screen reader announces the child's own
+          // label first ("Approve"), then the disabled state from
+          // `enabled: false`, and only then this explanation - not the
+          // reverse, which announces the explanation before the user knows
+          // what it explains.
+          hint: reason,
           enabled: false,
           container: true,
           child: ExcludeFocus(

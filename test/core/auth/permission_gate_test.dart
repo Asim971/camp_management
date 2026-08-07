@@ -148,9 +148,59 @@ void main() {
       expect(
         tester
             .widgetList<Semantics>(find.byType(Semantics))
-            .any((s) => s.properties.label?.contains(reason) ?? false),
+            .any((s) => s.properties.hint?.contains(reason) ?? false),
         isTrue,
-        reason: 'the denial reason must reach the semantics tree',
+        reason:
+            'the denial reason must reach the semantics tree as a hint, '
+            'after the label and the disabled state, not as the label '
+            'itself',
+      );
+    });
+
+    testWidgets('strips the tap action so assistive tech cannot activate it', (
+      tester,
+    ) async {
+      // The reviewer confirmed via SDK source that IgnorePointer marks the
+      // node as blocking user actions, which strips SemanticsAction.tap on
+      // merge - this pins that behaviour so a future Flutter upgrade cannot
+      // silently regress it into a control that looks disabled but is not.
+      await pump(
+        tester,
+        auth: signedIn(const {}),
+        child: PermissionGate.disabled(
+          Permission.campaignApprove,
+          reason: 'Only a Campaign Approver can approve this campaign.',
+          child: ElevatedButton(onPressed: () {}, child: const Text('Approve')),
+        ),
+      );
+
+      final semantics = tester.getSemantics(find.text('Approve'));
+      expect(
+        semantics.getSemanticsData().hasAction(SemanticsAction.tap),
+        isFalse,
+      );
+    });
+
+    testWidgets('carries a tap action when the permission is held', (
+      tester,
+    ) async {
+      // The positive counterpart: without this, a bug that strips the tap
+      // action unconditionally (rather than only when gated) would pass the
+      // test above too.
+      await pump(
+        tester,
+        auth: signedIn({Permission.campaignApprove}),
+        child: PermissionGate.disabled(
+          Permission.campaignApprove,
+          reason: 'Only a Campaign Approver can approve this campaign.',
+          child: ElevatedButton(onPressed: () {}, child: const Text('Approve')),
+        ),
+      );
+
+      final semantics = tester.getSemantics(find.text('Approve'));
+      expect(
+        semantics.getSemanticsData().hasAction(SemanticsAction.tap),
+        isTrue,
       );
     });
   });
