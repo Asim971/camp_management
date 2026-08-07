@@ -83,7 +83,7 @@ class DioAuthService implements AuthService {
           // cannot trust its own clock to agree with the server's, but it can
           // trust "valid for N more seconds from when this arrived".
           expiresAt: DateTime.now().toUtc().add(
-            Duration(seconds: seconds is int ? seconds : 0),
+            Duration(seconds: seconds is num ? seconds.toInt() : 0),
           ),
           claims: (data['claims'] as Map?)?.cast<String, Object?>() ?? const {},
         ),

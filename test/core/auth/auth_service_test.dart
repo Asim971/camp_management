@@ -50,6 +50,28 @@ void main() {
 
       expect(result.fold((_) => null, (f) => f.kind), FailureKind.network);
     });
+
+    test('M9: a double expiresInSeconds (JSON 900.0) is honoured, not treated '
+        'as 0', () async {
+      // JSON has no int/double distinction on the wire - `900.0` decodes to
+      // a Dart `double`. The old `seconds is int ? seconds : 0` silently
+      // zeroed the lifetime, putting every freshly issued token instantly
+      // inside SessionManager's refresh skew.
+      final adapter = ScriptedAdapter([
+        const ScriptedReply.json(200, {
+          'accessToken': 'a-1',
+          'refreshToken': 'r-1',
+          'expiresInSeconds': 900.0,
+          'claims': <String, Object?>{},
+        }),
+      ]);
+      final before = DateTime.now().toUtc();
+
+      final result = await DioAuthService(buildDio(adapter)).login('bob', 'pw');
+
+      final tokens = result.fold((t) => t, (_) => null)!;
+      expect(tokens.expiresAt.difference(before).inSeconds, greaterThan(890));
+    });
   });
 
   group('DioAuthService.refresh', () {
