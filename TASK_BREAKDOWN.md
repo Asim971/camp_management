@@ -58,14 +58,29 @@
 > goldens`), not locally.
 
 ### Epic P0.3 — Core services ⭐
-| ID | Task | Est | Deps | Notes |
-|----|------|-----|------|-------|
-| T-0.3.1 | `Result`/`Failure` types + error taxonomy | S | 0.1.5 | pure Dart |
-| T-0.3.2 | Dio client + interceptors (auth, refresh, correlation-ID, retry, error→Failure) | L | 0.3.1 | 🔒 API base |
-| T-0.3.3 | Drift DB (schema v1: sync_task, attendance_draft, cached_reference) + migrations | L | 0.1.5 | offline core |
-| T-0.3.4 | Secure storage wrapper (tokens, encryption keys) | S | 0.1.5 | — |
-| T-0.3.5 | Responsive breakpoint system + adaptive scaffold (drawer/rail/bottom-nav) | M | 0.2.2 | §11 |
-| T-0.3.6 | Client audit event emitter (correlation-ID, buffered) | M | 0.3.2 | §12 |
+| ID | Task | Est | Deps | Status (2026-08-06) |
+|----|------|-----|------|---------------------|
+| T-0.3.1 | `Result`/`Failure` types + error taxonomy | S | 0.1.5 | ✅ pure Dart |
+| T-0.3.2 | Dio client + interceptors (auth, refresh, correlation-ID, retry, error→Failure) | L | 0.3.1 | ✅ 🔒 API base; `AuthInterceptor.refreshToken` remains a throwing seam pending T-0.4.1, and the 401 replay runs through an interceptor-free client (`buildReplayDio`) |
+| T-0.3.3 | Drift DB (schema v1: sync_task, attendance_draft, cached_reference) + migrations | L | 0.1.5 | ✅ offline core; schema v2 (`audit_events`) added for T-0.3.6 |
+| T-0.3.4 | Secure storage wrapper (tokens, encryption keys) | S | 0.1.5 | ✅ `SecureStore`/`FlutterSecureStore` + frozen `SecureStoreKeys` registry |
+| T-0.3.5 | Responsive breakpoint system + adaptive scaffold (drawer/rail/bottom-nav) | M | 0.2.2 | ✅ §11 |
+| T-0.3.6 | Client audit event emitter (correlation-ID, buffered) | M | 0.3.2 | ✅ §12 |
+
+> **P0.3 complete** (2026-08-06). T-0.3.2 ships correlation-ID and retry
+> interceptors; the retry gate is an explicit idempotency key rather than HTTP
+> method semantics, so no unsafe method is replayed without server-side dedupe.
+> T-0.3.6's buffer is Drift schema v2 (`audit_events`) drained by a dedicated
+> `AuditFlusher` — deliberately not the `SyncEngine`, whose give-up-after-8
+> rule would silently discard compliance records. The flusher retries on a
+> fixed interval (plus an immediate flush on reconnect), not exponential
+> backoff, and sets a row aside only after repeated **permanent** rejections —
+> a network failure never counts toward that threshold. Sensitive views go
+> through `AuditSink.revealAudited`, which takes the reveal as a callback so it
+> cannot fail open. Feature-level audit emission stays with the owning tasks
+> (T-1.4.2, T-1.6.3, T-3.1.4); this epic emits only `evidenceKeyRotated`.
+> `AuthInterceptor.refreshToken` remains a throwing seam pending T-0.4.1, and
+> the 401 replay now goes through an interceptor-free client.
 
 ### Epic P0.4 — Auth, RBAC & routing ⭐
 | ID | Task | Est | Deps | Notes |
