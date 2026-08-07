@@ -43,18 +43,24 @@ DateTime _systemNow() => DateTime.now().toUtc();
 /// under concurrency, so it is structural here rather than something tests are
 /// expected to catch downstream.
 ///
-/// A second, orthogonal race: any in-flight sign-in or refresh (its network
-/// call already sent, awaiting a response) can complete *after* a sign-out and
-/// resurrect the session it just ended - re-emitting [AuthSignedIn] and
-/// re-persisting a token [signOut] had already cleared. On a shared field
-/// device that means a departing user's session is silently restored under
-/// the next person's fingers. [_generation] closes this: [signIn] and
-/// [signOut] each start a new epoch, and any exchange or adoption that began
-/// under an older epoch is discarded on completion rather than allowed to
-/// mutate state or storage. One counter guards both directions - sign-out
-/// invalidating a stale refresh, and a new sign-in invalidating a stale
-/// refresh or a stale, overtaken sign-in - because both are the same shape:
-/// work that finishes after the epoch it started in has ended must never win.
+/// A second, orthogonal race: any in-flight sign-in, refresh or restore (its
+/// network/storage call already sent, awaiting a response) can complete
+/// *after* a sign-out and resurrect the session it just ended - re-emitting
+/// [AuthSignedIn] and re-persisting a token [signOut] had already cleared. On
+/// a shared field device that means a departing user's session is silently
+/// restored under the next person's fingers. [_generation] closes this:
+/// [signIn] and [signOut] each start a new epoch, captured *before* either
+/// does any `await`, and [restore] captures the epoch in effect before its
+/// own first `await` too. Checking once at the top of an async method is not
+/// enough - an await between the check and a mutation reopens the hole, and
+/// on mobile `TokenStore.persist`/`.clear` are real Keystore I/O, not a
+/// microtask sliver - so every mutation re-checks immediately before (and,
+/// for persist, immediately after) it runs, via [_emitIfCurrent] and
+/// [_persistIfCurrent]. One counter guards every direction - sign-out
+/// invalidating a stale refresh or restore, and a new sign-in invalidating a
+/// stale refresh or a stale, overtaken sign-in - because all of these are the
+/// same shape: work that finishes after the epoch it started in has ended
+/// must never win.
 class SessionManager {
   // `this._field` initializing formals still expose a PUBLIC call-site name
   // (Dart strips the leading underscore for the named-parameter label), so
@@ -96,9 +102,39 @@ class SessionManager {
     if (!_changes.isClosed) _changes.add(next);
   }
 
+  /// Emits [next] only if [generation] is still current. Every state
+  /// mutation that could resurrect or clobber a session goes through this -
+  /// never a bare [_emit] - so a stale caller structurally cannot flip state.
+  void _emitIfCurrent(int generation, AuthState next) {
+    if (_isCurrent(generation)) _emit(next);
+  }
+
+  /// Persists [refreshToken] for [generation], undoing the write if the
+  /// generation moved while the write itself was in flight.
+  ///
+  /// A pre-write check alone is not enough: `persist` can be a real Keystore
+  /// write wide enough for a `signOut()` to start *and finish* entirely
+  /// during it, in which case our write lands in storage *after*
+  /// `signOut`'s `clear()` already did, silently resurrecting the cleared
+  /// token. So this also re-checks after the write and, if now stale and
+  /// nothing newer has since signed in, clears it back out. It leaves
+  /// storage alone when a newer sign-in is current, since that flow's own
+  /// persist holds the truth and must not be clobbered by an older one's
+  /// cleanup. Returns whether the write is still considered valid.
+  Future<bool> _persistIfCurrent(int generation, String refreshToken) async {
+    if (!_isCurrent(generation)) return false;
+    await _tokens.persist(refreshToken);
+    if (!_isCurrent(generation)) {
+      if (_state is! AuthSignedIn) await _tokens.clear();
+      return false;
+    }
+    return true;
+  }
+
   Future<Result<void>> signIn(String username, String password) async {
-    // A new epoch: any refresh or sign-in already in flight from an older
-    // epoch must not be allowed to land after this one starts.
+    // A new epoch, struck before any await: any refresh, restore or sign-in
+    // already in flight from an older epoch must not be allowed to land
+    // after this one starts.
     final generation = ++_generation;
     final result = await _service.login(username, password);
     if (!_isCurrent(generation)) {
@@ -109,7 +145,7 @@ class SessionManager {
       return const Err(Failure(FailureKind.conflict));
     }
     if (result case Err(:final failure)) {
-      _emit(const AuthSignedOut());
+      _emitIfCurrent(generation, const AuthSignedOut());
       return Err(failure);
     }
     return _adopt(result.fold((t) => t, (_) => null)!, generation);
@@ -117,7 +153,16 @@ class SessionManager {
 
   /// Exchanges any persisted refresh token for a session. Call once at boot.
   Future<void> restore() async {
+    // Captured before the storage read, like signIn/signOut capture theirs
+    // before their first await: a sign-out that completes entirely during a
+    // slow read must be able to invalidate this restore when it resumes.
+    final generation = _generation;
     final stored = await _tokens.read();
+    if (!_isCurrent(generation)) {
+      // Superseded while the stored token was being read. Whatever ended
+      // this epoch already decided state and storage; do not touch either.
+      return;
+    }
     if (stored == null) {
       // Web, or a first run. Never emit AuthRestoring: the router would hold
       // on a splash for a state this platform can never leave.
@@ -128,9 +173,9 @@ class SessionManager {
     // Bypasses the refresh() single-flight guard, but only restore() runs
     // during AuthRestoring and refresh() no-ops while signed out/restoring,
     // so no second concurrent exchange can start here today. It still shares
-    // the generation guard, so a sign-out or sign-in racing boot cannot be
-    // undone by a stale restore landing late.
-    await _exchange(stored, _generation);
+    // the generation guard below, so a sign-out or sign-in racing boot cannot
+    // be undone by a stale restore landing late.
+    await _exchange(stored, generation);
   }
 
   /// Renews the session. Concurrent callers share one transport call.
@@ -169,11 +214,11 @@ class SessionManager {
       AuthSignedIn(:final session) => session.refreshToken,
       _ => null,
     };
-    // A new epoch, struck before anything async: any refresh (or sign-in)
-    // already in flight belongs to an ended epoch and must not be able to
-    // resurrect this session when it completes. Abandon the in-flight future
-    // too, so a later refresh() starts fresh rather than awaiting one that
-    // can never help it.
+    // A new epoch, struck before anything async: any refresh, restore or
+    // sign-in already in flight belongs to an ended epoch and must not be
+    // able to resurrect this session when it completes. Abandon the
+    // in-flight refresh future too, so a later refresh() starts fresh rather
+    // than awaiting one that can never help it.
     _generation++;
     _inFlightRefresh = null;
     _emit(const AuthSignedOut());
@@ -192,7 +237,7 @@ class SessionManager {
     }
     if (result case Err()) {
       await _tokens.clear();
-      _emit(const AuthSignedOut());
+      _emitIfCurrent(generation, const AuthSignedOut());
       return null;
     }
     final adopted = await _adopt(
@@ -206,23 +251,32 @@ class SessionManager {
   /// whose roles are unmappable must NOT become a signed-in user with an empty
   /// scope - that is exactly the silent narrowing scope_claims prevents.
   ///
-  /// Also rejects if [generation] is no longer current: this call may be
-  /// resuming after a sign-out or a newer sign-in already moved the session
-  /// on, and adopting now would resurrect an abandoned session or re-persist
-  /// a token a newer flow already replaced or cleared.
+  /// Also rejects if [generation] is no longer current at any point during
+  /// this call: it may be resuming after a sign-out or a newer sign-in
+  /// already moved the session on, and adopting now would resurrect an
+  /// abandoned session or re-persist a token a newer flow already replaced or
+  /// cleared. The persist step re-checks *after* its own await via
+  /// [_persistIfCurrent], because staleness can appear while that write is in
+  /// flight, not only before it starts.
   Future<Result<void>> _adopt(AuthTokens tokens, int generation) async {
     if (!_isCurrent(generation)) {
       return const Err(Failure(FailureKind.conflict));
     }
     final parsed = parseScopeClaims(tokens.claims);
     if (parsed case Err(:final failure)) {
-      await _tokens.clear();
-      _emit(const AuthSignedOut());
+      if (_isCurrent(generation)) {
+        await _tokens.clear();
+        _emitIfCurrent(generation, const AuthSignedOut());
+      }
       return Err(failure);
     }
     final claims = parsed.fold((c) => c, (_) => null)!;
-    await _tokens.persist(tokens.refreshToken);
-    _emit(
+    final persisted = await _persistIfCurrent(generation, tokens.refreshToken);
+    if (!persisted) {
+      return const Err(Failure(FailureKind.conflict));
+    }
+    _emitIfCurrent(
+      generation,
       AuthSignedIn(
         Session(
           userId: claims.userId,

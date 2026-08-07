@@ -1,10 +1,46 @@
 import 'dart:async';
 
 import 'package:acsl_campaign/core/auth/session_manager.dart';
+import 'package:acsl_campaign/core/auth/token_store.dart';
 import 'package:acsl_campaign/core/result/result.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/fake_auth.dart';
+
+/// [TokenStore] whose `persist` and `read` can each be held open via a
+/// [Completer], to reproduce an await wide enough to straddle a signOut() -
+/// e.g. a real Keystore write/read on mobile, not just a microtask sliver.
+/// [FakeTokenStore] in the support file has no such gate, so this stays
+/// local to the tests that specifically need one.
+class _GatedTokenStore implements TokenStore {
+  _GatedTokenStore([this.value]);
+
+  String? value;
+  Completer<void>? persistGate;
+  Completer<void>? readGate;
+
+  @override
+  Future<void> persist(String refreshToken) async {
+    if (persistGate != null) await persistGate!.future;
+    value = refreshToken;
+  }
+
+  @override
+  Future<String?> read() async {
+    // Snapshot before the gate, not after: a real Keystore read already
+    // fetched this value the moment it was called - a concurrent clear()
+    // that runs while we are slow to *return* it must not retroactively
+    // change what this call reports.
+    final snapshot = value;
+    if (readGate != null) await readGate!.future;
+    return snapshot;
+  }
+
+  @override
+  Future<void> clear() async {
+    value = null;
+  }
+}
 
 void main() {
   SessionManager build({
@@ -330,27 +366,98 @@ void main() {
       },
     );
 
+    test('a stale refresh whose network response arrives after a new sign-in '
+        'is rejected before it can clobber the new session (entry-check '
+        'coverage - see the persist-after-signOut test below for the deeper '
+        'in-flight-write window)', () async {
+      final service = ScriptedAuthService(
+        loginResults: [
+          Ok(testTokens()),
+          Ok(testTokens(access: 'access-2', refresh: 'refresh-2')),
+        ],
+      )..refreshGate = Completer<void>();
+      final manager = build(service: service, tokens: FakeTokenStore());
+      await manager.signIn('bob', 'pw');
+
+      final staleRefresh = manager.refresh();
+      await manager.signOut();
+      await manager.signIn('bob', 'pw');
+
+      service.refreshGate!.complete();
+      await staleRefresh;
+
+      expect(manager.state, isA<AuthSignedIn>());
+      expect((manager.state as AuthSignedIn).session.accessToken, 'access-2');
+      manager.dispose();
+    });
+
     test(
-      'a stale refresh from a previous session cannot clobber a new session',
+      'a persist landing after signOut cannot leave a stale token behind',
       () async {
-        final service = ScriptedAuthService(
-          loginResults: [
-            Ok(testTokens()),
-            Ok(testTokens(access: 'access-2', refresh: 'refresh-2')),
-          ],
-        )..refreshGate = Completer<void>();
-        final manager = build(service: service, tokens: FakeTokenStore());
+        // The narrower bug fix-round-1 left open: checking generation only at
+        // function entry misses staleness that appears *during* the persist
+        // write itself. On mobile that write is real Keystore I/O, wide
+        // enough for a signOut() to start and finish entirely while it is
+        // still in flight - which is exactly what this reproduces by gating
+        // persist() open.
+        final tokens = _GatedTokenStore();
+        final manager = SessionManager(
+          service: ScriptedAuthService(),
+          tokens: tokens,
+          now: () => kTestNow,
+        );
         await manager.signIn('bob', 'pw');
 
-        final staleRefresh = manager.refresh();
+        // Gate the NEXT persist - the one the pending refresh below will
+        // attempt - so it stays in flight while signOut runs.
+        tokens.persistGate = Completer<void>();
+
+        final pendingRefresh = manager.refresh();
+        await pumpEventQueue(); // let the refresh's network call resolve and _adopt reach the gated persist
         await manager.signOut();
-        await manager.signIn('bob', 'pw');
 
-        service.refreshGate!.complete();
-        await staleRefresh;
+        expect(manager.state, isA<AuthSignedOut>());
+        expect(tokens.value, isNull);
 
-        expect(manager.state, isA<AuthSignedIn>());
-        expect((manager.state as AuthSignedIn).session.accessToken, 'access-2');
+        tokens.persistGate!.complete();
+        await pendingRefresh;
+
+        // Assert again after the stale persist lands, not just after
+        // signOut - the entry-only check from fix round 1 passes this first
+        // assertion but fails this second one, because its write already
+        // landed in storage by the time it notices it is stale.
+        expect(manager.state, isA<AuthSignedOut>());
+        expect(tokens.value, isNull);
+        manager.dispose();
+      },
+    );
+
+    test(
+      'a signOut racing a slow boot restore leaves the user signed out',
+      () async {
+        // Gap 2 from code review: restore() used to capture its generation
+        // *after* awaiting the stored-token read, so a signOut() completing
+        // entirely during that read was already folded into the epoch
+        // restore captured, and nothing later invalidated it.
+        final tokens = _GatedTokenStore('stored-r')
+          ..readGate = Completer<void>();
+        final manager = SessionManager(
+          service: ScriptedAuthService(),
+          tokens: tokens,
+          now: () => kTestNow,
+        );
+
+        final pendingRestore = manager.restore();
+        await manager.signOut();
+
+        expect(manager.state, isA<AuthSignedOut>());
+        expect(tokens.value, isNull);
+
+        tokens.readGate!.complete();
+        await pendingRestore;
+
+        expect(manager.state, isA<AuthSignedOut>());
+        expect(tokens.value, isNull);
         manager.dispose();
       },
     );
