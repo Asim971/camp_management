@@ -63,10 +63,14 @@ void main() {
     expect(await db.select(db.auditEvents).get(), isEmpty);
   });
 
-  test('keeps rows and records the error when the send fails', () async {
+  test('keeps the row and advances attempts when the send is permanently '
+      'rejected', () async {
+    // validation is a permanent rejection: the server will reject this
+    // exact payload again no matter how many times it is resent, so this
+    // is the one case where `attempts` is meant to advance.
     await seed('a');
     final transport = _ScriptedTransport([
-      const Err(Failure(FailureKind.network, message: 'offline')),
+      const Err(Failure(FailureKind.validation, message: 'malformed event')),
     ]);
 
     await buildFlusher(transport).flush();
@@ -74,8 +78,76 @@ void main() {
     final rows = await db.select(db.auditEvents).get();
     expect(rows, hasLength(1));
     expect(rows.single.attempts, 1);
-    expect(rows.single.lastError, contains('offline'));
+    expect(rows.single.lastError, contains('malformed event'));
   });
+
+  test('a transient failure keeps the row deliverable and never advances '
+      'attempts', () async {
+    // network is transient - a bad signal in the field, not evidence the
+    // row itself is unacceptable. It must retry forever and must NEVER
+    // count toward `_maxAttempts`: conflating the two would let a five-
+    // minute outage permanently strand whichever batch was at the queue
+    // head when it started.
+    await seed('a');
+    final flaky = _ScriptedTransport(
+      List.generate(
+        12,
+        (_) => const Err(Failure(FailureKind.network, message: 'offline')),
+      ),
+    );
+    final flusher = buildFlusher(flaky, maxAttempts: 10);
+
+    // 12 failed ticks - more than `maxAttempts` - simulating an outage
+    // that outlasts the poison-pill threshold.
+    for (var i = 0; i < 12; i++) {
+      await flusher.flush();
+    }
+
+    final rows = await db.select(db.auditEvents).get();
+    expect(rows, hasLength(1));
+    expect(rows.single.attempts, 0);
+
+    // The row must still be in the flush window: once the network
+    // recovers, a succeeding transport actually delivers and removes it.
+    // This is the assertion that matters - `attempts == 0` alone would not
+    // prove the row is still reachable.
+    final recovered = _ScriptedTransport([const Ok(null)]);
+    await buildFlusher(recovered, maxAttempts: 10).flush();
+
+    expect(recovered.batches.single, hasLength(1));
+    expect(await db.select(db.auditEvents).get(), isEmpty);
+  });
+
+  test(
+    'repeated permanent rejection sets the row aside after maxAttempts',
+    () async {
+      await seed('a');
+      final rejecting = _ScriptedTransport(
+        List.generate(
+          10,
+          (_) => const Err(Failure(FailureKind.validation, message: 'bad row')),
+        ),
+      );
+      final flusher = buildFlusher(rejecting, maxAttempts: 10);
+
+      for (var i = 0; i < 10; i++) {
+        await flusher.flush();
+      }
+
+      final rows = await db.select(db.auditEvents).get();
+      expect(rows, hasLength(1));
+      expect(rows.single.attempts, 10);
+
+      // The row must now be excluded from the flush window - a later
+      // succeeding transport must not see it, even though it is never
+      // deleted.
+      final recovered = _ScriptedTransport([const Ok(null)]);
+      await buildFlusher(recovered, maxAttempts: 10).flush();
+
+      expect(recovered.batches, isEmpty);
+      expect(await db.select(db.auditEvents).get(), hasLength(1));
+    },
+  );
 
   test('never discards an event, however many attempts have failed', () async {
     // The sync engine gives up after maxRetries and tells the user. Audit must

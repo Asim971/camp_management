@@ -6,7 +6,6 @@ import 'package:uuid/uuid.dart';
 
 import '../result/result.dart';
 import '../storage/app_database.dart';
-import '../sync/backoff.dart';
 import 'audit.dart';
 import 'audit_transport.dart';
 
@@ -100,27 +99,23 @@ class DurableAuditSink implements AuditSink {
       );
 }
 
-/// Retry schedule for the audit buffer.
-///
-/// `maxRetries` is unused - the flusher has no give-up path - so the effective
-/// behaviour is exponential growth to a five-minute plateau, retried forever.
-const BackoffPolicy auditFlushPolicy = BackoffPolicy(
-  base: Duration(seconds: 2),
-  maxDelay: Duration(minutes: 5),
-);
-
 /// Drains the durable audit buffer to the server.
 ///
 /// Deliberately NOT built on [SyncEngine]: that discards a task after
 /// `maxRetries: 8` and surfaces a user-visible failure, which for a compliance
-/// record would be silent data loss. This shares the *policy* object, not the
-/// queue.
+/// record would be silent data loss.
+///
+/// Retry behaviour is a fixed-interval tick (plus an immediate flush whenever
+/// connectivity returns) — no exponential backoff. That is a deliberate
+/// simplification, not an oversight: unlike [SyncEngine], which backs off per
+/// task, every row here shares one queue and one send, so there is nothing to
+/// back off *per row*, and a flat interval keeps the "set aside after N
+/// **permanent** rejections" rule (below) easy to reason about.
 class AuditFlusher {
   AuditFlusher({
     required this._db,
     required this._transport,
     this._connectivity,
-    this._policy = auditFlushPolicy,
     this._interval = const Duration(seconds: 30),
     this._batchSize = 20,
     this._maxAttempts = 10,
@@ -130,13 +125,15 @@ class AuditFlusher {
   final AppDatabase _db;
   final AuditTransport _transport;
   final Stream<bool>? _connectivity;
-  final BackoffPolicy _policy;
   final Duration _interval;
   final int _batchSize;
 
-  /// Attempts after which a row is set aside. It is skipped, never deleted: a
-  /// permanently rejected event would otherwise stall every later event, since
-  /// the queue is strictly FIFO by `seq`.
+  /// Threshold of *permanent-rejection* attempts past which a row is set
+  /// aside. Only failures whose [FailureKind] means the server will reject
+  /// this exact row again - never a transient outage - count toward it; see
+  /// [_isPermanentRejection]. It is skipped, never deleted: a permanently
+  /// rejected event would otherwise stall every later event, since the queue
+  /// is strictly FIFO by `seq`.
   final int _maxAttempts;
 
   final int _highWaterMark;
@@ -149,14 +146,7 @@ class AuditFlusher {
   bool _disposed = false;
 
   void start() {
-    // The configured interval never outlives the policy's plateau: if a
-    // caller passes an interval longer than `_policy.maxDelay`, an offline
-    // stretch would otherwise wait past the point the backoff schedule
-    // itself considers "as slow as this ever gets".
-    final effectiveInterval = _interval < _policy.maxDelay
-        ? _interval
-        : _policy.maxDelay;
-    _timer ??= Timer.periodic(effectiveInterval, (_) => unawaited(flush()));
+    _timer ??= Timer.periodic(_interval, (_) => unawaited(flush()));
     _connectivitySub ??= _connectivity?.listen((online) {
       if (online) unawaited(flush());
     });
@@ -191,12 +181,20 @@ class AuditFlusher {
     final result = await _transport.send(rows.map(_toPayload).toList());
 
     if (result case Err(:final failure)) {
+      // `lastError` is recorded either way - it is diagnostic, not the
+      // poison-pill signal - but `attempts` only advances for a permanent
+      // rejection. A network blip must retry forever, exactly like every
+      // other row; only a rejection that will recur no matter how many times
+      // this batch is resent should ever count toward `_maxAttempts`.
+      final permanent = _isPermanentRejection(failure.kind);
       await _db.batch((b) {
         for (final row in rows) {
           b.update(
             _db.auditEvents,
             AuditEventsCompanion(
-              attempts: Value(row.attempts + 1),
+              attempts: permanent
+                  ? Value(row.attempts + 1)
+                  : const Value.absent(),
               lastError: Value(failure.message ?? failure.kind.name),
             ),
             where: (t) => t.seq.equals(row.seq),
@@ -235,6 +233,25 @@ class AuditFlusher {
       'the server. Events are retained, not dropped.',
     );
   }
+
+  /// Whether [kind] means the server will reject this exact row again no
+  /// matter how many times it is resent, as opposed to a transient or
+  /// server-side condition that has nothing to do with the row's content.
+  /// Only the former should ever advance `attempts` - conflating the two
+  /// would let a five-minute network outage permanently strand whichever
+  /// batch happened to be at the head of the queue when it started.
+  bool _isPermanentRejection(FailureKind kind) => switch (kind) {
+    FailureKind.validation ||
+    FailureKind.notFound ||
+    FailureKind.forbidden ||
+    FailureKind.unauthorized => true,
+    FailureKind.network ||
+    FailureKind.timeout ||
+    FailureKind.server ||
+    FailureKind.unknown ||
+    FailureKind.conflict ||
+    FailureKind.offlineQueued => false,
+  };
 
   /// The action string passes through verbatim - never round-tripped through
   /// [AuditAction]. A row written by a build with actions this one lacks (an
