@@ -7,22 +7,24 @@ name: goldens
 # so a pull request can never make CI commit on its behalf.
 on:
   workflow_dispatch:
-  # TEMPORARY, removed in the commit that lands the baselines. `workflow_dispatch`
-  # is only exposed for workflows that exist on the default branch, and `main`
-  # has no `.github/` at all yet -- so the first baselines cannot be produced by
-  # dispatch. Once `.github/` reaches `main`, dispatch works and both blocks below
-  # must go: an automatic `--update-goldens` would silently regenerate baselines
-  # on every commit, which defeats the entire point of having them.
+  # `workflow_dispatch` alone is not yet enough: GitHub only exposes it for
+  # workflows that exist on the **default branch**, and `main` still holds
+  # nothing but README.md. Until `.github/` reaches `main`, dispatch 404s
+  # ("workflow goldens.yml not found on the default branch") and the triggers
+  # below are the only way to run this job.
   #
-  # The `push` block was added first and never fired -- GitHub never registered
-  # this workflow at all (`gh workflow list` shows only CI and Copilot, and the
-  # API 404s on goldens.yml "not found on the default branch"). `pull_request` is
-  # the trigger that demonstrably does work on this branch, since it is how the
-  # CI workflow runs here. Both are kept until baselines actually land.
+  # The `push` block was tried first and never fired -- GitHub did not register
+  # this workflow at all, so it produced no runs. `pull_request` is the trigger
+  # that demonstrably works on this branch, since it is how CI runs here; adding
+  # it is what finally generated the baselines.
   #
-  # Both are scoped by `paths` to this file, so they are self-limiting: the job
-  # can only fire on a commit that edits the workflow itself, never on ordinary
-  # product changes.
+  # REMOVE BOTH once `.github/` is on `main` and dispatch works. Not before:
+  # deleting them now would leave no way to regenerate a baseline at all.
+  #
+  # Both are scoped by `paths` to this file, which is what keeps an automatic
+  # `--update-goldens` from being dangerous -- the job can only fire on a commit
+  # that edits this workflow, never on ordinary product changes, and it uploads
+  # an artifact for a human to commit rather than writing to the repository.
   push:
     branches: [feat/campaign-management-flutter-scaffold]
     paths:
