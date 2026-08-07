@@ -1,8 +1,10 @@
+import 'package:acsl_campaign/core/auth/session_manager.dart';
 import 'package:acsl_campaign/core/auth/token_store.dart';
 import 'package:acsl_campaign/core/storage/secure_store.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../support/fake_auth.dart';
 import '../../support/in_memory_secure_store.dart';
 
 void main() {
@@ -47,6 +49,59 @@ void main() {
       );
 
       expect(await store.read(), isNull);
+    });
+
+    test('persist swallows a write failure instead of throwing', () async {
+      // I2: an unguarded write escaping persist() propagates through
+      // main()'s awaited restore() -> SessionManager._adopt before runApp
+      // ever runs, permanently blanking the app. The correct failure
+      // direction is "sign-in works, the session just won't survive a
+      // restart" - not a crash.
+      final store = MobileTokenStore(
+        ThrowingSecureStore(
+          PlatformException(code: 'keystore_unavailable'),
+          throwOnRead: false,
+          throwOnWrite: true,
+        ),
+      );
+
+      await expectLater(store.persist('r-1'), completes);
+    });
+
+    test('clear swallows a delete failure instead of throwing', () async {
+      // Same direction as persist(): signOut() must complete locally even if
+      // the keystore delete fails, or AuthInterceptor.onError parks forever
+      // inside QueuedInterceptor's exclusive error queue.
+      final store = MobileTokenStore(
+        ThrowingSecureStore(
+          PlatformException(code: 'keystore_unavailable'),
+          throwOnRead: false,
+          throwOnDelete: true,
+        ),
+      );
+
+      await expectLater(store.clear(), completes);
+    });
+
+    test('a SessionManager sign-in still succeeds against a store whose writes '
+        'fail', () async {
+      final store = MobileTokenStore(
+        ThrowingSecureStore(
+          PlatformException(code: 'keystore_unavailable'),
+          throwOnRead: false,
+          throwOnWrite: true,
+        ),
+      );
+      final manager = SessionManager(
+        service: ScriptedAuthService(),
+        tokens: store,
+      );
+
+      final result = await manager.signIn('bob', 'pw');
+
+      expect(result.isOk, isTrue);
+      expect(manager.state, isA<AuthSignedIn>());
+      manager.dispose();
     });
   });
 

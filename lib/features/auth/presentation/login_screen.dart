@@ -63,14 +63,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _error = null;
     });
 
-    final result = await ref
-        .read(sessionManagerProvider)
-        .signIn(username, password);
+    String? error;
+    try {
+      final result = await ref
+          .read(sessionManagerProvider)
+          .signIn(username, password);
+      error = result.fold((_) => null, loginErrorMessage);
+    } catch (_) {
+      // A throw here (e.g. a keystore fault persisting the new session) must
+      // not leave _busy stuck true and the button spinning forever with no
+      // way out - falling through to the setState below is what un-wedges it.
+      error = 'Sign-in could not be completed. Try again.';
+    }
 
     if (!mounted) return;
     setState(() {
       _busy = false;
-      _error = result.fold((_) => null, loginErrorMessage);
+      _error = error;
     });
   }
 

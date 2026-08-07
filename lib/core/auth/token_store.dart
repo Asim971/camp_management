@@ -24,8 +24,22 @@ class MobileTokenStore implements TokenStore {
   final SecureStore _store;
 
   @override
-  Future<void> persist(String refreshToken) =>
-      _store.write(SecureStoreKeys.refreshTokenV1, refreshToken);
+  Future<void> persist(String refreshToken) async {
+    try {
+      await _store.write(SecureStoreKeys.refreshTokenV1, refreshToken);
+    } catch (error) {
+      // A keystore fault here must fail in the direction of "sign-in still
+      // works, the session just won't survive a restart" - not propagate up
+      // through SessionManager._adopt and main()'s awaited restore(), which
+      // would take down startup before runApp ever runs, or through
+      // LoginScreen._submit, which would leave the Sign in button spinning
+      // forever with _busy stuck true.
+      debugPrint(
+        'Refresh token could not be persisted ($error). '
+        'The session will not survive a restart.',
+      );
+    }
+  }
 
   @override
   Future<String?> read() async {
@@ -40,7 +54,17 @@ class MobileTokenStore implements TokenStore {
   }
 
   @override
-  Future<void> clear() => _store.delete(SecureStoreKeys.refreshTokenV1);
+  Future<void> clear() async {
+    try {
+      await _store.delete(SecureStoreKeys.refreshTokenV1);
+    } catch (error) {
+      // Same direction as persist(): signOut() must complete locally even if
+      // the underlying keystore write fails, or a wedged store leaves
+      // AuthInterceptor.onError parked forever inside QueuedInterceptor's
+      // exclusive error queue.
+      debugPrint('Refresh token could not be cleared ($error).');
+    }
+  }
 }
 
 /// Deliberate no-op store for web.
