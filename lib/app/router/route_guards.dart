@@ -15,8 +15,11 @@ class RouteGuards {
   /// [fullPath] is the matched route TEMPLATE (`GoRouterState.fullPath`), not
   /// the concrete location: `/campaigns/:id/approve` cannot be compared to
   /// `/campaigns/CMP-1/approve` by equality, and matching on the template is
-  /// what removes the need for prefix matching. [location] is carried only so
-  /// an unauthenticated caller's intended destination can be preserved.
+  /// what removes the need for prefix matching. [location] is the concrete
+  /// destination the caller was actually headed to - it is encoded onto the
+  /// `/login` redirect below as `?from=` so an unauthenticated caller's
+  /// intended destination survives the round trip through sign-in, instead
+  /// of being dropped on the floor.
   String? evaluate({
     required AuthState auth,
     required String? fullPath,
@@ -40,7 +43,12 @@ class RouteGuards {
 
     if (auth is! AuthSignedIn) {
       if (fullPath == loginPath) return null;
-      return loginPath;
+      // Carry the intended destination through the query string, so the
+      // Public branch above can hand it to redirectTargetAfterSignIn once
+      // this caller signs in - without this, [location] arrived at this
+      // method and went nowhere, and a deep link into a permitted route
+      // always landed home after sign-in instead of where it was headed.
+      return '$loginPath?from=${Uri.encodeComponent(location)}';
     }
 
     // Undeclared route: fail CLOSED. Allowing it would undo the whole point of

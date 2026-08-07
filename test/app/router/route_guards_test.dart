@@ -23,14 +23,28 @@ void main() {
   );
 
   group('unauthenticated', () {
-    test('a protected route redirects to /login', () {
+    test('a protected route redirects to /login, carrying it as ?from=', () {
+      // Without this, an unauthenticated deep link into a permitted route
+      // always lands home after sign-in instead of where it was headed -
+      // [location] arrived at evaluate() and went nowhere.
       expect(
         guards.evaluate(
           auth: const AuthSignedOut(),
           fullPath: '/campaigns',
           location: '/campaigns',
         ),
-        '/login',
+        '/login?from=%2Fcampaigns',
+      );
+    });
+
+    test('the intended location is percent-encoded onto ?from=', () {
+      expect(
+        guards.evaluate(
+          auth: const AuthSignedOut(),
+          fullPath: '/campaigns/:id',
+          location: '/campaigns/CMP-1',
+        ),
+        '/login?from=%2Fcampaigns%2FCMP-1',
       );
     });
 
