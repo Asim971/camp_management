@@ -3479,7 +3479,7 @@ grep -rn "router/app_router.dart" lib test | grep -v "lib/app/app.dart"
 
 Every remaining hit must genuinely need `routerProvider` or `registeredRoutePaths`, not `authStateProvider`.
 
-- [ ] **Step 5: Restore the session at boot**
+- [ ] **Step 5: Restore the session at boot, and repair the E2E auto-sign-in**
 
 In `lib/main.dart`, after the E2E seeding block and before `runApp`:
 
@@ -3488,7 +3488,37 @@ In `lib/main.dart`, after the E2E seeding block and before `runApp`:
   // sees AuthRestoring rather than AuthSignedOut and does not flash the login
   // screen on a mobile cold start that has a valid session.
   await container.read(sessionManagerProvider).restore();
+
+  // E2E signs in for real against FakeAuthService rather than being handed a
+  // pre-built Session, so Maestro drives the same SessionManager path
+  // production does. Awaited, not fire-and-forget: the router evaluates its
+  // redirect on the first frame, and an unawaited sign-in would race it and
+  // land the run on /login.
+  if (config.e2e) {
+    await container.read(sessionManagerProvider).signIn(config.e2eRole, 'e2e');
+  }
 ```
+
+**This step is a required acceptance criterion for Task 9, not an optional extra.** Task 6 deleted `buildE2ESession` and with it the `config.e2e` branch in `AuthController.build()`, which used to start an E2E run already authenticated. Nothing has replaced it: `config.e2eRole` currently feeds only `authServiceProvider`, and **nothing calls `signIn()`**. So as of Task 6, an E2E run lands on `/login` instead of `/dev`.
+
+Two reasons this needs closing here rather than being left to whoever notices:
+
+- `TESTING_MAESTRO.md` §3.2 still documents auto-authentication as working behaviour, and `.maestro/subflows/launch_as_field_user.yaml` and `launch_as_crm.yaml` both `launchApp` and then immediately `assertVisible: dev_launcher` with no login step. Those files are currently **false**.
+- CI has no `e2e` job (`TASK_BREAKDOWN.md` T-0.1.4 records that Maestro/emulator E2E was cancelled, not deferred), so nothing catches it. It surfaces only on a manual local Maestro run.
+
+Signing in at the composition root is preferable to making Maestro drive the login UI: login is not one of the eight target journeys, and routing every shared subflow through a UI login adds latency and flakiness to unrelated flows for no coverage gain. `FakeAuthService` ignores the credentials, so `config.e2eRole` as the username is just a readable way to pass the role through.
+
+- [ ] **Step 5b: Verify the E2E path actually authenticates**
+
+There is no automated coverage for this, so check it directly:
+
+```bash
+flutter run -d chrome --dart-define=E2E=true --dart-define=ROLE=crm_verifier --dart-define=API_BASE_URL=http://localhost:8080
+```
+
+Expected: the app opens on `/dev` (the dev launcher), **not** `/login`. If it lands on `/login`, the sign-in above is either not awaited or not reached — do not proceed to Step 6 until `/dev` renders.
+
+If a browser is unavailable in your environment, say so in your report rather than claiming the check passed, and instead assert it with a widget test that pumps the app with `E2E=true` and confirms `authStateProvider` reaches `AuthSignedIn`.
 
 - [ ] **Step 6: Run the test to verify it passes**
 
