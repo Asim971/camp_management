@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/shell/app_shell.dart';
 import '../../../core/design_system/bmd_button.dart';
 import '../../../core/design_system/bmd_field.dart';
 import '../../../core/design_system/status_chip.dart';
-import '../../../core/responsive/adaptive_scaffold.dart';
 import '../../../core/responsive/breakpoints.dart';
 import '../../../domain/campaign/campaign.dart';
 import '../../../domain/campaign/campaign_repository.dart';
@@ -23,9 +23,9 @@ class CampaignApprovalScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(approvalControllerProvider(campaignId));
 
-    return AdaptiveScaffold(
+    return AppShell(
       title: 'Campaign approval',
-      selectedIndex: 1,
+      breadcrumb: const ['Campaigns'],
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, __) => Center(

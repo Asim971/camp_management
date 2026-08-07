@@ -2,9 +2,11 @@ import 'package:dio/dio.dart';
 
 /// Attaches the bearer token and transparently refreshes on 401.
 ///
-/// Contract dependency 🔒: refresh endpoint + token rotation semantics
-/// (Task T-0.4.1). Until the auth service contract is confirmed, [refreshToken]
-/// is a seam that throws so it is not silently a no-op.
+/// [refreshToken] and the token read/clear it triggers are injected rather
+/// than implemented here: `providers.dart` wires them to
+/// `SessionManager.refresh`/`.signOut`, so a 401 renews the session through
+/// the same single-flight path a proactive refresh uses, instead of this
+/// class owning a second lifecycle of its own.
 ///
 /// [replay] re-issues the original request after a successful refresh. It is
 /// injected rather than constructed here because a fresh `Dio()` carries no

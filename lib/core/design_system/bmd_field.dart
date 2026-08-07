@@ -23,6 +23,7 @@ class BmdField extends StatelessWidget {
     this.keyboardType,
     this.enabled = true,
     this.required = false,
+    this.obscureText = false,
     this.maxLines = 1,
     this.minLines = 1,
     this.identifier,
@@ -49,6 +50,7 @@ class BmdField extends StatelessWidget {
     this.onChanged,
     super.key,
   }) : keyboardType = TextInputType.multiline,
+       obscureText = false,
        maskedValue = null,
        onReveal = null;
 
@@ -75,6 +77,7 @@ class BmdField extends StatelessWidget {
        keyboardType = null,
        enabled = true,
        required = false,
+       obscureText = false,
        maxLines = 1,
        minLines = 1,
        onChanged = null;
@@ -95,6 +98,10 @@ class BmdField extends StatelessWidget {
   final TextInputType? keyboardType;
   final bool enabled;
   final bool required;
+
+  /// Masks typed input (passwords). Distinct from [BmdField.masked], which
+  /// reveals a stored value on demand rather than hiding what is being typed.
+  final bool obscureText;
   final int maxLines;
   final int minLines;
 
@@ -138,6 +145,7 @@ class BmdField extends StatelessWidget {
       initialValue: controller == null ? initialValue : null,
       enabled: enabled,
       keyboardType: keyboardType,
+      obscureText: obscureText,
       minLines: minLines,
       maxLines: maxLines,
       onChanged: onChanged,

@@ -218,7 +218,70 @@ Router _buildRouter(_Store store) {
     );
   });
 
+  // ---- Auth (🔒 contract-pending shapes) ----------------------------------
+  // Role is taken from the username so E2E can sign in as each role:
+  // "crm_verifier", "campaign_creator", "admin", anything else -> field user.
+  r.post('/auth/login', (Request req) async {
+    final body = await _body(req);
+    final username = (body['username'] as String?) ?? 'field_user';
+    final password = (body['password'] as String?) ?? '';
+    if (password.isEmpty) {
+      return _json({'error': 'invalid credentials'}, status: 401);
+    }
+    return _json(_authPayload(username));
+  });
+
+  r.post('/auth/refresh', (Request req) async {
+    final body = await _body(req);
+    final token = (body['refreshToken'] as String?) ?? '';
+    if (token.isEmpty || token == 'expired') {
+      return _json({'error': 'invalid refresh token'}, status: 401);
+    }
+    // Rotate: a new refresh token each time, so the client's single-flight
+    // guard is exercised against realistic rotation.
+    return _json(_authPayload(token.replaceFirst('refresh-for-', '')));
+  });
+
+  r.post('/auth/logout', (Request req) async {
+    await _body(req);
+    return Response(204);
+  });
+
   return r;
+}
+
+Map<String, dynamic> _authPayload(String username) {
+  final roles = <String, List<String>>{
+    'crm_verifier': ['verification_decide', 'sensitive_media_view'],
+    'campaign_creator': ['campaign_create', 'bulk_import', 'export'],
+    'admin': [
+      'campaign_create',
+      'campaign_approve',
+      'campaign_cancel',
+      'bulk_import',
+      'attendance_capture',
+      'verification_decide',
+      'verification_override',
+      'sensitive_media_view',
+      'nid_reveal',
+      'config_manage',
+      'export',
+    ],
+  };
+  final role = roles.containsKey(username) ? username : 'field_user';
+  return {
+    'accessToken': 'mock-access-$role',
+    'refreshToken': 'refresh-for-$role',
+    'expiresInSeconds': 900,
+    'claims': {
+      'userId': 'mock-$role',
+      'displayName': 'Mock $role',
+      'organizationId': 'ORG_MOCK',
+      'roles': [role],
+      'permissions': roles[role] ?? ['attendance_capture'],
+      'territoryIds': <String>[],
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------

@@ -6,6 +6,10 @@ abstract final class SecureStoreKeys {
   /// NEVER rename. Renaming abandons any key already present on a device, and
   /// with it the ability to decrypt evidence encrypted under that key.
   static const String evidenceAesKeyV1 = 'evidence_aes_key_v1';
+
+  /// NEVER rename. Same rule as [evidenceAesKeyV1]: a rename abandons the key
+  /// already on every installed device, silently signing all of them out.
+  static const String refreshTokenV1 = 'auth_refresh_token_v1';
 }
 
 /// Platform-backed secret storage (Keystore on Android, Keychain on iOS).

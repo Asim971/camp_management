@@ -2,6 +2,7 @@ import 'package:acsl_campaign/app/theme/bmd_theme.dart';
 import 'package:acsl_campaign/app/theme/tokens.dart';
 import 'package:acsl_campaign/core/design_system/bmd_cards.dart';
 import 'package:acsl_campaign/core/design_system/bmd_feedback.dart';
+import 'package:acsl_campaign/core/design_system/bmd_field.dart';
 import 'package:acsl_campaign/core/design_system/lineage_rail.dart';
 import 'package:acsl_campaign/core/design_system/status_chip.dart';
 import 'package:acsl_campaign/domain/common/status.dart';
@@ -252,6 +253,23 @@ void main() {
       // Source and freshness are on the card, not in a tooltip — the card is
       // what gets screenshotted into a deck.
       expect(find.text('verification facts · refreshed 09:42'), findsOneWidget);
+    });
+  });
+
+  group('BmdField', () {
+    testWidgets('BmdField.obscureText masks typed input', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(body: BmdField(label: 'Password', obscureText: true)),
+        ),
+      );
+
+      // TextFormField's own `obscureText` constructor parameter is forwarded
+      // straight into its internal TextField/EditableText builder rather than
+      // stored as a readable field on TextFormField itself, so the assertion
+      // has to reach the concrete EditableText that actually renders it.
+      final field = tester.widget<EditableText>(find.byType(EditableText));
+      expect(field.obscureText, isTrue);
     });
   });
 

@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/shell/app_shell.dart';
 import '../../../app/theme/tokens.dart';
 import '../../../core/design_system/bmd_button.dart';
 import '../../../core/design_system/bmd_field.dart';
-import '../../../core/responsive/adaptive_scaffold.dart';
 import '../application/wizard_controller.dart';
 
 /// Create/Edit Campaign Wizard (W-03). Five steps with a persistent draft save
@@ -33,9 +33,9 @@ class CampaignWizardScreen extends ConsumerWidget {
         ? state.draft.validate(state.step)
         : const <String>[];
 
-    return AdaptiveScaffold(
+    return AppShell(
       title: 'Create campaign',
-      selectedIndex: 1,
+      breadcrumb: const ['Campaigns'],
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

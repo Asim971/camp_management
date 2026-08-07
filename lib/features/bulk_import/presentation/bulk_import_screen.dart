@@ -2,11 +2,11 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/shell/app_shell.dart';
 import '../../../app/theme/tokens.dart';
 import '../../../core/design_system/bmd_button.dart';
 import '../../../core/design_system/bmd_data_table.dart';
 import '../../../core/design_system/status_chip.dart';
-import '../../../core/responsive/adaptive_scaffold.dart';
 import '../../../domain/common/status.dart';
 import '../../../domain/import/import_job.dart';
 import '../application/import_controller.dart';
@@ -23,9 +23,9 @@ class BulkImportScreen extends ConsumerWidget {
     final state = ref.watch(importControllerProvider(campaignId));
     final c = ref.read(importControllerProvider(campaignId).notifier);
 
-    return AdaptiveScaffold(
+    return AppShell(
       title: 'Bulk import',
-      selectedIndex: 1,
+      breadcrumb: const ['Campaigns'],
       body: ListView(
         children: [
           _UploadPanel(

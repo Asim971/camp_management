@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/shell/app_shell.dart';
+import '../../../core/auth/permission_gate.dart';
+import '../../../core/auth/rbac.dart';
 import '../../../core/design_system/bmd_button.dart';
 import '../../../core/design_system/status_chip.dart';
-import '../../../core/responsive/adaptive_scaffold.dart';
 import '../../../domain/common/status.dart';
 import '../../../domain/session/campaign_session.dart';
 import '../application/campaign_detail_controller.dart';
@@ -21,9 +23,8 @@ class CampaignDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(campaignDetailProvider(campaignId));
 
-    return AdaptiveScaffold(
+    return AppShell(
       title: 'Campaign detail',
-      selectedIndex: 1,
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, __) => Center(
@@ -88,15 +89,25 @@ class _Header extends StatelessWidget {
           const SizedBox(width: 12),
           // Contextual primary next action.
           if (c.status == CampaignStatus.pendingApproval)
-            BmdButton(
+            PermissionGate.disabled(
+              Permission.campaignApprove,
+              reason: 'Only a Marketing Approver can approve this campaign.',
               label: 'Review approval',
-              onPressed: () => context.go('/campaigns/$campaignId/approve'),
+              child: BmdButton(
+                label: 'Review approval',
+                onPressed: () => context.go('/campaigns/$campaignId/approve'),
+              ),
             )
           else if (c.status == CampaignStatus.approved ||
               c.status == CampaignStatus.active)
-            BmdButton(
+            PermissionGate.disabled(
+              Permission.campaignCreate,
+              reason: 'Only a Campaign Creator can add registrations.',
               label: 'Add registrations',
-              onPressed: () => context.go('/campaigns/$campaignId/register'),
+              child: BmdButton(
+                label: 'Add registrations',
+                onPressed: () => context.go('/campaigns/$campaignId/register'),
+              ),
             ),
         ],
       ),
@@ -253,9 +264,14 @@ class _RegistrationsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: BmdButton(
+      child: PermissionGate.disabled(
+        Permission.campaignCreate,
+        reason: 'Only a Campaign Creator can open the registration workspace.',
         label: 'Open registration workspace',
-        onPressed: () => context.go('/campaigns/$campaignId/register'),
+        child: BmdButton(
+          label: 'Open registration workspace',
+          onPressed: () => context.go('/campaigns/$campaignId/register'),
+        ),
       ),
     );
   }

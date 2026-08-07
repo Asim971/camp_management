@@ -1,13 +1,53 @@
 import 'dart:typed_data';
 
+import 'package:acsl_campaign/app/di/providers.dart';
+import 'package:acsl_campaign/core/auth/rbac.dart';
+import 'package:acsl_campaign/core/auth/session.dart';
+import 'package:acsl_campaign/core/auth/session_manager.dart';
 import 'package:acsl_campaign/features/bulk_import/application/import_controller.dart';
 import 'package:acsl_campaign/features/bulk_import/presentation/bulk_import_screen.dart';
 import 'package:file_selector_platform_interface/file_selector_platform_interface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 
 import '../support/single_primary.dart';
+
+/// A signed-in user holding the permission bulk import itself requires.
+/// AppShell (which BulkImportScreen now renders through) reads
+/// [authStateProvider] for its destinations and account menu.
+AuthState _signedInImporter() => AuthSignedIn(
+  Session(
+    userId: 'u-importer',
+    displayName: 'Test Importer',
+    scope: const AccessScope(
+      roles: {AppRole.campaignCreator},
+      permissions: {Permission.bulkImport},
+      organizationId: 'ORG_1',
+    ),
+    accessToken: 'a',
+    refreshToken: 'r',
+    expiresAt: DateTime.now().add(const Duration(hours: 1)),
+  ),
+);
+
+/// AppShell derives the selected nav index from GoRouterState.of(context),
+/// which requires the widget under test to be built by an actual GoRouter
+/// route rather than a bare MaterialApp(home: ...).
+Widget _wrapInRouter(String campaignId) {
+  final router = GoRouter(
+    initialLocation: '/campaigns/$campaignId/import',
+    routes: [
+      GoRoute(
+        path: '/campaigns/:id/import',
+        builder: (_, state) =>
+            BulkImportScreen(campaignId: state.pathParameters['id']!),
+      ),
+    ],
+  );
+  return MaterialApp.router(routerConfig: router);
+}
 
 /// Fakes the platform file dialog so the widget test never touches a real
 /// OS picker — it hands back a canned in-memory [XFile], the same seam
@@ -55,6 +95,7 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           importControllerProvider.overrideWith(_FakeImportController.new),
+          authStateProvider.overrideWith((ref) => _signedInImporter()),
         ],
       );
       addTearDown(container.dispose);
@@ -62,9 +103,7 @@ void main() {
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
-          child: const MaterialApp(
-            home: BulkImportScreen(campaignId: campaignId),
-          ),
+          child: _wrapInRouter(campaignId),
         ),
       );
       await tester.pumpAndSettle();
@@ -106,6 +145,7 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           importControllerProvider.overrideWith(_FakeImportController.new),
+          authStateProvider.overrideWith((ref) => _signedInImporter()),
         ],
       );
       addTearDown(container.dispose);
@@ -113,9 +153,7 @@ void main() {
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
-          child: const MaterialApp(
-            home: BulkImportScreen(campaignId: campaignId),
-          ),
+          child: _wrapInRouter(campaignId),
         ),
       );
       await tester.pumpAndSettle();

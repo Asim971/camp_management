@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/shell/app_shell.dart';
 import '../../../app/theme/tokens.dart';
 import '../../../core/design_system/bmd_button.dart';
 import '../../../core/design_system/bmd_field.dart';
 import '../../../core/design_system/bmd_overlays.dart';
 import '../../../core/design_system/status_chip.dart';
-import '../../../core/responsive/adaptive_scaffold.dart';
 import '../../../core/responsive/breakpoints.dart';
 import '../../../domain/common/status.dart';
 import '../application/registration_controller.dart';
@@ -35,9 +35,9 @@ class RegistrationWorkspaceScreen extends ConsumerWidget {
     final search = _SearchPanel(campaignId: campaignId, state: state);
     final basket = _BasketPanel(campaignId: campaignId, state: state);
 
-    return AdaptiveScaffold(
+    return AppShell(
       title: 'Registration',
-      selectedIndex: 1,
+      breadcrumb: const ['Campaigns'],
       body: Breakpoint.of(context).isDesktopUp
           ? Row(
               crossAxisAlignment: CrossAxisAlignment.start,

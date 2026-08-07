@@ -7,8 +7,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/audit/audit.dart';
 import '../../core/audit/audit_emitter.dart';
 import '../../core/audit/audit_transport.dart';
+import '../../core/auth/auth_service.dart';
 import '../../core/auth/e2e_session.dart';
-import '../../core/auth/session.dart';
+import '../../core/auth/session_manager.dart';
+import '../../core/auth/token_store.dart';
 import '../../core/media/capture_source.dart';
 import '../../core/media/evidence_store.dart';
 import '../../core/media/face_quality.dart';
@@ -41,27 +43,63 @@ final appConfigProvider = Provider<AppConfig>(
   (ref) => AppConfig.fromEnvironment(),
 );
 
-/// Authenticated session (null == signed out). The router watches this.
-class AuthController extends Notifier<Session?> {
-  @override
-  Session? build() {
-    final config = ref.read(appConfigProvider);
-    if (config.e2e) return buildE2ESession(config.e2eRole); // test-only
-    return null;
-  }
+/// 🔒 Contract-pending: swapped for [FakeAuthService] under E2E so Maestro
+/// signs in through the same [SessionManager] path production does, instead
+/// of bypassing it with a pre-built [Session].
+///
+/// Explicitly typed (`Provider<AuthService> authServiceProvider = ...` rather
+/// than `final authServiceProvider = ...`): this provider, [dioProvider],
+/// [sessionManagerProvider] and [authStateProvider] reference each other in a
+/// cycle (`authServiceProvider` -> `dioProvider` -> `authStateProvider` ->
+/// `sessionManagerProvider` -> `authServiceProvider`). The cycle itself is
+/// harmless at runtime because every cross-reference inside `dioProvider`'s
+/// `AuthInterceptor` callbacks is a lazy closure that runs per request, long
+/// after all four providers are built - but without an explicit type on each
+/// variable, the analyzer has to *infer* each one's type from its initializer
+/// before it can check the others, and inference itself cannot go around a
+/// cycle. An explicit type breaks that compile-time cycle without changing
+/// the (lazy, safe) runtime one.
+final Provider<AuthService> authServiceProvider = Provider<AuthService>((ref) {
+  final config = ref.watch(appConfigProvider);
+  // E2E signs in through a fake transport rather than skipping the lifecycle,
+  // so Maestro exercises the same SessionManager path production does.
+  if (config.e2e) return FakeAuthService(config.e2eRole);
+  return DioAuthService(ref.watch(dioProvider));
+});
 
-  // ignore: use_setters_to_change_properties
-  void setSession(Session session) => state = session;
-  void clear() => state = null;
-
-  // TODO(T-0.4.1): wire login/refresh against the auth service contract.
-}
-
-final authControllerProvider = NotifierProvider<AuthController, Session?>(
-  AuthController.new,
+final Provider<TokenStore> tokenStoreProvider = Provider<TokenStore>(
+  (ref) => createTokenStore(ref.watch(secureStoreProvider)),
 );
 
-final dioProvider = Provider<Dio>((ref) {
+final Provider<SessionManager> sessionManagerProvider =
+    Provider<SessionManager>((ref) {
+      final manager = SessionManager(
+        service: ref.watch(authServiceProvider),
+        tokens: ref.watch(tokenStoreProvider),
+      );
+      ref.onDispose(manager.dispose);
+      return manager;
+    });
+
+/// The router, the shell and every `PermissionGate` watch this.
+///
+/// Expiry is deliberately NOT re-checked here against `Session.expiresAt`:
+/// [SessionManager.accessTokenForRequest] already proactively refreshes
+/// inside a 60s skew and signs out on refresh failure, so an expired session
+/// is caught on the next outbound *request*, not on every render of this
+/// provider. Duplicating an expiry check on the render path would just make
+/// the same decision twice from two different clocks (wall-clock read here vs.
+/// the request-time read in `accessTokenForRequest`), and an idle screen with
+/// no pending request has no user-visible harm in waiting for the next one to
+/// discover expiry.
+final Provider<AuthState> authStateProvider = Provider<AuthState>((ref) {
+  final manager = ref.watch(sessionManagerProvider);
+  final sub = manager.changes.listen((_) => ref.invalidateSelf());
+  ref.onDispose(sub.cancel);
+  return manager.state;
+});
+
+final Provider<Dio> dioProvider = Provider<Dio>((ref) {
   final config = ref.watch(appConfigProvider);
   // AuthInterceptor.replay must dispatch through a client that does NOT carry
   // AuthInterceptor itself, or a second 401 on the replay would need a second
@@ -71,13 +109,19 @@ final dioProvider = Provider<Dio>((ref) {
   // like `/campaigns` against the real baseUrl, the original bug this task
   // fixes) but adds no interceptors of its own.
   final replayClient = buildReplayDio(baseUrl: config.apiBaseUrl);
+  // Both `ref.read`s below are lazy closures that run per request, long after
+  // both authStateProvider and sessionManagerProvider are built - not at
+  // provider-build time. authServiceProvider (built above, via dioProvider)
+  // itself reads dioProvider, so hoisting either read here would close a
+  // genuine provider cycle instead of the harmless one Riverpod tolerates
+  // because these callbacks run later.
   final interceptor = AuthInterceptor(
-    readAccessToken: () => ref.read(authControllerProvider)?.accessToken,
-    refreshToken: () async {
-      // TODO(T-0.4.1): call refresh endpoint; return new token or null.
-      throw UnimplementedError('Auth refresh pending service contract');
+    readAccessToken: () => switch (ref.read(authStateProvider)) {
+      AuthSignedIn(:final session) => session.accessToken,
+      _ => null,
     },
-    onAuthLost: () => ref.read(authControllerProvider.notifier).clear(),
+    refreshToken: () => ref.read(sessionManagerProvider).refresh(),
+    onAuthLost: () => unawaited(ref.read(sessionManagerProvider).signOut()),
     replay: (options) => replayClient.fetch<dynamic>(options),
   );
   return buildDio(baseUrl: config.apiBaseUrl, authInterceptor: interceptor);
