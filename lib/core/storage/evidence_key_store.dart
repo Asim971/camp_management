@@ -39,7 +39,33 @@ class EvidenceKeyStore {
       );
     }
 
-    if (existing != null) return base64Decode(existing);
+    if (existing != null) {
+      // A stored value that cannot be decoded as base64, or that decodes to
+      // something other than exactly 32 bytes (e.g. truncated by a partial
+      // write), is the same user-visible situation as an unreadable key:
+      // evidence under it is undecryptable. It must be treated the same way -
+      // regenerated and audited - rather than let `FormatException` escape
+      // this method (breaking the "never throws" contract) or hand a
+      // wrong-length key to `AesGcm` for a far less diagnosable failure later.
+      List<int>? decoded;
+      try {
+        decoded = base64Decode(existing);
+      } catch (error) {
+        debugPrint(
+          'Evidence key could not be decoded ($error). Generating a new one; '
+          'evidence encrypted under the previous key can no longer be decrypted.',
+        );
+      }
+      if (decoded != null && decoded.length == 32) return decoded;
+      if (decoded != null) {
+        debugPrint(
+          'Evidence key had ${decoded.length} bytes, not 32. Generating a '
+          'new one; evidence encrypted under the previous key can no longer '
+          'be decrypted.',
+        );
+      }
+      rotated = true;
+    }
 
     final rng = Random.secure();
     final bytes = List<int>.generate(32, (_) => rng.nextInt(256));

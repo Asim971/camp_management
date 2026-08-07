@@ -77,6 +77,57 @@ void main() {
       expect(audit.events.single.entity, 'evidenceKey');
     });
 
+    test(
+      'regenerates and audits when the stored value is not valid base64',
+      () async {
+        // A corrupt stored value must not let `FormatException` escape
+        // `loadOrCreate` and take the capture path down with it - the doc
+        // comment promises this method never throws.
+        final store = InMemorySecureStore({
+          SecureStoreKeys.evidenceAesKeyV1: 'not-valid-base64!!!',
+        });
+        final audit = RecordingAuditSink();
+
+        final key = await EvidenceKeyStore(
+          store: store,
+          audit: audit,
+        ).loadOrCreate();
+
+        expect(key, hasLength(32));
+        expect(
+          base64Decode(store.values[SecureStoreKeys.evidenceAesKeyV1]!),
+          key,
+        );
+        expect(audit.events, hasLength(1));
+        expect(audit.events.single.action, AuditAction.evidenceKeyRotated);
+      },
+    );
+
+    test('regenerates and audits when the stored key decodes to the wrong '
+        'length', () async {
+      // Valid base64 but not 32 bytes (e.g. a truncated write). Without a
+      // length check this silently yields a wrong-size key that only fails
+      // much later, deep inside AesGcm, with a far less diagnosable error.
+      final truncated = List<int>.generate(16, (i) => i);
+      final store = InMemorySecureStore({
+        SecureStoreKeys.evidenceAesKeyV1: base64Encode(truncated),
+      });
+      final audit = RecordingAuditSink();
+
+      final key = await EvidenceKeyStore(
+        store: store,
+        audit: audit,
+      ).loadOrCreate();
+
+      expect(key, hasLength(32));
+      expect(
+        base64Decode(store.values[SecureStoreKeys.evidenceAesKeyV1]!),
+        key,
+      );
+      expect(audit.events, hasLength(1));
+      expect(audit.events.single.action, AuditAction.evidenceKeyRotated);
+    });
+
     test('does not let a storage failure escape and crash capture', () async {
       final store = ThrowingSecureStore(
         PlatformException(code: 'keystore_unavailable'),
