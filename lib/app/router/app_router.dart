@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/auth/session_manager.dart';
 import '../../core/design_system/placeholder_screen.dart';
+import '../../features/auth/presentation/login_screen.dart';
 import '../../features/bulk_import/presentation/bulk_import_screen.dart';
 import '../../features/camera_capture/presentation/capture_flow_screen.dart';
 import '../../features/campaign_approval/presentation/campaign_approval_screen.dart';
@@ -47,11 +48,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     // Rebuild redirects when auth changes.
     refreshListenable: _AuthListenable(ref),
     routes: [
-      GoRoute(
-        path: '/login',
-        builder: (_, __) =>
-            const PlaceholderScreen(title: 'Sign in', screenId: 'AUTH'),
-      ),
+      GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
       GoRoute(
         path: '/forbidden',
         builder: (_, __) =>

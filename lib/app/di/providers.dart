@@ -7,8 +7,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/audit/audit.dart';
 import '../../core/audit/audit_emitter.dart';
 import '../../core/audit/audit_transport.dart';
+import '../../core/auth/auth_service.dart';
 import '../../core/auth/e2e_session.dart';
 import '../../core/auth/session.dart';
+import '../../core/auth/session_manager.dart';
+import '../../core/auth/token_store.dart';
 import '../../core/media/capture_source.dart';
 import '../../core/media/evidence_store.dart';
 import '../../core/media/face_quality.dart';
@@ -42,13 +45,14 @@ final appConfigProvider = Provider<AppConfig>(
 );
 
 /// Authenticated session (null == signed out). The router watches this.
+///
+/// Superseded by [sessionManagerProvider]/[authStateProvider] (Task 9 deletes
+/// this class): the E2E special case that used to live in [build] is now
+/// [FakeAuthService], reached through [authServiceProvider] like any other
+/// sign-in, so E2E drives the same [SessionManager] path production does.
 class AuthController extends Notifier<Session?> {
   @override
-  Session? build() {
-    final config = ref.read(appConfigProvider);
-    if (config.e2e) return buildE2ESession(config.e2eRole); // test-only
-    return null;
-  }
+  Session? build() => null;
 
   // ignore: use_setters_to_change_properties
   void setSession(Session session) => state = session;
@@ -60,6 +64,28 @@ class AuthController extends Notifier<Session?> {
 final authControllerProvider = NotifierProvider<AuthController, Session?>(
   AuthController.new,
 );
+
+/// 🔒 Contract-pending: swapped for [FakeAuthService] under E2E so Maestro
+/// signs in through the same [SessionManager] path production does, instead
+/// of bypassing it with a pre-built [Session].
+final authServiceProvider = Provider<AuthService>((ref) {
+  final config = ref.watch(appConfigProvider);
+  if (config.e2e) return FakeAuthService(config.e2eRole);
+  return DioAuthService(ref.watch(dioProvider));
+});
+
+final tokenStoreProvider = Provider<TokenStore>(
+  (ref) => createTokenStore(ref.watch(secureStoreProvider)),
+);
+
+final sessionManagerProvider = Provider<SessionManager>((ref) {
+  final manager = SessionManager(
+    service: ref.watch(authServiceProvider),
+    tokens: ref.watch(tokenStoreProvider),
+  );
+  ref.onDispose(manager.dispose);
+  return manager;
+});
 
 final dioProvider = Provider<Dio>((ref) {
   final config = ref.watch(appConfigProvider);
