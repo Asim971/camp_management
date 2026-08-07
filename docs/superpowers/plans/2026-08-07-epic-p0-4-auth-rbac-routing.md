@@ -2055,7 +2055,7 @@ If the exhaustiveness test fails, the mismatch is real: reconcile `registeredRou
 
 Run: `dart format --set-exit-if-changed . && flutter analyze --fatal-infos && flutter test`
 
-Expected: **204 passing / 29 skipped**.
+Expected: **209 passing / 29 skipped** (20 tests: 7 route-table + 13 guard).
 
 - [ ] **Step 8: Commit**
 
@@ -2514,7 +2514,7 @@ Expected: no issues. (`tool/**` is excluded from the app's `analysis_options.yam
 
 Run: `dart format --set-exit-if-changed . && flutter analyze --fatal-infos && flutter test`
 
-Expected: **211 passing / 29 skipped** (this task's 6 login tests plus the 1 new `obscureText` case).
+Expected: **216 passing / 29 skipped** (this task's 6 login tests plus the 1 new `obscureText` case).
 
 **You MUST add these three providers to `providers.dart` as part of this task** — not conditionally. `login_screen.dart` reads `sessionManagerProvider`, so the tree cannot compile without them. `AuthController` and `authControllerProvider` stay for now; Task 9 deletes them and promotes `authStateProvider` out of its temporary home in `app_router.dart`.
 
@@ -2824,7 +2824,7 @@ Expected: PASS, 6 tests. If the semantics assertion fails on how `Semantics(enab
 
 Run: `dart format --set-exit-if-changed . && flutter analyze --fatal-infos && flutter test`
 
-Expected: **217 passing / 29 skipped**.
+Expected: **222 passing / 29 skipped**.
 
 - [ ] **Step 6: Commit**
 
@@ -3312,7 +3312,7 @@ Do **not** weaken any existing assertion — these two tests are the only widget
 
 Run: `dart format --set-exit-if-changed . && flutter analyze --fatal-infos && flutter test`
 
-Expected: **228 passing / 29 skipped**. Confirm the skip count is still exactly 29 — a golden that starts failing here means the shell changed the gallery's rendering.
+Expected: **233 passing / 29 skipped**. Confirm the skip count is still exactly 29 — a golden that starts failing here means the shell changed the gallery's rendering.
 
 - [ ] **Step 10: Commit**
 
@@ -3505,7 +3505,7 @@ flutter test
 flutter build web
 ```
 
-Expected: format clean; analyze exits 0; **230 passing / 29 skipped**; web build succeeds. **Do not run `flutter build apk`** — it fails in this sandbox for environmental reasons (SSL/PKIX), and CI runs it.
+Expected: format clean; analyze exits 0; **235 passing / 29 skipped**; web build succeeds. **Do not run `flutter build apk`** — it fails in this sandbox for environmental reasons (SSL/PKIX), and CI runs it.
 
 - [ ] **Step 8: Confirm the old auth surface is gone**
 
@@ -3613,6 +3613,22 @@ required status check and strict up-to-date enforcement."
 
 **One risk worth adding to §8's list at execution time:** Task 6 modifies `bmd_field.dart`, a P0.2 design-system component with golden coverage. Adding an unused-by-default optional parameter cannot change rendering for existing call sites, but the goldens only run on Linux, so a regression would surface in CI rather than locally.
 
-**Running test totals** (baseline 147 passing / 29 skipped): T1 +6 → 153, T2 +6 → 159, T3 +8 → 167, T4 +15 → 182, T5 +22 → 204, T6 +7 → 211, T7 +6 → 217, T8 +11 → 228, T9 +2 → **230 passing / 29 skipped**. The 29 skips are Linux-gated goldens throughout; CI's total will be **259**. Task 6's seventh test is the `BmdField.obscureText` case appended to the existing design-system suite.
+**Running test totals** — **corrected during execution.** Two of my projections were wrong, and Task 4's fix rounds added tests beyond its original set:
+
+| Task | Added | Total | Note |
+|---|---|---|---|
+| baseline | — | 147 | 29 Linux-gated goldens skip throughout |
+| T1 | +6 | 153 | |
+| T2 | +6 | 159 | |
+| T3 | +8 | 167 | |
+| T4 | +15 | 182 | I projected 14; the file has 15 |
+| T4 fix rounds | +7 | **189** | 3 rounds on the sign-out / refresh race |
+| T5 | +20 | **209** | I projected 22; actual is 7 route-table + 13 guard |
+| T6 | +7 | 216 | 6 login + 1 `BmdField.obscureText` |
+| T7 | +6 | 222 | |
+| T8 | +11 | 233 | |
+| T9 | +2 | **235** | CI total 264 |
+
+I miscounted three times in this plan (T4 14-vs-15, T5 22-vs-20, T6 6-vs-7). Treat every per-task figure as an expectation to verify, not a fact, and report the real number.
 
 **One deliberate ordering note:** `sessionManagerProvider` is introduced in Task 6 rather than Task 9, because `login_screen.dart` cannot compile without it. Task 9 then moves `authStateProvider` out of its temporary home in `app_router.dart` and deletes `AuthController`. Task 6's Step 9 flags this explicitly so an implementer does not treat it as scope creep.
