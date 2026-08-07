@@ -88,6 +88,11 @@ class SessionManager {
   AuthState _state = const AuthSignedOut();
   Future<String?>? _inFlightRefresh;
 
+  /// The generation [_inFlightRefresh] was started under. A future captured
+  /// under an older generation must never be handed to a caller in a newer
+  /// one - see [refresh].
+  int? _inFlightRefreshGeneration;
+
   /// Bumped by [signIn] and [signOut]. Work captured under an older value is
   /// stale by the time it completes and must not touch state or storage.
   int _generation = 0;
@@ -194,6 +199,11 @@ class SessionManager {
 
   /// Exchanges any persisted refresh token for a session. Call once at boot.
   Future<void> restore() async {
+    // A live session (signed in, or already restoring) must not be torn down
+    // by a stray extra call - restore() is meant to run once at boot, and
+    // without this guard a second call could race the first, or clobber an
+    // already-established sign-in.
+    if (_state is! AuthSignedOut) return;
     // Captured before the storage read, like signIn/signOut capture theirs
     // before their first await: a sign-out that completes entirely during a
     // slow read must be able to invalidate this restore when it resumes.
@@ -219,9 +229,21 @@ class SessionManager {
     await _exchange(stored, generation);
   }
 
-  /// Renews the session. Concurrent callers share one transport call.
-  /// Returns the new access token, or null if the session ended or this call
-  /// was superseded by a sign-out/sign-in before it completed.
+  /// Renews the session. Concurrent callers SHARE one transport call, but
+  /// only within the same generation.
+  ///
+  /// [_inFlightRefresh] alone is not enough of a key: pairing it with
+  /// [_inFlightRefreshGeneration] closes two failures a bare nullable future
+  /// cannot distinguish. First, a refresh started under an old epoch and
+  /// still in flight when a new [signIn] lands must not be handed to a
+  /// caller in the new epoch merely because the field is non-null - that
+  /// caller would receive a future that resolves against the PREVIOUS user's
+  /// session, and a null result from it would sign the new user out of a
+  /// perfectly valid one. Second, cleanup on completion must not deregister a
+  /// newer refresh that has since taken the field's place - `identical`
+  /// below, not a bare null-assignment, is what makes that structurally
+  /// impossible: a completing future only ever clears the slot if it is
+  /// still the one occupying it.
   Future<String?> refresh() {
     final current = _state;
     final token = switch (current) {
@@ -230,10 +252,20 @@ class SessionManager {
     };
     if (token == null) return Future<String?>.value();
     final generation = _generation;
-    return _inFlightRefresh ??= _exchange(
-      token,
-      generation,
-    ).whenComplete(() => _inFlightRefresh = null);
+    final existing = _inFlightRefresh;
+    if (existing != null && _inFlightRefreshGeneration == generation) {
+      return existing;
+    }
+    late Future<String?> started;
+    started = _exchange(token, generation).whenComplete(() {
+      if (identical(_inFlightRefresh, started)) {
+        _inFlightRefresh = null;
+        _inFlightRefreshGeneration = null;
+      }
+    });
+    _inFlightRefresh = started;
+    _inFlightRefreshGeneration = generation;
+    return started;
   }
 
   /// The token to attach to an outbound request, renewing first if it is
@@ -262,6 +294,7 @@ class SessionManager {
     // than awaiting one that can never help it.
     _generation++;
     _inFlightRefresh = null;
+    _inFlightRefreshGeneration = null;
     _emit(const AuthSignedOut());
     // Deliberately NOT routed through _enqueue: sign-out is local-first and
     // must clear storage immediately, even if an older, already-dispatched

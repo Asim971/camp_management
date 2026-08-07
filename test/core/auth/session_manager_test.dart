@@ -245,6 +245,103 @@ void main() {
     });
   });
 
+  group(
+    'refresh single-flight is generation-scoped (I1: the fourth resurrection '
+    'race)',
+    () {
+      test('a stale in-flight refresh from an old generation is never handed '
+          'to a caller in a newer one', () async {
+        // Failure A from code review: user A's refresh is gated in flight
+        // when user B signs in. Before this fix, refresh()'s `??=` saw the
+        // field non-null and returned A's future to B regardless of
+        // generation - that future resolves null, and AuthInterceptor
+        // would sign B out of a perfectly valid session.
+        final service = ScriptedAuthService(
+          loginResults: [
+            Ok(testTokens()),
+            Ok(testTokens(access: 'access-b', refresh: 'refresh-b')),
+          ],
+          refreshResults: [
+            Ok(testTokens(access: 'access-b2', refresh: 'refresh-b2')),
+          ],
+        )..refreshGate = Completer<void>();
+        final manager = build(service: service, tokens: FakeTokenStore());
+        await manager.signIn('userA', 'pw'); // generation 1
+
+        final staleRefresh = manager.refresh(); // gen 1, gated in flight
+
+        await manager.signIn('userB', 'pw'); // generation 2
+        final newRefresh = manager.refresh(); // gen 2
+
+        expect(
+          identical(newRefresh, staleRefresh),
+          isFalse,
+          reason:
+              'a refresh requested under the new generation must start '
+              'its own exchange, not reuse a future captured under the '
+              'old one',
+        );
+
+        service.refreshGate!.complete();
+        await staleRefresh;
+        await newRefresh;
+        await pumpEventQueue();
+
+        // The stale refresh landing null must not sign user B out - B's own
+        // refresh must have gone through instead.
+        expect(manager.state, isA<AuthSignedIn>());
+        expect(
+          (manager.state as AuthSignedIn).session.accessToken,
+          'access-b2',
+        );
+        manager.dispose();
+      });
+
+      test('a stale refresh completing after signOut+signIn does not '
+          'deregister the new one (single-flight defeated)', () async {
+        // Failure B from code review: F1 in flight, signOut() clears the
+        // field, signIn() then registers F2 - before this fix, F1's
+        // whenComplete unconditionally nulled the field on completion,
+        // deregistering F2 even though F2 was still in flight. The next
+        // refresh() call would then start a SECOND concurrent exchange on
+        // the same rotating refresh token, and the loser presenting an
+        // already-consumed token signs the user out mid-task - exactly
+        // what the single-flight guard exists to prevent.
+        final service = ScriptedAuthService();
+        final manager = build(service: service, tokens: FakeTokenStore());
+        await manager.signIn('userA', 'pw'); // generation 1
+
+        final gate1 = Completer<void>();
+        service.refreshGate = gate1;
+        final f1 = manager.refresh(); // gen 1, gated on gate1
+
+        await manager.signOut(); // generation 2
+        final signInResult = await manager.signIn('userB', 'pw'); // gen 3
+        expect(signInResult.isOk, isTrue);
+
+        final gate2 = Completer<void>();
+        service.refreshGate = gate2;
+        final f2 = manager.refresh(); // gen 3, gated on gate2
+
+        // Resolve F1 only - F2 stays in flight on gate2.
+        gate1.complete();
+        await f1;
+        await pumpEventQueue();
+
+        // F2 must still be THE single in-flight refresh for generation 3:
+        // a further call must return the SAME future, not start a third
+        // concurrent exchange.
+        final f2Again = manager.refresh();
+        expect(identical(f2Again, f2), isTrue);
+
+        gate2.complete();
+        await f2;
+        expect(service.refreshCalls, 2);
+        manager.dispose();
+      });
+    },
+  );
+
   group('accessTokenForRequest — proactive renewal', () {
     test('refreshes when the token expires inside the skew window', () async {
       final service = ScriptedAuthService(
