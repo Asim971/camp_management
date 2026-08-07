@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../core/auth/session_manager.dart';
 import '../../core/responsive/adaptive_scaffold.dart';
 import '../di/providers.dart';
-import '../router/app_router.dart';
 import 'nav_destinations.dart';
 
 /// The session-aware app shell (§3.3).

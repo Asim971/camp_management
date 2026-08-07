@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/di/providers.dart';
+import '../../../core/auth/session_manager.dart';
 import '../../../core/result/result.dart';
 import '../../../core/trace/trace_id.dart';
 import '../../../domain/verification/verification.dart';
@@ -32,7 +33,10 @@ class CrmCaseController
     if (current == null) return DecisionResult.error;
 
     final repo = ref.read(verificationRepositoryProvider);
-    final verifierId = ref.read(authControllerProvider)?.userId ?? 'unknown';
+    final verifierId = switch (ref.read(authStateProvider)) {
+      AuthSignedIn(:final session) => session.userId,
+      _ => 'unknown',
+    };
 
     final result = await repo.decide(
       VerificationDecision(

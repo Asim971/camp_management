@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/di/providers.dart';
+import '../../../core/auth/session_manager.dart';
 import '../../../core/result/result.dart';
 import '../../../core/trace/trace_id.dart';
 import '../../../domain/campaign/campaign.dart';
@@ -24,7 +25,10 @@ class ApprovalController
   /// must be blocked (segregation of duties, §8.4/§9.1).
   bool get sodViolation {
     final campaign = state.valueOrNull;
-    final userId = ref.read(authControllerProvider)?.userId;
+    final userId = switch (ref.read(authStateProvider)) {
+      AuthSignedIn(:final session) => session.userId,
+      _ => null,
+    };
     return campaign != null && userId != null && campaign.ownerId == userId;
   }
 

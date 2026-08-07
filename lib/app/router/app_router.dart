@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/auth/session_manager.dart';
 import '../../core/design_system/placeholder_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/bulk_import/presentation/bulk_import_screen.dart';
@@ -20,13 +19,6 @@ import '../../features/registration/presentation/registration_workspace_screen.d
 import '../di/providers.dart';
 import 'route_guards.dart';
 import 'route_table.dart';
-
-// TEMPORARY (removed in the providers-wiring task): bridges the old
-// authControllerProvider to the new AuthState shape.
-final authStateProvider = Provider<AuthState>((ref) {
-  final session = ref.watch(authControllerProvider);
-  return session == null ? const AuthSignedOut() : AuthSignedIn(session);
-});
 
 /// App router. Redirect guards enforce auth + RBAC scope before a route builds
 /// (§7). Deep-linkable web URLs, but NEVER PII/media tokens in the path.

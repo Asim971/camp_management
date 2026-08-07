@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../app/router/app_router.dart';
+import '../../app/di/providers.dart';
 import 'rbac.dart';
 import 'session_manager.dart';
 

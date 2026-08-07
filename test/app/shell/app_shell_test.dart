@@ -1,5 +1,4 @@
 import 'package:acsl_campaign/app/di/providers.dart';
-import 'package:acsl_campaign/app/router/app_router.dart';
 import 'package:acsl_campaign/app/shell/app_shell.dart';
 import 'package:acsl_campaign/app/shell/nav_destinations.dart';
 import 'package:acsl_campaign/core/auth/rbac.dart';
@@ -146,12 +145,14 @@ void main() {
       'shows the signed-in display name in the account menu, and tapping '
       'Sign out ends the session via the real SessionManager',
       (tester) async {
-        // authStateProvider still bridges the old AuthController (Task 9
-        // repoints it), so it and sessionManagerProvider are not wired
-        // together yet - authStateProvider drives what AppShell renders
-        // (via the `auth:` fixture below), while a real SessionManager
-        // proves Sign out drives the actual sign-out path rather than a
-        // stub that merely records a call.
+        // This test overrides authStateProvider directly with the `auth:`
+        // fixture below (rather than deriving it from the SessionManager
+        // override, as the real composition root does) so the rendered
+        // display name and permissions stay a fixed, readable fixture
+        // instead of depending on ScriptedAuthService's claims. The real
+        // SessionManager override alongside it is what proves Sign out
+        // drives the actual sign-out path, rather than a stub that merely
+        // records a call.
         final tokenStore = FakeTokenStore();
         final manager = SessionManager(
           service: ScriptedAuthService(),

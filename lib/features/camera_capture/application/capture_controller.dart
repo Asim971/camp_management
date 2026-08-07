@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../app/di/providers.dart';
+import '../../../core/auth/session_manager.dart';
 import '../../../core/media/face_quality.dart';
 import '../../../core/storage/app_database.dart';
 import '../../../core/sync/sync_engine.dart';
@@ -115,7 +116,10 @@ class CaptureController
     state = state.copyWith(submitting: true, error: null);
     try {
       final id = _uuid.v4(); // attendance id == sync idempotency key
-      final capturedBy = ref.read(authControllerProvider)?.userId ?? 'unknown';
+      final capturedBy = switch (ref.read(authStateProvider)) {
+        AuthSignedIn(:final session) => session.userId,
+        _ => 'unknown',
+      };
       final capturedAt = DateTime.now();
 
       // 1) encrypt at rest, 2) persist to private evidence dir.

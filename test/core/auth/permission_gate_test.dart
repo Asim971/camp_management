@@ -1,6 +1,6 @@
 import 'dart:ui';
 
-import 'package:acsl_campaign/app/router/app_router.dart';
+import 'package:acsl_campaign/app/di/providers.dart';
 import 'package:acsl_campaign/core/auth/permission_gate.dart';
 import 'package:acsl_campaign/core/auth/rbac.dart';
 import 'package:acsl_campaign/core/auth/session.dart';

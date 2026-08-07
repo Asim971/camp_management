@@ -53,6 +53,20 @@ Future<void> main() async {
   // flusher is started here rather than lazily on a feature's first read.
   container.read(auditFlusherProvider).start();
 
+  // Exchange any persisted refresh token before the first frame, so the
+  // router sees AuthRestoring rather than AuthSignedOut and does not flash
+  // the login screen on a mobile cold start that has a valid session.
+  await container.read(sessionManagerProvider).restore();
+
+  // E2E signs in for real against FakeAuthService rather than being handed a
+  // pre-built Session, so Maestro drives the same SessionManager path
+  // production does. Awaited, not fire-and-forget: the router evaluates its
+  // redirect on the first frame, and an unawaited sign-in would race it and
+  // land the run on /login.
+  if (config.e2e) {
+    await container.read(sessionManagerProvider).signIn(config.e2eRole, 'e2e');
+  }
+
   runApp(
     UncontrolledProviderScope(
       container: container,
