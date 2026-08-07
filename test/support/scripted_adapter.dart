@@ -7,16 +7,23 @@ import 'package:dio/dio.dart';
 class ScriptedReply {
   /// An HTTP response with [code] and an empty JSON body.
   const ScriptedReply.status(this.code, {this.headers = const {}})
-    : failureType = null;
+    : body = null,
+      failureType = null;
 
   /// A transport-level failure (no response), e.g. a connection error.
   const ScriptedReply.failure(DioExceptionType type)
     : code = null,
       headers = const {},
+      body = null,
       failureType = type;
+
+  /// An HTTP response with [code] and an explicit JSON [body].
+  const ScriptedReply.json(this.code, this.body, {this.headers = const {}})
+    : failureType = null;
 
   final int? code;
   final Map<String, String> headers;
+  final Map<String, Object?>? body;
   final DioExceptionType? failureType;
 }
 
@@ -48,7 +55,7 @@ class ScriptedAdapter implements HttpClientAdapter {
     }
 
     return ResponseBody.fromString(
-      jsonEncode({'ok': true}),
+      jsonEncode(reply.body ?? {'ok': true}),
       reply.code!,
       headers: {
         Headers.contentTypeHeader: [Headers.jsonContentType],
