@@ -279,4 +279,80 @@ void main() {
       manager.dispose();
     });
   });
+
+  group('generation guard — sign-out and sign-in win races', () {
+    test(
+      'an in-flight refresh landing after signOut cannot resurrect the session',
+      () async {
+        // This is the probe case from code review: a refresh already sent
+        // before signOut is called must not be able to re-sign the user in,
+        // or re-persist the token signOut just cleared, once it lands.
+        final tokens = FakeTokenStore('r-1');
+        final service = ScriptedAuthService()..refreshGate = Completer<void>();
+        final manager = build(service: service, tokens: tokens);
+        await manager.signIn('bob', 'pw');
+
+        final pendingRefresh = manager.refresh();
+        await manager.signOut();
+
+        expect(manager.state, isA<AuthSignedOut>());
+        expect(tokens.value, isNull);
+
+        service.refreshGate!.complete();
+        await pendingRefresh;
+
+        // Assert again after the stale refresh lands, not just after
+        // signOut - a test that only checks the pre-landing state would pass
+        // against the buggy code too.
+        expect(manager.state, isA<AuthSignedOut>());
+        expect(tokens.value, isNull);
+        manager.dispose();
+      },
+    );
+
+    test(
+      'a refresh that completes normally with no sign-out still works',
+      () async {
+        // Guards against over-correcting the fix above into "refresh never
+        // emits".
+        final service = ScriptedAuthService(
+          refreshResults: [Ok(testTokens(access: 'access-2'))],
+        );
+        final manager = build(service: service, tokens: FakeTokenStore('r-1'));
+        await manager.signIn('bob', 'pw');
+
+        final token = await manager.refresh();
+
+        expect(token, 'access-2');
+        expect(manager.state, isA<AuthSignedIn>());
+        expect((manager.state as AuthSignedIn).session.accessToken, 'access-2');
+        manager.dispose();
+      },
+    );
+
+    test(
+      'a stale refresh from a previous session cannot clobber a new session',
+      () async {
+        final service = ScriptedAuthService(
+          loginResults: [
+            Ok(testTokens()),
+            Ok(testTokens(access: 'access-2', refresh: 'refresh-2')),
+          ],
+        )..refreshGate = Completer<void>();
+        final manager = build(service: service, tokens: FakeTokenStore());
+        await manager.signIn('bob', 'pw');
+
+        final staleRefresh = manager.refresh();
+        await manager.signOut();
+        await manager.signIn('bob', 'pw');
+
+        service.refreshGate!.complete();
+        await staleRefresh;
+
+        expect(manager.state, isA<AuthSignedIn>());
+        expect((manager.state as AuthSignedIn).session.accessToken, 'access-2');
+        manager.dispose();
+      },
+    );
+  });
 }
