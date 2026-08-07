@@ -117,4 +117,53 @@ void main() {
       expect(result.isOk, isFalse);
     });
   });
+
+  group('I4: claim shape is a trust boundary too', () {
+    test('a non-string entry inside roles is rejected, not silently '
+        'filtered', () {
+      // whereType<String>() used to drop this with no trace, leaving a user
+      // with a narrower scope than the server granted.
+      final result = parseScopeClaims({
+        ...claims(),
+        'roles': ['campaign_creator', 123],
+      });
+
+      expect(result.isOk, isFalse);
+      final message = result.fold((_) => null, (f) => f.message)!;
+      expect(message, contains('roles'));
+    });
+
+    test('permissions sent as a map (not a list) is rejected', () {
+      final result = parseScopeClaims({
+        ...claims(),
+        'permissions': {'campaign_create': true},
+      });
+
+      expect(result.isOk, isFalse);
+      final message = result.fold((_) => null, (f) => f.message)!;
+      expect(message, contains('permissions'));
+    });
+
+    test('permissions absent entirely is rejected, not treated as empty', () {
+      // Before this fix, _stringList's blanket `const []` fallback for ANY
+      // non-List value - including a missing key - let this parse Ok with
+      // permissions: {}, then bounce the user from every gated route with
+      // no explanation of why.
+      final withoutPermissions = claims()..remove('permissions');
+      final result = parseScopeClaims(withoutPermissions);
+
+      expect(result.isOk, isFalse);
+      final message = result.fold((_) => null, (f) => f.message)!;
+      expect(message, contains('permissions'));
+    });
+
+    test('permissions present but empty still succeeds', () {
+      // An empty list is a legitimate answer (a role-only user); only a
+      // missing or wrong-typed claim is a trust-boundary failure.
+      final result = parseScopeClaims(claims(permissions: []));
+
+      expect(result.isOk, isTrue);
+      expect(result.fold((c) => c, (_) => null)!.scope.permissions, isEmpty);
+    });
+  });
 }

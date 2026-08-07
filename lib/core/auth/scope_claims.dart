@@ -58,7 +58,7 @@ final Map<String, Permission> _permissionsByWire = {
 Result<ScopeClaims> parseScopeClaims(Map<String, Object?> claims) {
   final unknown = <String>[];
 
-  final roleNames = _stringList(claims['roles']);
+  final roleNames = _stringListOrReport(claims, 'roles', unknown);
   final roles = <AppRole>{};
   for (final name in roleNames) {
     final role = _rolesByWire[name];
@@ -69,7 +69,7 @@ Result<ScopeClaims> parseScopeClaims(Map<String, Object?> claims) {
     }
   }
 
-  final permissionNames = _stringList(claims['permissions']);
+  final permissionNames = _stringListOrReport(claims, 'permissions', unknown);
   final permissions = <Permission>{};
   for (final name in permissionNames) {
     final p = _permissionsByWire[name];
@@ -135,3 +135,35 @@ Result<ScopeClaims> parseScopeClaims(Map<String, Object?> claims) {
 
 List<String> _stringList(Object? value) =>
     value is List ? value.whereType<String>().toList() : const <String>[];
+
+/// Reads [key] from [claims] as a list of strings, reporting any shape
+/// problem into [unknown] instead of silently narrowing it.
+///
+/// This is the trust boundary [parseScopeClaims] exists to guard: a
+/// non-`List` value (missing key, a map, a bare string, ...) or a
+/// non-string entry inside an otherwise-valid list must both fail sign-in
+/// loudly, not resolve to an empty, silently-narrowed scope. [_stringList]'s
+/// `whereType<String>` would drop a non-string entry with no trace, and its
+/// blanket `const []` fallback would turn a malformed or absent
+/// `permissions` claim into a scope that parses `Ok` and then bounces the
+/// user from every gated route with no explanation of why.
+List<String> _stringListOrReport(
+  Map<String, Object?> claims,
+  String key,
+  List<String> unknown,
+) {
+  final value = claims[key];
+  if (value is! List) {
+    unknown.add('$key (expected a list, got ${value.runtimeType})');
+    return const <String>[];
+  }
+  final result = <String>[];
+  for (final entry in value) {
+    if (entry is String) {
+      result.add(entry);
+    } else {
+      unknown.add('a non-string entry in $key: $entry');
+    }
+  }
+  return result;
+}
