@@ -1,3 +1,4 @@
+import 'package:acsl_campaign/app/di/providers.dart';
 import 'package:acsl_campaign/app/router/app_router.dart';
 import 'package:acsl_campaign/app/shell/app_shell.dart';
 import 'package:acsl_campaign/app/shell/nav_destinations.dart';
@@ -8,6 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../support/fake_auth.dart';
 
 void main() {
   AuthState signedIn(Set<Permission> permissions) => AuthSignedIn(
@@ -98,6 +101,7 @@ void main() {
       WidgetTester tester, {
       required AuthState auth,
       Size size = const Size(1440, 900),
+      List<Override> overrides = const [],
     }) async {
       tester.view.physicalSize = size;
       tester.view.devicePixelRatio = 1.0;
@@ -121,7 +125,10 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [authStateProvider.overrideWith((ref) => auth)],
+          overrides: [
+            authStateProvider.overrideWith((ref) => auth),
+            ...overrides,
+          ],
           child: MaterialApp.router(routerConfig: router),
         ),
       );
@@ -135,17 +142,47 @@ void main() {
       expect(find.text('Campaigns'), findsWidgets);
     });
 
-    testWidgets('shows the signed-in display name in the account menu', (
-      tester,
-    ) async {
-      await pump(tester, auth: signedIn(Permission.values.toSet()));
+    testWidgets(
+      'shows the signed-in display name in the account menu, and tapping '
+      'Sign out ends the session via the real SessionManager',
+      (tester) async {
+        // authStateProvider still bridges the old AuthController (Task 9
+        // repoints it), so it and sessionManagerProvider are not wired
+        // together yet - authStateProvider drives what AppShell renders
+        // (via the `auth:` fixture below), while a real SessionManager
+        // proves Sign out drives the actual sign-out path rather than a
+        // stub that merely records a call.
+        final tokenStore = FakeTokenStore();
+        final manager = SessionManager(
+          service: ScriptedAuthService(),
+          tokens: tokenStore,
+        );
+        addTearDown(manager.dispose);
 
-      await tester.tap(find.byIcon(Icons.account_circle_outlined));
-      await tester.pumpAndSettle();
+        final signInResult = await manager.signIn('user', 'pass');
+        expect(signInResult.isOk, isTrue);
+        expect(manager.state, isA<AuthSignedIn>());
+        expect(tokenStore.value, isNotNull);
 
-      expect(find.text('Rina Akter'), findsOneWidget);
-      expect(find.text('Sign out'), findsOneWidget);
-    });
+        await pump(
+          tester,
+          auth: signedIn(Permission.values.toSet()),
+          overrides: [sessionManagerProvider.overrideWithValue(manager)],
+        );
+
+        await tester.tap(find.byIcon(Icons.account_circle_outlined));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Rina Akter'), findsOneWidget);
+        expect(find.text('Sign out'), findsOneWidget);
+
+        await tester.tap(find.text('Sign out'));
+        await tester.pumpAndSettle();
+
+        expect(manager.state, isA<AuthSignedOut>());
+        expect(tokenStore.value, isNull);
+      },
+    );
 
     testWidgets('a field user does not see the Analytics destination', (
       tester,

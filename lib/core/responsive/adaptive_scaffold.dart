@@ -19,7 +19,6 @@ class AdaptiveScaffold extends StatelessWidget {
     this.destinations = const [],
     this.selectedIndex,
     this.onDestinationSelected,
-    this.leadingAction,
     super.key,
   });
 
@@ -34,9 +33,6 @@ class AdaptiveScaffold extends StatelessWidget {
   final int? selectedIndex;
 
   final ValueChanged<int>? onDestinationSelected;
-
-  /// A slot ahead of [actions], e.g. the account menu.
-  final Widget? leadingAction;
 
   @override
   Widget build(BuildContext context) {

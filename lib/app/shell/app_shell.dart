@@ -46,7 +46,7 @@ class AppShell extends ConsumerWidget {
         // Notifications slot (§3.3). Wired to a real feed by a later epic; the
         // slot exists now so the shell's geometry is settled.
         const IconButton(
-          tooltip: 'Notifications',
+          tooltip: 'Notifications (not yet available)',
           icon: Icon(Icons.notifications_none),
           onPressed: null,
         ),
@@ -77,6 +77,7 @@ class _Breadcrumb extends StatelessWidget {
     final style = Theme.of(context).textTheme.labelMedium;
     return Semantics(
       label: 'Breadcrumb: ${[...trail, current].join(', ')}',
+      excludeSemantics: true,
       child: Wrap(
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
