@@ -3,8 +3,10 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 
 import '../../core/network/dio_client.dart';
+import '../../core/network/trace_options.dart';
 import '../../core/result/result.dart';
 import '../../core/storage/app_database.dart';
+import '../../core/trace/trace_id.dart';
 import '../../domain/common/status.dart';
 import '../../domain/registration/registration.dart';
 import '../../domain/registration/registration_repository.dart';
@@ -17,6 +19,14 @@ class RegistrationRepositoryImpl implements RegistrationRepository {
 
   final Dio _dio;
   final AppDatabase _db;
+
+  /// [headers] carry the request's own concerns (e.g. an idempotency key);
+  /// [trace] is layered in via `extra` alongside them. `null` trace lets
+  /// CorrelationIdInterceptor mint a per-request id.
+  Options _options(Map<String, String> headers, TraceId? trace) => Options(
+    headers: headers,
+    extra: trace == null ? null : {traceIdExtraKey: trace},
+  );
 
   String _cacheKey(String sessionId) => 'session:$sessionId:registrations';
 
@@ -84,13 +94,14 @@ class RegistrationRepositoryImpl implements RegistrationRepository {
   @override
   Future<Result<void>> register(
     String campaignId,
-    List<String> carpenterIds,
-  ) async {
+    List<String> carpenterIds, {
+    TraceId? trace,
+  }) async {
     try {
       await _dio.post<void>(
         '/campaigns/$campaignId/registrations',
         data: {'carpenterIds': carpenterIds},
-        options: Options(headers: {'Idempotency-Key': carpenterIds.join(',')}),
+        options: _options({'Idempotency-Key': carpenterIds.join(',')}, trace),
       );
       return const Ok(null);
     } catch (e) {

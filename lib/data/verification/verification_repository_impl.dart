@@ -1,7 +1,9 @@
 import 'package:dio/dio.dart';
 
 import '../../core/network/dio_client.dart';
+import '../../core/network/trace_options.dart';
 import '../../core/result/result.dart';
+import '../../core/trace/trace_id.dart';
 import '../../domain/common/status.dart';
 import '../../domain/verification/verification.dart';
 import '../../domain/verification/verification_case.dart';
@@ -14,6 +16,14 @@ class VerificationRepositoryImpl implements VerificationRepository {
   VerificationRepositoryImpl(this._dio);
 
   final Dio _dio;
+
+  /// [headers] carry the request's own concerns (the optimistic-lock
+  /// `If-Match`); [trace] is layered in via `extra` alongside them. `null`
+  /// trace lets CorrelationIdInterceptor mint a per-request id.
+  Options _options(Map<String, String> headers, TraceId? trace) => Options(
+    headers: headers,
+    extra: trace == null ? null : {traceIdExtraKey: trace},
+  );
 
   @override
   Future<Result<List<VerificationQueueItem>>> queue({
@@ -49,6 +59,7 @@ class VerificationRepositoryImpl implements VerificationRepository {
   Future<Result<void>> decide(
     VerificationDecision decision, {
     required int expectedVersion,
+    TraceId? trace,
   }) async {
     try {
       await _dio.post<void>(
@@ -58,7 +69,7 @@ class VerificationRepositoryImpl implements VerificationRepository {
           'reason': decision.reason,
           'supervisorOverride': decision.supervisorOverride,
         },
-        options: Options(headers: {'If-Match': '$expectedVersion'}),
+        options: _options({'If-Match': '$expectedVersion'}, trace),
       );
       return const Ok(null);
     } catch (e) {

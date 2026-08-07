@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/di/providers.dart';
 import '../../../core/result/result.dart';
+import '../../../core/trace/trace_id.dart';
 import '../../../domain/campaign/campaign.dart';
 import '../../../domain/campaign/campaign_repository.dart';
 
@@ -39,7 +40,12 @@ class ApprovalController
 
     final result = await ref
         .read(campaignRepositoryProvider)
-        .decide(campaign.id, decision: decision, reason: reason);
+        .decide(
+          campaign.id,
+          decision: decision,
+          reason: reason,
+          trace: TraceId.generate(),
+        );
     return result.fold((_) => ApprovalResult.done, (failure) {
       if (failure.kind == FailureKind.conflict) {
         ref.invalidateSelf();

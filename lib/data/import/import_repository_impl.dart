@@ -1,7 +1,9 @@
 import 'package:dio/dio.dart';
 
 import '../../core/network/dio_client.dart';
+import '../../core/network/trace_options.dart';
 import '../../core/result/result.dart';
+import '../../core/trace/trace_id.dart';
 import '../../domain/common/status.dart';
 import '../../domain/import/import_job.dart';
 import '../../domain/import/import_repository.dart';
@@ -9,6 +11,14 @@ import '../../domain/import/import_repository.dart';
 class ImportRepositoryImpl implements ImportRepository {
   ImportRepositoryImpl(this._dio);
   final Dio _dio;
+
+  /// [headers] carry the request's own concerns (e.g. an idempotency key);
+  /// [trace] is layered in via `extra` alongside them. `null` trace lets
+  /// CorrelationIdInterceptor mint a per-request id.
+  Options _options(Map<String, String> headers, TraceId? trace) => Options(
+    headers: headers,
+    extra: trace == null ? null : {traceIdExtraKey: trace},
+  );
 
   @override
   Future<Result<ImportJob>> uploadDryRun(
@@ -31,11 +41,11 @@ class ImportRepositoryImpl implements ImportRepository {
   }
 
   @override
-  Future<Result<ImportJob>> commit(String jobId) async {
+  Future<Result<ImportJob>> commit(String jobId, {TraceId? trace}) async {
     try {
       final res = await _dio.post<Map<String, dynamic>>(
         '/imports/$jobId/commit',
-        options: Options(headers: {'Idempotency-Key': jobId}),
+        options: _options({'Idempotency-Key': jobId}, trace),
       );
       return Ok(_fromJson(res.data!));
     } catch (e) {

@@ -1,5 +1,6 @@
 import 'package:acsl_campaign/app/di/providers.dart';
 import 'package:acsl_campaign/core/result/result.dart';
+import 'package:acsl_campaign/core/trace/trace_id.dart';
 import 'package:acsl_campaign/domain/common/status.dart';
 import 'package:acsl_campaign/domain/verification/verification.dart';
 import 'package:acsl_campaign/domain/verification/verification_case.dart';
@@ -46,6 +47,7 @@ class _FakeVerificationRepository implements VerificationRepository {
   Future<Result<void>> decide(
     VerificationDecision decision, {
     required int expectedVersion,
+    TraceId? trace,
   }) async {
     lastDecision = decision;
     return const Ok(null);

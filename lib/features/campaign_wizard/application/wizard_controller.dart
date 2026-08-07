@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../app/di/providers.dart';
+import '../../../core/trace/trace_id.dart';
 import '../../../domain/campaign/campaign_draft.dart';
 
 class WizardState {
@@ -100,7 +101,7 @@ class WizardController extends AutoDisposeNotifier<WizardState> {
     state = state.copyWith(saving: true, error: null);
     final repo = ref.read(campaignRepositoryProvider);
     final result = state.savedId == null
-        ? await repo.createDraft(state.draft)
+        ? await repo.createDraft(state.draft, trace: TraceId.generate())
         : await repo.updateDraft(state.savedId!, state.draft);
     state = result.fold(
       (c) => state.copyWith(saving: false, savedId: c.id),
@@ -116,14 +117,20 @@ class WizardController extends AutoDisposeNotifier<WizardState> {
     state = state.copyWith(submitting: true, error: null);
     final repo = ref.read(campaignRepositoryProvider);
 
+    // Save-then-submit is a single user action, so both calls share one trace.
+    final trace = TraceId.generate();
+
     // Ensure a persisted draft, then submit it.
     final saved = state.savedId == null
-        ? await repo.createDraft(state.draft)
+        ? await repo.createDraft(state.draft, trace: trace)
         : await repo.updateDraft(state.savedId!, state.draft);
 
     await saved.fold(
       (campaign) async {
-        final submitted = await repo.submitForApproval(campaign.id);
+        final submitted = await repo.submitForApproval(
+          campaign.id,
+          trace: trace,
+        );
         state = submitted.fold(
           (c) => state.copyWith(submitting: false, submittedId: c.id),
           (f) => state.copyWith(

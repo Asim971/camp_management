@@ -1,4 +1,5 @@
 import '../../core/result/result.dart';
+import '../../core/trace/trace_id.dart';
 import 'registration.dart';
 
 /// Reads the session's registered participants. Field search is offline-first:
@@ -23,7 +24,14 @@ abstract interface class RegistrationRepository {
   Future<Result<List<RegisteredCarpenter>>> searchMaster(String query);
 
   /// Registers the selected carpenters to a campaign. Idempotent on the server.
-  Future<Result<void>> register(String campaignId, List<String> carpenterIds);
+  ///
+  /// [trace] is the per-action correlation id; pass the same one to the audit
+  /// event for this action so the two can be joined (Architecture §12).
+  Future<Result<void>> register(
+    String campaignId,
+    List<String> carpenterIds, {
+    TraceId? trace,
+  });
 
   /// Submits a Sales Eco new-profile request; the participant shows as
   /// "Pending profile sync" until reconciliation (§9.2, §9.4).

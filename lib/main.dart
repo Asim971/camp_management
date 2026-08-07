@@ -49,6 +49,10 @@ Future<void> main() async {
     }
   }
 
+  // Audit must flush regardless of which screen the user visits, so the
+  // flusher is started here rather than lazily on a feature's first read.
+  container.read(auditFlusherProvider).start();
+
   runApp(
     UncontrolledProviderScope(
       container: container,

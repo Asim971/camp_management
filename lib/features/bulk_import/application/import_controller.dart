@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/di/providers.dart';
+import '../../../core/trace/trace_id.dart';
 import '../../../domain/import/import_job.dart';
 
 class ImportState {
@@ -37,7 +38,9 @@ class ImportController extends AutoDisposeFamilyNotifier<ImportState, String> {
     final job = state.job.valueOrNull;
     if (job == null) return;
     state = state.copyWith(committing: true);
-    final res = await ref.read(importRepositoryProvider).commit(job.id);
+    final res = await ref
+        .read(importRepositoryProvider)
+        .commit(job.id, trace: TraceId.generate());
     state = state.copyWith(
       committing: false,
       job: res.fold(AsyncData.new, (f) => AsyncError(f, StackTrace.current)),

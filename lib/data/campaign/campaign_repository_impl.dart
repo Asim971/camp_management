@@ -1,7 +1,9 @@
 import 'package:dio/dio.dart';
 
 import '../../core/network/dio_client.dart';
+import '../../core/network/trace_options.dart';
 import '../../core/result/result.dart';
+import '../../core/trace/trace_id.dart';
 import '../../domain/campaign/campaign.dart';
 import '../../domain/campaign/campaign_draft.dart';
 import '../../domain/campaign/campaign_repository.dart';
@@ -14,6 +16,10 @@ class CampaignRepositoryImpl implements CampaignRepository {
   CampaignRepositoryImpl(this._dio);
 
   final Dio _dio;
+
+  /// `null` lets CorrelationIdInterceptor mint a per-request id.
+  Options? _options(TraceId? trace) =>
+      trace == null ? null : traceOptions(trace);
 
   @override
   Future<Result<Paged<Campaign>>> list(CampaignQuery query) async {
@@ -51,11 +57,15 @@ class CampaignRepositoryImpl implements CampaignRepository {
   }
 
   @override
-  Future<Result<Campaign>> createDraft(CampaignDraft draft) async {
+  Future<Result<Campaign>> createDraft(
+    CampaignDraft draft, {
+    TraceId? trace,
+  }) async {
     try {
       final res = await _dio.post<Map<String, dynamic>>(
         '/campaigns',
         data: _draftToJson(draft),
+        options: _options(trace),
       );
       return Ok(CampaignDto.fromJson(res.data!).toDomain());
     } catch (e) {
@@ -98,10 +108,14 @@ class CampaignRepositoryImpl implements CampaignRepository {
   };
 
   @override
-  Future<Result<Campaign>> submitForApproval(String id) async {
+  Future<Result<Campaign>> submitForApproval(
+    String id, {
+    TraceId? trace,
+  }) async {
     try {
       final res = await _dio.post<Map<String, dynamic>>(
         '/campaigns/$id/submit',
+        options: _options(trace),
       );
       return Ok(CampaignDto.fromJson(res.data!).toDomain());
     } catch (e) {
@@ -114,11 +128,13 @@ class CampaignRepositoryImpl implements CampaignRepository {
     String id, {
     required CampaignDecision decision,
     String? reason,
+    TraceId? trace,
   }) async {
     try {
       final res = await _dio.post<Map<String, dynamic>>(
         '/campaigns/$id/decision',
         data: {'decision': decision.name, 'reason': reason},
+        options: _options(trace),
       );
       return Ok(CampaignDto.fromJson(res.data!).toDomain());
     } catch (e) {

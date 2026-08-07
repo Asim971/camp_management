@@ -1,13 +1,12 @@
-import 'dart:convert';
-import 'dart:math';
+import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../../core/audit/audit.dart';
+import '../../core/audit/audit_emitter.dart';
+import '../../core/audit/audit_transport.dart';
 import '../../core/auth/e2e_session.dart';
 import '../../core/auth/session.dart';
 import '../../core/media/capture_source.dart';
@@ -17,6 +16,8 @@ import '../../core/media/media_encryptor.dart';
 import '../../core/network/auth_interceptor.dart';
 import '../../core/network/dio_client.dart';
 import '../../core/storage/app_database.dart';
+import '../../core/storage/evidence_key_store.dart';
+import '../../core/storage/secure_store.dart';
 import '../../core/sync/sync_engine.dart';
 import '../../core/sync/sync_engine_impl.dart';
 import '../../core/sync/sync_uploader.dart';
@@ -98,52 +99,48 @@ final evidenceStoreProvider = Provider<EvidenceStore>(
   (ref) => createEvidenceStore(),
 );
 
-final secureStorageProvider = Provider<FlutterSecureStorage>(
-  // v10 defaults resetOnError to true, which silently deletes a value it cannot
-  // decrypt. For the evidence key that would orphan every queued capture with
-  // no signal, so opt out and handle the failure explicitly in
-  // loadOrCreateEvidenceKey.
-  (ref) =>
-      const FlutterSecureStorage(aOptions: AndroidOptions(resetOnError: false)),
+final secureStoreProvider = Provider<SecureStore>(
+  (ref) => FlutterSecureStore(),
 );
 
-/// Storage key for the evidence-encryption secret. Do not rename: renaming
-/// abandons any key already on the device, and with it the ability to decrypt
-/// evidence encrypted under it.
-const _evidenceKeyName = 'evidence_aes_key_v1';
+final auditTransportProvider = Provider<AuditTransport>(
+  (ref) => DioAuditTransport(ref.watch(dioProvider)),
+);
 
-/// Loads the 32-byte AES key used to encrypt attendance evidence, generating
-/// and persisting one on first run.
-///
-/// Extracted from [mediaEncryptorProvider] so the failure paths are testable:
-/// what happens here decides whether queued evidence stays decryptable.
-Future<List<int>> loadOrCreateEvidenceKey(FlutterSecureStorage storage) async {
-  String? existing;
-  try {
-    existing = await storage.read(key: _evidenceKeyName);
-  } on PlatformException catch (error) {
-    // A key exists but cannot be decrypted - after the v10 cipher change, an OS
-    // keystore reset, or a restore onto a different device. Regenerating keeps
-    // capture working, but every piece of evidence encrypted under the previous
-    // key becomes undecryptable, so this must never look like a normal first
-    // run. A durable audit event belongs here once T-0.3.6 wires an AuditSink.
-    debugPrint(
-      'Evidence key could not be read ($error). Generating a new one; evidence '
-      'encrypted under the previous key can no longer be decrypted.',
-    );
-  }
-  if (existing != null) return base64Decode(existing);
-  final rng = Random.secure();
-  final bytes = List<int>.generate(32, (_) => rng.nextInt(256));
-  await storage.write(key: _evidenceKeyName, value: base64Encode(bytes));
-  return bytes;
-}
+/// Started eagerly from `main()` — see [AuditFlusher.start]. Lazily creating it
+/// on a feature's first read (as the sync engine is) would mean audit only
+/// flushed once someone opened the offline-queue screen.
+final auditFlusherProvider = Provider<AuditFlusher>((ref) {
+  final flusher = AuditFlusher(
+    db: ref.watch(appDatabaseProvider),
+    transport: ref.watch(auditTransportProvider),
+    connectivity: ref.watch(connectivityStreamProvider),
+  );
+  ref.onDispose(() => unawaited(flusher.dispose()));
+  return flusher;
+});
+
+final auditSinkProvider = Provider<AuditSink>((ref) {
+  final flusher = ref.watch(auditFlusherProvider);
+  return DurableAuditSink(
+    db: ref.watch(appDatabaseProvider),
+    transport: ref.watch(auditTransportProvider),
+    onBuffered: flusher.notifyBuffered,
+  );
+});
+
+final evidenceKeyStoreProvider = Provider<EvidenceKeyStore>(
+  (ref) => EvidenceKeyStore(
+    store: ref.watch(secureStoreProvider),
+    audit: ref.watch(auditSinkProvider),
+  ),
+);
 
 /// 32-byte AES key for evidence encryption, generated once and held in secure
-/// storage (Keystore/Keychain-backed). Never logged or exported.
+/// storage (Keystore/Keychain-backed on mobile). Never logged or exported.
 final mediaEncryptorProvider = Provider<MediaEncryptor>((ref) {
-  final storage = ref.watch(secureStorageProvider);
-  return AesGcmEncryptor(() => loadOrCreateEvidenceKey(storage));
+  final keys = ref.watch(evidenceKeyStoreProvider);
+  return AesGcmEncryptor(keys.loadOrCreate);
 });
 
 final faceQualityCheckerProvider = Provider<FaceQualityChecker>((ref) {

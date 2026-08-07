@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/di/providers.dart';
+import '../../../core/trace/trace_id.dart';
 import '../../../domain/registration/registration.dart';
 
 class RegistrationState {
@@ -70,7 +71,7 @@ class RegistrationController
     state = state.copyWith(registering: true, message: null);
     final res = await ref
         .read(registrationRepositoryProvider)
-        .register(arg, state.basket.keys.toList());
+        .register(arg, state.basket.keys.toList(), trace: TraceId.generate());
     state = res.fold(
       (_) => state.copyWith(
         registering: false,

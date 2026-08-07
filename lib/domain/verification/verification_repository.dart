@@ -1,4 +1,5 @@
 import '../../core/result/result.dart';
+import '../../core/trace/trace_id.dart';
 import 'verification.dart';
 import 'verification_case.dart';
 
@@ -13,8 +14,12 @@ abstract interface class VerificationRepository {
   /// decision — the server returns 409 (→ [FailureKind.conflict]) if another
   /// reviewer already decided, so the UI can refresh instead of overwriting
   /// (§9.4). Reason is mandatory (enforced in the domain object).
+  ///
+  /// [trace] is the per-action correlation id; pass the same one to the audit
+  /// event for this action so the two can be joined (Architecture §12).
   Future<Result<void>> decide(
     VerificationDecision decision, {
     required int expectedVersion,
+    TraceId? trace,
   });
 }
