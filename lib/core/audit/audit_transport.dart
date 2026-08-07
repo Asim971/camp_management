@@ -15,37 +15,62 @@ import 'audit.dart';
 /// degradation. The persisted string ships verbatim instead.
 class AuditEventPayload {
   const AuditEventPayload({
+    required this.id,
     required this.action,
     required this.entity,
     required this.entityId,
     required this.correlationId,
     required this.actorId,
+    required this.occurredAt,
     this.remarks,
   });
 
   /// From an in-memory event, where the action is known and typed.
-  factory AuditEventPayload.fromEvent(AuditEvent event) => AuditEventPayload(
+  ///
+  /// [id] and [occurredAt] are not on [AuditEvent] itself - the sink generates
+  /// the id and stamps the clock at write time - so the caller (the
+  /// `revealAudited` send site) must supply the exact values it just persisted
+  /// locally. Using anything else here would let the wire payload and the
+  /// buffered row disagree on the row's own identity/time.
+  factory AuditEventPayload.fromEvent(
+    AuditEvent event, {
+    required String id,
+    required DateTime occurredAt,
+  }) => AuditEventPayload(
+    id: id,
     action: event.action.name,
     entity: event.entity,
     entityId: event.entityId,
     correlationId: event.correlationId.value,
     actorId: event.actorId,
+    occurredAt: occurredAt,
     remarks: event.remarks,
   );
 
+  /// Client-generated UUID, so the server can dedupe a replayed batch.
+  final String id;
   final String action;
   final String entity;
   final String entityId;
   final String correlationId;
   final String actorId;
+
+  /// Client clock. The server should treat this as untrusted and pair it with
+  /// its own receipt time.
+  final DateTime occurredAt;
   final String? remarks;
 
   Map<String, Object?> toJson() => {
+    'id': id,
     'action': action,
     'entity': entity,
     'entityId': entityId,
     'correlationId': correlationId,
     'actorId': actorId,
+    // ISO-8601 UTC so the wire value is unambiguous regardless of device
+    // timezone. Drift round-trips `DateTimeColumn` as local-zoned under
+    // `NativeDatabase`, so `.toUtc()` here is load-bearing, not decoration.
+    'occurredAt': occurredAt.toUtc().toIso8601String(),
     if (remarks != null) 'remarks': remarks,
   };
 }

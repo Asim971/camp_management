@@ -40,7 +40,7 @@ class DurableAuditSink implements AuditSink {
   @override
   Future<void> emit(AuditEvent event) async {
     try {
-      await _insert(event, _newId());
+      await _insert(event, _newId(), _now());
     } catch (error) {
       // An audit outage must not block a campaign approval or a capture. This
       // is the one place a lost event is tolerated, and only because the
@@ -57,11 +57,12 @@ class DurableAuditSink implements AuditSink {
     Future<T> Function() reveal,
   ) async {
     final id = _newId();
+    final occurredAt = _now();
 
     // Write first: a crash mid-post must still leave evidence that access was
     // attempted.
     try {
-      await _insert(event, id);
+      await _insert(event, id, occurredAt);
     } catch (error) {
       return Err(
         Failure(
@@ -72,7 +73,9 @@ class DurableAuditSink implements AuditSink {
       );
     }
 
-    final sent = await _transport.send([AuditEventPayload.fromEvent(event)]);
+    final sent = await _transport.send([
+      AuditEventPayload.fromEvent(event, id: id, occurredAt: occurredAt),
+    ]);
     if (sent case Err(:final failure)) {
       // Fail closed. The row stays pending so the flusher still delivers the
       // attempt, but the value is not shown.
@@ -83,7 +86,7 @@ class DurableAuditSink implements AuditSink {
     return Ok(await reveal());
   }
 
-  Future<void> _insert(AuditEvent event, String id) => _db
+  Future<void> _insert(AuditEvent event, String id, DateTime occurredAt) => _db
       .into(_db.auditEvents)
       .insert(
         AuditEventsCompanion.insert(
@@ -94,7 +97,7 @@ class DurableAuditSink implements AuditSink {
           correlationId: event.correlationId.value,
           actorId: event.actorId,
           remarks: Value(event.remarks),
-          occurredAt: _now(),
+          occurredAt: occurredAt,
         ),
       );
 }
@@ -178,38 +181,59 @@ class AuditFlusher {
             .get();
     if (rows.isEmpty) return;
 
+    await _sendAndHandle(rows);
+    await _checkHighWaterMark();
+  }
+
+  /// Sends [rows] as one batch and applies the outcome. On a permanent
+  /// rejection of a multi-row batch, the offender cannot be identified from a
+  /// batch-granular [Result] - [AuditTransport.send] returns one verdict for
+  /// the whole call - so rather than guess, this re-sends each row alone
+  /// (batch size 1). Only a row rejected while alone ever has its own
+  /// `attempts` advanced; a row that merely shared a batch with a genuine
+  /// offender is retried untouched. Spec §4.5: one bad event must degrade
+  /// exactly one record, never its batch-mates.
+  Future<void> _sendAndHandle(List<AuditEventRow> rows) async {
     final result = await _transport.send(rows.map(_toPayload).toList());
 
-    if (result case Err(:final failure)) {
-      // `lastError` is recorded either way - it is diagnostic, not the
-      // poison-pill signal - but `attempts` only advances for a permanent
-      // rejection. A network blip must retry forever, exactly like every
-      // other row; only a rejection that will recur no matter how many times
-      // this batch is resent should ever count toward `_maxAttempts`.
-      final permanent = _isPermanentRejection(failure.kind);
+    if (result is Ok<void>) {
       await _db.batch((b) {
-        for (final row in rows) {
-          b.update(
-            _db.auditEvents,
-            AuditEventsCompanion(
-              attempts: permanent
-                  ? Value(row.attempts + 1)
-                  : const Value.absent(),
-              lastError: Value(failure.message ?? failure.kind.name),
-            ),
-            where: (t) => t.seq.equals(row.seq),
-          );
-        }
+        b.deleteWhere(
+          _db.auditEvents,
+          (t) => t.seq.isIn(rows.map((r) => r.seq).toList()),
+        );
       });
-      await _checkHighWaterMark();
       return;
     }
 
+    final failure = (result as Err<void>).failure;
+    final permanent = _isPermanentRejection(failure.kind);
+
+    if (permanent && rows.length > 1) {
+      for (final row in rows) {
+        await _sendAndHandle([row]);
+      }
+      return;
+    }
+
+    // `lastError` is recorded either way - it is diagnostic, not the
+    // poison-pill signal - but `attempts` only advances for a permanent
+    // rejection. A network blip must retry forever, exactly like every
+    // other row; only a rejection that will recur no matter how many times
+    // this row is resent should ever count toward `_maxAttempts`.
     await _db.batch((b) {
-      b.deleteWhere(
-        _db.auditEvents,
-        (t) => t.seq.isIn(rows.map((r) => r.seq).toList()),
-      );
+      for (final row in rows) {
+        b.update(
+          _db.auditEvents,
+          AuditEventsCompanion(
+            attempts: permanent
+                ? Value(row.attempts + 1)
+                : const Value.absent(),
+            lastError: Value(failure.message ?? failure.kind.name),
+          ),
+          where: (t) => t.seq.equals(row.seq),
+        );
+      }
     });
   }
 
@@ -235,16 +259,26 @@ class AuditFlusher {
   }
 
   /// Whether [kind] means the server will reject this exact row again no
-  /// matter how many times it is resent, as opposed to a transient or
-  /// server-side condition that has nothing to do with the row's content.
-  /// Only the former should ever advance `attempts` - conflating the two
-  /// would let a five-minute network outage permanently strand whichever
-  /// batch happened to be at the head of the queue when it started.
+  /// matter how many times it is resent - a defect in the row's own content
+  /// that resending can never fix - as opposed to anything that has nothing
+  /// to do with the row's content. Only the former should ever advance
+  /// `attempts`.
+  ///
+  /// `forbidden`/`unauthorized` are deliberately NOT here even though the
+  /// server currently refuses the row: a 401/403 is a property of the
+  /// *session*, not the row - it is recoverable by re-authenticating, and
+  /// resending the identical row after that happens can succeed. Treating
+  /// them as permanent would strand a device left at the login screen: the
+  /// flusher ticks every 30s regardless of session state, so ten ticks
+  /// (~5 minutes) would exclude the row from the flush window forever, with
+  /// nothing to ever reset `attempts` once the user signs back in. Conflating
+  /// any of these with a genuine content defect would let a transient
+  /// condition permanently strand whichever batch happened to be at the head
+  /// of the queue when it started.
   bool _isPermanentRejection(FailureKind kind) => switch (kind) {
-    FailureKind.validation ||
-    FailureKind.notFound ||
+    FailureKind.validation || FailureKind.notFound => true,
     FailureKind.forbidden ||
-    FailureKind.unauthorized => true,
+    FailureKind.unauthorized ||
     FailureKind.network ||
     FailureKind.timeout ||
     FailureKind.server ||
@@ -258,11 +292,13 @@ class AuditFlusher {
   /// Android downgrade) must reach the server labelled with what actually
   /// happened, not with whatever enum value happened to be the fallback.
   AuditEventPayload _toPayload(AuditEventRow row) => AuditEventPayload(
+    id: row.id,
     action: row.action,
     entity: row.entity,
     entityId: row.entityId,
     correlationId: row.correlationId,
     actorId: row.actorId,
+    occurredAt: row.occurredAt,
     remarks: row.remarks,
   );
 

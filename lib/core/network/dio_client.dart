@@ -71,11 +71,16 @@ Failure mapDioError(Object error) {
       404 => FailureKind.notFound,
       409 => FailureKind.conflict,
       422 => FailureKind.validation,
+      // 429 is "the service is busy, try again" - the same corrective action
+      // as a 5xx, and RetryInterceptor has already spent its budget retrying
+      // the transient case, so users only ever see this after exhaustion.
+      429 => FailureKind.server,
       _ when error.type == DioExceptionType.connectionError =>
         FailureKind.network,
       _
           when error.type == DioExceptionType.connectionTimeout ||
-              error.type == DioExceptionType.receiveTimeout =>
+              error.type == DioExceptionType.receiveTimeout ||
+              error.type == DioExceptionType.sendTimeout =>
         FailureKind.timeout,
       _ when code != null && code >= 500 => FailureKind.server,
       _ => FailureKind.unknown,

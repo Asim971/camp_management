@@ -63,6 +63,28 @@ void main() {
     expect(await db.select(db.auditEvents).get(), isEmpty);
   });
 
+  test(
+    'sends each row\'s id and occurredAt instant to the transport',
+    () async {
+      // IMPORTANT #1/#2: the wire payload must carry the persisted id
+      // (server-side dedupe of a replayed batch) and occurredAt (the untrusted
+      // client clock the server pairs with its own receipt time) - not just
+      // whatever _toPayload happened to remember to copy.
+      await seed('a');
+      final transport = _ScriptedTransport([const Ok(null)]);
+
+      await buildFlusher(transport).flush();
+
+      final payload = transport.batches.single.single;
+      expect(payload.id, 'a');
+      // Drift round-trips DateTimeColumn as local-zoned under NativeDatabase
+      // (see the identical note in audit_emitter_test.dart), so normalize
+      // with `.toUtc()` before comparing the instant rather than depending
+      // on Drift's storage representation.
+      expect(payload.occurredAt.toUtc(), DateTime.utc(2026, 8, 6, 12));
+    },
+  );
+
   test('keeps the row and advances attempts when the send is permanently '
       'rejected', () async {
     // validation is a permanent rejection: the server will reject this
@@ -118,6 +140,43 @@ void main() {
     expect(await db.select(db.auditEvents).get(), isEmpty);
   });
 
+  test('a 401 (unauthorized) keeps the row deliverable and never advances '
+      'attempts', () async {
+    // unauthorized/forbidden are a property of the SESSION, not the row -
+    // recoverable by re-authenticating - so they must not count as
+    // permanent. A device left at the login screen still ticks the
+    // flusher every 30s regardless of session state; if 401 counted as
+    // permanent, ten ticks (~5 minutes) would exclude the row forever with
+    // nothing to ever reset `attempts` once the user signs back in.
+    await seed('a');
+    final flaky = _ScriptedTransport(
+      List.generate(
+        12,
+        (_) =>
+            const Err(Failure(FailureKind.unauthorized, message: 'no token')),
+      ),
+    );
+    final flusher = buildFlusher(flaky, maxAttempts: 10);
+
+    // 12 failed ticks - more than `maxAttempts` - simulating a device left
+    // signed out for longer than the poison-pill threshold.
+    for (var i = 0; i < 12; i++) {
+      await flusher.flush();
+    }
+
+    final rows = await db.select(db.auditEvents).get();
+    expect(rows, hasLength(1));
+    expect(rows.single.attempts, 0);
+
+    // The row must still be in the flush window: once the user signs back
+    // in, a succeeding transport actually delivers and removes it.
+    final recovered = _ScriptedTransport([const Ok(null)]);
+    await buildFlusher(recovered, maxAttempts: 10).flush();
+
+    expect(recovered.batches.single, hasLength(1));
+    expect(await db.select(db.auditEvents).get(), isEmpty);
+  });
+
   test(
     'repeated permanent rejection sets the row aside after maxAttempts',
     () async {
@@ -149,17 +208,74 @@ void main() {
     },
   );
 
-  test('never discards an event, however many attempts have failed', () async {
-    // The sync engine gives up after maxRetries and tells the user. Audit must
-    // not: a discarded compliance record is silent data loss.
-    await seed('a', attempts: 99);
+  test('a permanent rejection of a multi-row batch does not charge an '
+      'innocent batch-mate, but the actual offender still reaches exclusion '
+      'on its own merits', () async {
+    // IMPORTANT #4: AuditTransport.send returns one Result for the whole
+    // batch, so a permanent rejection of [a, b] cannot say which row is at
+    // fault. Spec §4.5 promises one bad event degrades exactly one record -
+    // so rather than charge both rows an attempt, the flusher retries each
+    // row alone (batch size 1) and only ever advances `attempts` for a row
+    // that was rejected while alone.
+    await seed('a');
+    await seed('b');
+    final transport = _ScriptedTransport([
+      // 1: the pair is rejected as one - the offender is unknown yet.
+      const Err(Failure(FailureKind.validation, message: 'bad row')),
+      // 2: 'a' sent alone turns out fine.
+      const Ok(null),
+      // 3: 'b' sent alone is the actual offender.
+      const Err(Failure(FailureKind.validation, message: 'bad row')),
+      // 4, 5: 'b' rejected alone twice more, reaching maxAttempts: 3.
+      const Err(Failure(FailureKind.validation, message: 'bad row')),
+      const Err(Failure(FailureKind.validation, message: 'bad row')),
+    ]);
+    final flusher = buildFlusher(transport, maxAttempts: 3);
+
+    await flusher.flush();
+
+    var rows = await db.select(db.auditEvents).get();
+    // 'a' was never charged an attempt for sharing a batch with 'b' - it
+    // was sent alone, succeeded, and was deleted outright.
+    expect(rows, hasLength(1));
+    expect(rows.single.entityId, 'b');
+    // 'b' is charged exactly one attempt for its OWN rejection while
+    // alone - not one per batch it happened to be part of.
+    expect(rows.single.attempts, 1);
+
+    // Drive 'b' - the genuine offender - to exclusion on its own repeated
+    // failures.
+    await flusher.flush();
+    await flusher.flush();
+
+    rows = await db.select(db.auditEvents).get();
+    expect(rows.single.attempts, 3);
+
+    final recovered = _ScriptedTransport([const Ok(null)]);
+    await buildFlusher(recovered, maxAttempts: 3).flush();
+
+    expect(recovered.batches, isEmpty);
+    expect(await db.select(db.auditEvents).get(), hasLength(1));
+  });
+
+  test('never discards a row when a send fails, even one the transport was '
+      'actually asked to deliver', () async {
+    // MINOR #9: the previous version of this test seeded attempts: 99
+    // against maxAttempts: 10, so the row was already excluded from the
+    // flush window and _flushOnce returned before ever calling the
+    // transport - it would have passed against code with no failure
+    // handling at all. This drives an actual send-and-fail instead.
+    await seed('a', attempts: 5);
     final transport = _ScriptedTransport([
       const Err(Failure(FailureKind.server)),
     ]);
 
-    await buildFlusher(transport).flush();
+    await buildFlusher(transport, maxAttempts: 10).flush();
 
-    expect(await db.select(db.auditEvents).get(), hasLength(1));
+    expect(transport.batches, hasLength(1));
+    final rows = await db.select(db.auditEvents).get();
+    expect(rows, hasLength(1));
+    expect(rows.single.entityId, 'a');
   });
 
   test('sends in FIFO order', () async {
