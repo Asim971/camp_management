@@ -63,7 +63,13 @@ jobs:
       - name: Regenerate baselines
         run: flutter test test/golden --update-goldens
 
-      - uses: actions/upload-artifact@v4
+      # `always()` because a partial run is the case where this artifact matters
+      # most: if one section overflows, the other baselines were still generated
+      # and are still worth collecting, and without this the step is skipped and
+      # every one of them is discarded with the runner. That is exactly what
+      # happened on the first run of this workflow.
+      - if: always()
+        uses: actions/upload-artifact@v4
         with:
           name: golden-baselines
           path: test/golden/goldens

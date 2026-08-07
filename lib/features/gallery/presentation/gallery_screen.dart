@@ -434,17 +434,28 @@ class _FeedbackDemo extends StatelessWidget {
           onViewQueue: () {},
         ),
         const SizedBox(height: BmdSpace.s4),
-        const SizedBox(
-          height: _kStateHeight,
-          child: BmdState.empty(
+        // minHeight, not a fixed height: at the mobile golden width the body
+        // copy wraps to more lines than it does on desktop, and a fixed
+        // _kStateHeight clipped it — a RenderFlex overflow that failed the
+        // mobile goldens the first time they actually ran on Linux. Desktop is
+        // unaffected (the content is shorter than the minimum there, so it
+        // still renders at exactly _kStateHeight).
+        //
+        // This is a gallery-demo constraint only. BmdState itself is sound:
+        // every real usage puts it inside an Expanded (see
+        // offline_queue_screen.dart), so it takes the height available rather
+        // than a hardcoded one.
+        ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: _kStateHeight),
+          child: const BmdState.empty(
             title: 'No campaigns match these filters',
             body: 'Try widening the date range or clearing the region filter.',
           ),
         ),
         const SizedBox(height: BmdSpace.s4),
-        const SizedBox(
-          height: _kStateHeight,
-          child: BmdState.error(
+        ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: _kStateHeight),
+          child: const BmdState.error(
             title: 'Could not load the campaign list',
             body:
                 'The request timed out. Check your connection and try '
@@ -453,9 +464,9 @@ class _FeedbackDemo extends StatelessWidget {
           ),
         ),
         const SizedBox(height: BmdSpace.s4),
-        const SizedBox(
-          height: _kStateHeight,
-          child: BmdState.denied(
+        ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: _kStateHeight),
+          child: const BmdState.denied(
             title: "You don't have access to campaign approval",
             body:
                 'Approval is limited to the Campaign Approver role, and an '
