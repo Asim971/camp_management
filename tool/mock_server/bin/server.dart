@@ -77,7 +77,7 @@ Router _buildRouter(_Store store) {
     final fixture = Platform.environment['MOCK_CAMPAIGNS'] ?? 'rows';
     if (fixture == 'error') return _json({'error': 'boom'}, status: 500);
     final items = fixture == 'empty'
-        ? <Map>[]
+        ? <Map<String, dynamic>>[]
         : store.campaigns.values.toList();
     return _json({'items': items, 'total': items.length});
   });
@@ -171,6 +171,15 @@ Router _buildRouter(_Store store) {
       return _json({'error': 'already decided'}, status: 409);
     }
     return _json({'ok': true});
+  });
+
+  // ---- Audit (🔒 contract-pending shape) ----------------------------------
+  // Real so dev and E2E flush successfully; a throwing stub would fail every
+  // flush and grow the local buffer for no reason.
+  r.post('/audit/events', (Request req) async {
+    final body = await _body(req);
+    final events = body['events'];
+    return _json({'accepted': events is List ? events.length : 0});
   });
 
   // ---- Bulk import --------------------------------------------------------
