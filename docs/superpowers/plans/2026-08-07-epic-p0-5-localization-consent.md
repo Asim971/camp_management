@@ -2261,26 +2261,42 @@ Future<List<ConsentNotice>> Function() driftNoticeReader(AppDatabase db) =>
         )
         .toList();
 
+/// Writes notices with their hashes already computed.
+///
+/// Hashing is async and a Drift `batch` callback is not, so the hash CANNOT be
+/// computed inside the batch. It is computed before the batch opens and passed
+/// in — never written as a placeholder and backfilled, because a row whose
+/// hash is blank defeats the entire purpose of the column.
 Future<void> Function(List<ConsentNotice>) driftNoticeWriter(AppDatabase db) =>
-    (notices) async => db.batch((b) {
+    (notices) async {
+      // Await every hash first — outside the batch.
+      final hashed = <(ConsentNotice, String)>[];
       for (final n in notices) {
-        b.insert(
-          db.consentNotices,
-          ConsentNoticesCompanion.insert(
-            version: n.version,
-            language: n.language,
-            title: n.title,
-            body: n.body,
-            contentHash: '', // filled by the caller that has the hash
-            fetchedAt: DateTime.now().toUtc(),
-          ),
-          mode: InsertMode.insertOrReplace,
-        );
+        hashed.add((n, await n.hash()));
       }
-    });
+
+      await db.batch((b) {
+        for (final (notice, hash) in hashed) {
+          b.insert(
+            db.consentNotices,
+            ConsentNoticesCompanion.insert(
+              version: notice.version,
+              language: notice.language,
+              title: notice.title,
+              body: notice.body,
+              contentHash: hash,
+              fetchedAt: DateTime.now().toUtc(),
+            ),
+            mode: InsertMode.insertOrReplace,
+          );
+        }
+      });
+    };
 ```
 
-`contentHash` is computed by the caller because it is async and a batch callback is not. Have `refreshInBackground` compute each hash before writing, and pass it through — adjust the writer signature to take pre-hashed rows if that reads more cleanly. **Do not leave an empty hash in the table**; a stored row whose hash is blank would defeat the verification the column exists for.
+Note the ordering: hashes are awaited into a list **before** `db.batch` opens, because a batch callback is synchronous and cannot await. A placeholder hash backfilled later is not an acceptable substitute — a stored row with a blank hash silently defeats the verification the column exists for, which is exactly the class of "field present but meaningless" defect this epic's spec was written to avoid.
+
+**Add a test for this** in `test/core/storage/migration_test.dart` or alongside the repository tests: write two notices through `driftNoticeWriter`, read the rows back, and assert each `contentHash` is non-empty **and** equals `consentContentHash(...)` recomputed from that row's fields.
 
 - [ ] **Step 7: Run the tests to verify they pass**
 
