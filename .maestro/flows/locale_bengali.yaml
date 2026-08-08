@@ -56,7 +56,13 @@ tags:
 # `BmdColumnPriority.identity` column and identity columns are never dropped
 # (bmd_data_table.dart:155-195), so this assertion is width-independent and it
 # is the cheapest proof that the mock server answered at all.
-- assertVisible: "Rajshahi Carpenter Drive" # CAMP-3, the DRAFT fixture
+#
+# Wrapped in `.*`: BmdDataTable merges each ROW into one accessibility node, so
+# the only text Maestro sees here is "Rajshahi Carpenter Drive\n40" (the name
+# and the target cell together), and Maestro ANCHORS its text patterns — a bare
+# name cannot match. Confirmed from this flow's own screen-hierarchy artifact.
+# `.` spans the newline because Maestro compiles these patterns DOTALL.
+- assertVisible: ".*Rajshahi Carpenter Drive.*" # CAMP-3, the DRAFT fixture
 
 # The chip is asserted on the campaign DETAIL header, not in the list table, on
 # purpose. In the table, `status` is a `primary` column with minWidth 160 next to
@@ -68,12 +74,23 @@ tags:
 # chip in a Row beside an Expanded title (campaign_detail_screen.dart:91), so it
 # is present at any width. The widget test covers the table at its own surface
 # size; this covers the same label on a real device.
-- tapOn: "Rajshahi Carpenter Drive"
+- tapOn: ".*Rajshahi Carpenter Drive.*" # same merged row node as the assertion above
 
-# Both English forms must be ABSENT: the properly-cased label a partial
-# fallback (bn locale, English bundle) would produce, and the raw enum
-# identifier a call site left on `.name` would produce. Either would otherwise
-# read as success alongside a single Bengali glyph elsewhere on screen.
-- assertVisible: "খসড়া"
-- assertNotVisible: "Draft"
-- assertNotVisible: "draft"
+# StatusChip prefixes its own semantics label, so the node Maestro sees is
+# exactly "Status: খসড়া" — asserted in full rather than as `.*খসড়া.*`, because
+# matching the prefix too proves the text came from the CHIP and not from some
+# other Bengali glyph on screen.
+- assertVisible: "Status: খসড়া"
+
+# Both English forms must be ABSENT: the properly-cased label a partial fallback
+# (bn locale, English bundle) would produce, and the raw enum identifier a call
+# site left on `.name` would produce. Either would otherwise read as success
+# alongside a single Bengali glyph elsewhere on screen.
+#
+# WRAPPED IN `.*` FOR A REASON. Maestro ANCHORS text patterns, so bare "Draft"
+# only matches a node whose ENTIRE text is "Draft" — and no node ever is, since
+# the chip's label is "Status: <label>". These two assertions therefore used to
+# pass VACUOUSLY: they would have stayed green even with the chip reading
+# "Status: Draft", i.e. against the exact regression they exist to catch.
+- assertNotVisible: ".*Draft.*"
+- assertNotVisible: ".*draft.*"
