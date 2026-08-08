@@ -20,6 +20,28 @@
   "attendanceStatus_rejected": "Rejected",
   "attendanceStatus_returned": "Returned",
 
+  "registrationStatus_invited": "Invited",
+  "registrationStatus_registered": "Registered",
+  "registrationStatus_pendingProfileSync": "Pending profile sync",
+  "registrationStatus_ineligible": "Ineligible",
+  "registrationStatus_waitlisted": "Waitlisted",
+  "registrationStatus_cancelled": "Cancelled",
+
+  "importStatus_dryRun": "Dry run",
+  "importStatus_readyToCommit": "Ready to commit",
+  "importStatus_processing": "Processing",
+  "importStatus_completed": "Completed",
+  "importStatus_partiallyCompleted": "Partially completed",
+  "importStatus_failed": "Failed",
+  "importStatus_cancelled": "Cancelled",
+
+  "integrityFlag_noReference": "No reference photo",
+  "integrityFlag_poorQuality": "Poor image quality",
+  "integrityFlag_suspectedSpoof": "Suspected spoof",
+  "integrityFlag_duplicate": "Duplicate",
+  "integrityFlag_geofenceException": "Outside venue geofence",
+  "integrityFlag_manualOverride": "Manual override",
+
   "action_submitForApproval": "Submit for approval",
   "action_captureAttendance": "Capture attendance",
   "action_returnForRecapture": "Return for recapture",
