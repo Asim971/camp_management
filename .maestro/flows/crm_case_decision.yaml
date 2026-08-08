@@ -28,7 +28,16 @@ tags:
 # so the bare headings matched nothing. The parentheses are escaped because
 # these patterns are regexes, not literals.
 - assertVisible: ".*Evidence.*"
-- assertVisible: ".*Machine recommendation \\(advisory\\).*"
+# scrollUntilVisible, not assertVisible: the advisory block is BELOW THE FOLD on
+# CI's api-34 emulator even though it is on screen on a larger local device, so
+# a bare assertion here passes locally and times out in CI. scrollUntilVisible
+# still fails if the element never appears, so this is an assertion too — just a
+# viewport-independent one. Every below-the-fold element in this flow is reached
+# the same way for the same reason.
+- scrollUntilVisible:
+    element:
+      text: ".*Machine recommendation \\(advisory\\).*"
+    direction: DOWN
 
 # Reason is mandatory: Submit stays disabled until an outcome + reason are set.
 #
@@ -44,9 +53,20 @@ tags:
 - assertVisible:
     id: "crm_submit"
     enabled: false
+- scrollUntilVisible:
+    element:
+      id: "crm_reason"
+    direction: DOWN
 - tapOn:
     id: "crm_reason"
 - inputText: "Face matches the verified profile photo."
+# The keyboard raised by inputText can cover the button on a short viewport, so
+# scroll again rather than assuming the earlier scroll still holds.
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: "crm_submit"
+    direction: DOWN
 - assertVisible:
     id: "crm_submit"
     enabled: true

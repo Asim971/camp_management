@@ -25,9 +25,21 @@ tags:
     direction: DOWN
 - tapOn:
     id: "crm_outcome_approved"
+# crm_reason sits below the radios and was 'Element not found' on CI's api-34
+# emulator while visible on a larger local device — so scroll to each element
+# rather than assuming the previous scroll left it on screen.
+- scrollUntilVisible:
+    element:
+      id: "crm_reason"
+    direction: DOWN
 - tapOn:
     id: "crm_reason"
 - inputText: "Face matches."
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: "crm_submit"
+    direction: DOWN
 - tapOn:
     id: "crm_submit"
 
