@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/di/providers.dart';
+import '../../../core/consent/notice.dart';
 import '../../../core/design_system/bmd_button.dart';
+import '../../../core/l10n/locale_controller.dart';
 import '../../../core/media/capture_source.dart';
 import '../../../core/media/face_quality.dart';
 import '../application/capture_controller.dart';
@@ -25,11 +29,40 @@ class CaptureFlowScreen extends ConsumerStatefulWidget {
 }
 
 class _CaptureFlowScreenState extends ConsumerState<CaptureFlowScreen> {
-  late final CaptureSource _source = ref.read(captureSourceProvider);
+  /// Read in [initState], NOT as a lazy `late final` initializer. `dispose()`
+  /// calls `_source.dispose()`, which on a screen the user left before reaching
+  /// the camera would be the FIRST touch of the field — running `ref.read`
+  /// after the widget was disposed, which throws `Bad state: Cannot use "ref"
+  /// after the widget was disposed`. Backing out of the notice step is the
+  /// ordinary case, not an edge one.
+  late final CaptureSource _source;
   Future<void>? _cameraInit;
 
   CaptureArgs get _args =>
       CaptureArgs(sessionId: widget.sessionId, carpenterId: widget.carpenterId);
+
+  @override
+  void initState() {
+    super.initState();
+    _source = ref.read(captureSourceProvider);
+    // The notice has to be resolved before it can be shown, let alone accepted.
+    unawaited(
+      ref
+          .read(captureControllerProvider(_args).notifier)
+          .loadNotice(_defaultNoticeLanguage()),
+    );
+  }
+
+  /// The app locale is only the DEFAULT notice language (T-2.3.3) — the carpenter
+  /// picks their own on the notice step.
+  ///
+  /// Falls back to `'en'` rather than the device locale on purpose: an
+  /// unsupported device language (say `fr`) has no notice to resolve, and
+  /// consent fails closed, so reading the raw platform locale would block every
+  /// capture on that phone. `localeControllerProvider` only ever holds a locale
+  /// the app actually ships.
+  String _defaultNoticeLanguage() =>
+      ref.read(localeControllerProvider)?.languageCode ?? 'en';
 
   Future<void> _initCamera() async {
     await _source.initialize();
@@ -63,7 +96,10 @@ class _CaptureFlowScreenState extends ConsumerState<CaptureFlowScreen> {
           padding: const EdgeInsets.all(16),
           child: switch (state.step) {
             CaptureStep.purposeNotice => _PurposeNotice(
-              onAccept: (lang) => controller.acceptNotice(lang),
+              notice: state.notice,
+              blocked: state.noticeBlocked,
+              onSelectLanguage: controller.selectNoticeLanguage,
+              onAccept: controller.acceptNotice,
             ),
             CaptureStep.positioning => _Positioning(
               onReady: () {
@@ -93,47 +129,60 @@ class _CaptureFlowScreenState extends ConsumerState<CaptureFlowScreen> {
   }
 }
 
-class _PurposeNotice extends StatefulWidget {
-  const _PurposeNotice({required this.onAccept});
-  final void Function(String language) onAccept;
-  @override
-  State<_PurposeNotice> createState() => _PurposeNoticeState();
-}
+/// The notice step. Renders the notice the repository RESOLVED — never
+/// hardcoded text, because the consent record stores a hash of what was shown
+/// and hardcoded text would make that hash prove the wrong thing.
+///
+/// Stateless: the selected language is the resolved notice's own
+/// [ConsentNotice.language], so the toggle cannot disagree with the text under
+/// it. A local `_lang` field would be a second source of truth for the one fact
+/// that has to be single.
+class _PurposeNotice extends StatelessWidget {
+  const _PurposeNotice({
+    required this.notice,
+    required this.blocked,
+    required this.onSelectLanguage,
+    required this.onAccept,
+  });
 
-class _PurposeNoticeState extends State<_PurposeNotice> {
-  String _lang = 'en';
+  final ConsentNotice? notice;
+
+  /// No notice resolved (spec D7). Nothing below offers a route to the camera.
+  final bool blocked;
+
+  final void Function(String language) onSelectLanguage;
+  final VoidCallback onAccept;
+
   @override
   Widget build(BuildContext context) {
+    final shown = notice;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Language choice BEFORE acceptance (§10.3).
+        // Language choice BEFORE acceptance (§10.3). Kept available while
+        // blocked as well: the other language may resolve, and offering it is a
+        // way forward that is not a way to the camera.
         SegmentedButton<String>(
           segments: const [
             ButtonSegment(value: 'en', label: Text('English')),
             ButtonSegment(value: 'bn', label: Text('বাংলা')),
           ],
-          selected: {_lang},
-          onSelectionChanged: (s) => setState(() => _lang = s.first),
+          selected: {shown?.language == 'bn' ? 'bn' : 'en'},
+          onSelectionChanged: (s) => onSelectLanguage(s.first),
         ),
         const SizedBox(height: 16),
-        Text(
-          'Attendance photo and identity verification',
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'ACSL will capture your photo for this campaign session to verify '
-          'attendance against your registered profile. You may choose a manual '
-          'verification route instead.',
-        ),
-        const Spacer(),
-        BmdButton(
-          label: 'Accept and continue',
-          identifier: 'capture_accept',
-          onPressed: () => widget.onAccept(_lang),
-        ),
-        const SizedBox(height: 8),
+        Expanded(child: _body(context, shown)),
+        const SizedBox(height: 16),
+        // The accept affordance exists ONLY when there is resolved text to
+        // accept — an accepted blank notice is the defect this guards.
+        if (!blocked && shown != null) ...[
+          BmdButton(
+            label: 'Accept and continue',
+            identifier: 'capture_accept',
+            onPressed: onAccept,
+          ),
+          const SizedBox(height: 8),
+        ],
         BmdButton(
           label: 'Use manual route',
           variant: BmdButtonVariant.text,
@@ -142,6 +191,54 @@ class _PurposeNoticeState extends State<_PurposeNotice> {
           },
         ),
       ],
+    );
+  }
+
+  Widget _body(BuildContext context, ConsentNotice? shown) {
+    if (blocked) {
+      return Column(
+        key: const Key('capture_notice_blocked'),
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Icon(
+            Icons.gpp_maybe_outlined,
+            size: 64,
+            color: Theme.of(context).colorScheme.error,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'The consent notice could not be shown',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'This capture cannot continue until the notice is available. Try '
+            'the other language, or record this attendance through the manual '
+            'route.',
+            textAlign: TextAlign.center,
+          ),
+        ],
+      );
+    }
+
+    // Still resolving. Deliberately not the blocking message: "unavailable" is
+    // a claim about a finished attempt, not about one still in flight.
+    if (shown == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    // Scrollable: a real legal notice is longer than any phone screen, and the
+    // person consenting has to be able to read all of it.
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(shown.title, style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 8),
+          Text(shown.body),
+        ],
+      ),
     );
   }
 }
