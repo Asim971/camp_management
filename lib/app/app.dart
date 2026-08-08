@@ -24,6 +24,19 @@ class AcslCampaignApp extends ConsumerWidget {
       routerConfig: router,
       localizationsDelegates: AppL10n.localizationsDelegates,
       supportedLocales: AppL10n.supportedLocales,
+      // Codegen emits supportedLocales alphabetically ([bn, en]), and Flutter's
+      // default resolution returns supportedLocales.first when the device locale
+      // matches nothing supported — which would hand a French phone Bengali
+      // purely because 'bn' sorts before 'en'. English is the deliberate
+      // fallback; en and bn devices still resolve by exact language match here.
+      localeListResolutionCallback: (deviceLocales, supported) {
+        for (final device in deviceLocales ?? const <Locale>[]) {
+          for (final candidate in supported) {
+            if (candidate.languageCode == device.languageCode) return candidate;
+          }
+        }
+        return const Locale('en');
+      },
     );
   }
 }
