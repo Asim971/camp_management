@@ -117,7 +117,15 @@ class _AccountMenu extends ConsumerWidget {
         onSelected: (value) async {
           switch (value) {
             case 'language':
-              context.go('/settings/language');
+              // push, NOT go: `go` REPLACES the location, which left
+              // /settings/language with nothing beneath it — AppBar's
+              // automaticallyImplyLeading then rendered no back arrow and
+              // Android's back button exited the app. The screen matches no
+              // nav destination either, so it showed no bottom nav and the
+              // account menu was the only way off it. Pushing stacks it over
+              // wherever the user was, which restores both the arrow and back.
+              // (The dev launcher already pushes — see dev_launcher_screen.)
+              await context.push<void>('/settings/language');
             case 'signOut':
               await ref.read(sessionManagerProvider).signOut();
           }

@@ -249,6 +249,81 @@ void main() {
       },
     );
 
+    testWidgets(
+      'the language picker can be backed out of, rather than trapping the user',
+      (tester) async {
+        // Found by running the app on an emulator. The account menu used
+        // context.go(), which REPLACES the location rather than stacking it, so
+        // /settings/language had nothing beneath it: AppBar's
+        // automaticallyImplyLeading rendered no back arrow, and the Android
+        // system back button left the APP instead of returning. The screen also
+        // shows no bottom nav (it matches no destination), so the account menu
+        // was the only way off it — a dead end reachable in two taps.
+        tester.view.physicalSize = const Size(1440, 900);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.reset);
+
+        final router = GoRouter(
+          initialLocation: '/',
+          routes: [
+            GoRoute(
+              path: '/',
+              builder: (_, __) =>
+                  const AppShell(title: 'Campaigns', body: Text('BODY')),
+            ),
+            GoRoute(
+              path: '/settings/language',
+              builder: (_, __) => const LanguageScreen(),
+            ),
+          ],
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              authStateProvider.overrideWith(
+                (ref) => signedIn(Permission.values.toSet()),
+              ),
+            ],
+            child: MaterialApp.router(routerConfig: router),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byWidgetPredicate(
+            (w) => w is Semantics && w.properties.identifier == 'account_menu',
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Language'));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(LanguageScreenBody), findsOneWidget);
+
+        // The route must sit ON TOP of where the user came from. Without this,
+        // Android's back gesture pops the last route and exits the app.
+        expect(
+          Navigator.of(
+            tester.element(find.byType(LanguageScreenBody)),
+          ).canPop(),
+          isTrue,
+          reason: 'nothing to pop means system back exits the app',
+        );
+
+        // And there must be a visible affordance, not only a system gesture —
+        // AppBar supplies one automatically once the route is poppable.
+        expect(find.byType(BackButton), findsOneWidget);
+
+        await tester.tap(find.byType(BackButton));
+        await tester.pumpAndSettle();
+
+        // Back lands on the originating screen, not a blank tree.
+        expect(find.text('BODY'), findsOneWidget);
+        expect(find.byType(LanguageScreenBody), findsNothing);
+      },
+    );
+
     testWidgets('a field user does not see the Analytics destination', (
       tester,
     ) async {
