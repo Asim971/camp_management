@@ -57,10 +57,25 @@ tags:
 # thing Maestro CAN see is the bar's own a11y label, which is asserted below.
 # TESTING_MAESTRO.md §3.1 lists a `queue_pending_count` id for this; it does not
 # exist and cannot be made to exist inside that subtree.
+#
+# `capture_done` is `Navigator.maybePop()` (capture_flow_screen.dart:417), so it
+# pops ONE route — back to the search screen this flow came through, NOT to
+# /dev. Verified from the failure screenshot: "Find carpenter" with "kar" still
+# in the field. A bare `back` is not a reliable substitute either, because the
+# search field regains focus on pop and raises the keyboard, so the first back
+# would dismiss the keyboard instead of navigating. Relaunching lands on /dev
+# deterministically and, with no clearState, keeps the queued item.
+- launchApp
 - tapOn:
     id: "dev_open_queue"
 - assertVisible: "1 captures waiting to upload.*"
-- assertVisible: "Pending sync"
+# `.*Status: <label>.*`, not a bare label: the queue ROW is merged into ONE
+# accessibility node, so the only text Maestro can see is the combined
+#   "Carpenter CARP_E2E\nSession SESSION_E2E · captured <ts>\nStatus: Pending sync"
+# and Maestro ANCHORS its text patterns, so a bare "Pending sync" cannot match.
+# (Confirmed from this flow's own screen-hierarchy artifact. It is also why the
+# offline-bar assertion above needs its trailing `.*`.)
+- assertVisible: ".*Status: Pending sync.*"
 
 # Durability: kill and relaunch WITHOUT clearing state; item must persist.
 # Deliberately no `arguments:` — the previous ones were inert, and the relaunch
@@ -69,7 +84,7 @@ tags:
 - launchApp
 - tapOn:
     id: "dev_open_queue"
-- assertVisible: "Pending sync"
+- assertVisible: ".*Status: Pending sync.*"
 
 # Reconnect -> engine auto-drains -> item moves to Match processing.
 #
@@ -80,7 +95,7 @@ tags:
 # What actually reaches zero is the pending count, so that is what is asserted.
 - setAirplaneMode: disabled
 - extendedWaitUntil:
-    visible: "Match processing"
+    visible: ".*Status: Match processing.*"
     timeout: 20000
 - extendedWaitUntil:
     visible: "0 captures waiting to upload.*"
