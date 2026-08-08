@@ -1,18 +1,21 @@
 # P-04 quality path: a failing capture surfaces "Review required" with issues
 # and only offers Recapture (Submit hidden); a second, passing capture submits.
-# Prereq: E2E launched with QUALITY=fail, cycling to pass on the 2nd capture.
+#
+# Requires the `recapture` matrix APK (--dart-define=QUALITY=fail), which wires
+# E2EQualityChecker(failFirst: true) — one failing check per app process, then
+# passes. Maestro `arguments:` are Android intent extras and CANNOT reach
+# `const String.fromEnvironment`, so QUALITY lives in the build, not here; with
+# the default QUALITY=pass this flow never enters the recapture path it exists
+# to test. It gets its own APK rather than sharing one because failFirst is
+# process-wide and would corrupt any other capture flow in the same run.
+# See ci.yml's e2e matrix.
 appId: ${APP_ID}
 tags:
   - field
   - android
 ---
 - clearState
-- launchApp:
-    arguments:
-      E2E: true
-      LOCALE: en
-      ROLE: field_user
-      QUALITY: fail # first capture fails quality; second passes
+- launchApp
 - tapOn:
     id: "dev_open_capture" # opens /capture/SESSION_E2E/CARP_E2E directly
 

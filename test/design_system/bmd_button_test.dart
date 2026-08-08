@@ -120,6 +120,93 @@ void main() {
     });
   });
 
+  group('the Maestro `id:` node carries the enabled state', () {
+    // `Semantics(identifier:)` compiles to its OWN semantics node, separate
+    // from the Material button's. Probed on Flutter 3.44.8, a plain
+    // `Semantics(identifier: 'x', child: FilledButton(onPressed: null))` yields
+    //
+    //   node A  identifier "x"  label ""                isEnabled none
+    //     node B identifier ""  label "Submit decision" isEnabled false
+    //
+    // Flutter's Android AccessibilityBridge reports a node with no enabled
+    // state as `enabled=true`, so node A — the one Maestro finds by `id:` —
+    // claimed to be enabled even when the button was disabled. That made
+    // `assertVisible: {id: ..., enabled: false}` fail and its `enabled: true`
+    // counterpart pass vacuously, in the two E2E flows whose entire subject is
+    // a gated action: `confirm_continue` (the mandatory second identity cue,
+    // .maestro/flows/carpenter_search_confirm.yaml) and `crm_submit` (the
+    // mandatory decision reason, .maestro/flows/crm_case_decision.yaml).
+    //
+    // Non-vacuous by construction: deleting `enabled: _interactive` from
+    // BmdButton.build turns the disabled expectation below from `isEnabled
+    // false` into `isEnabled none`, which `matchesSemantics(hasEnabledState:
+    // true)` rejects.
+    testWidgets('reflects onPressed and loading, not just the child button', (
+      tester,
+    ) async {
+      // Disposed at the end of the body, not via addTearDown: the framework's
+      // "a SemanticsHandle was active at the end of the test" check runs BEFORE
+      // tear-downs, so a tear-down disposal fails the test it is protecting.
+      final handle = tester.ensureSemantics();
+
+      await _pump(
+        tester,
+        const BmdButton(
+          label: 'Submit decision',
+          identifier: 'crm_submit',
+          onPressed: null,
+        ),
+      );
+      expect(
+        tester.getSemantics(find.byType(BmdButton)),
+        matchesSemantics(
+          identifier: 'crm_submit',
+          hasEnabledState: true,
+          isEnabled: false,
+        ),
+      );
+
+      await _pump(
+        tester,
+        BmdButton(
+          label: 'Submit decision',
+          identifier: 'crm_submit',
+          onPressed: () {},
+        ),
+      );
+      expect(
+        tester.getSemantics(find.byType(BmdButton)),
+        matchesSemantics(
+          identifier: 'crm_submit',
+          hasEnabledState: true,
+          isEnabled: true,
+        ),
+      );
+
+      // `loading` suppresses onPressed, so the identifier node must say so too
+      // — otherwise a flow could tap a spinner and wait forever.
+      await _pump(
+        tester,
+        BmdButton(
+          label: 'Submit decision',
+          identifier: 'crm_submit',
+          loading: true,
+          onPressed: () {},
+        ),
+      );
+      expect(
+        tester.getSemantics(find.byType(BmdButton)),
+        matchesSemantics(
+          identifier: 'crm_submit',
+          hasEnabledState: true,
+          isEnabled: false,
+        ),
+      );
+
+      handle.dispose();
+    });
+  });
+
   group('single renderer', () {
     test('no feature screen builds a raw filled/outlined button', () {
       // expectSinglePrimaryAction only counts BmdButton instances, so a screen

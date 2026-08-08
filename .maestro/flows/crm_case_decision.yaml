@@ -1,6 +1,12 @@
 # C-02: machine recommendation is shown as a separate advisory block, the
 # reason is mandatory, and a valid decision is recorded (part of P-06).
 # Prereq: mock /verification/cases/CASE_E2E + fixture images.
+#
+# Requires the `crm` matrix APK (--dart-define=ROLE=crm_verifier) via
+# launch_as_crm.yaml. Maestro `arguments:` are Android intent extras and CANNOT
+# reach `const String.fromEnvironment`, so the role lives in the build; with the
+# default field_user the session has no `verificationDecide` and the route
+# redirects to /forbidden. See ci.yml's e2e matrix.
 appId: ${APP_ID}
 tags:
   - crm

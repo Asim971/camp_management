@@ -1,5 +1,10 @@
 # M-02: the mandatory second identity cue gates progress to capture, and
 # short queries return nothing. Guards against capturing the wrong carpenter.
+#
+# Requires the `field` matrix APK (E2E=true with the DEFAULT ROLE=field_user).
+# Configuration comes from the build: Maestro `arguments:` are Android intent
+# extras and CANNOT reach `const String.fromEnvironment`. See ci.yml's e2e
+# matrix. Runs with no mock server — search reads the locally seeded roster.
 appId: ${APP_ID}
 tags:
   - field

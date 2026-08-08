@@ -1,6 +1,12 @@
 # P-06 concurrency (§9.4): if another reviewer already decided, the server
 # returns 409 and the UI must surface it and reload — never silently overwrite.
 # Prereq: mock returns 409 for CASE_CONFLICT's decision endpoint.
+#
+# Requires the `crm` matrix APK (--dart-define=ROLE=crm_verifier) via
+# launch_as_crm.yaml. Maestro `arguments:` are Android intent extras and CANNOT
+# reach `const String.fromEnvironment`, so the role lives in the build; with the
+# default field_user the session has no `verificationDecide` and the route
+# redirects to /forbidden. See ci.yml's e2e matrix.
 appId: ${APP_ID}
 tags:
   - crm

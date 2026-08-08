@@ -1,5 +1,11 @@
 # P-04 Online attendance: search -> confirm -> capture -> quality pass -> queued.
 # Prereqs: E2E build (fake camera + passing quality), seeded roster, mock upload.
+#
+# Requires the `field` matrix APK (E2E=true with the DEFAULT ROLE=field_user and
+# QUALITY=pass). Configuration comes from the build: Maestro `arguments:` are
+# Android intent extras and CANNOT reach `const String.fromEnvironment`.
+# See ci.yml's e2e matrix. The mock server must be running — the upload leg is
+# presign -> PUT -> confirm against tool/mock_server.
 appId: ${APP_ID}
 tags:
   - field
@@ -12,7 +18,7 @@ tags:
 - tapOn:
     id: "dev_open_search" # opens /search/SESSION_E2E
 - assertVisible:
-    id: "search_field" # fallback text: "Name, ID or phone suffix"
+    id: "search_field" # label "Find carpenter", hint "At least 2 characters"
 - tapOn:
     id: "search_field"
 - inputText: "kar"

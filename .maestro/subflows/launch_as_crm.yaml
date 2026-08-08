@@ -1,11 +1,15 @@
 # Shared setup: clear state and launch in E2E mode as a CRM Verifier.
+#
+# Requires the `crm` matrix APK (--dart-define=ROLE=crm_verifier). This used to
+# pass `arguments: {E2E, LOCALE, ROLE}` to launchApp; those are Android intent
+# extras and CANNOT reach `const String.fromEnvironment`, which is resolved at
+# compile time, so they were inert. With the default ROLE=field_user the session
+# lacks `verificationDecide` and /verification/cases/:id redirects to
+# /forbidden — the flows using this subflow would fail before their first
+# assertion. Configuration lives in the build now. See ci.yml's e2e matrix.
 appId: ${APP_ID}
 ---
 - clearState
-- launchApp:
-    arguments:
-      E2E: true
-      LOCALE: en
-      ROLE: crm_verifier
+- launchApp
 - assertVisible:
     id: "dev_launcher"

@@ -1,20 +1,22 @@
 # M-04 recovery: a pending item can be retried, and Discard is guarded by a
 # confirmation dialog (destructive + controlled — §8.11).
-# Prereq: E2E seeds one pending sync item into the queue.
+#
+# Requires the `queue` matrix APK (--dart-define=SEED=queue), which makes
+# e2e_seeder insert exactly one pending sync task. Maestro `arguments:` are
+# Android intent extras and CANNOT reach `const String.fromEnvironment`, so SEED
+# lives in the build, not here; without it the queue is empty and every
+# assertion below finds nothing. It gets its own APK rather than sharing the
+# `field` one because the seeded item would make the capture flows' pending
+# count off by one — e2e_seeder.dart says so in as many words.
+# See ci.yml's e2e matrix.
 appId: ${APP_ID}
 tags:
   - field
   - offline
   - android
 ---
-# Launch inline with SEED=queue so exactly one pending item exists.
 - clearState
-- launchApp:
-    arguments:
-      E2E: true
-      LOCALE: en
-      ROLE: field_user
-      SEED: queue
+- launchApp
 - assertVisible:
     id: "dev_launcher"
 - tapOn:
@@ -27,13 +29,20 @@ tags:
     index: 0
 - tapOn: "Retry"
 
-# Discard -> confirmation required; Cancel keeps the item.
+# Discard -> confirmation required; declining keeps the item.
+#
+# The three literals below were WRONG and had never been run against the app:
+# the dialog's title is 'Discard this capture?' (not "Discard captured
+# attendance?"), its cancel label is the deliberately non-neutral 'Keep it
+# queued' (not "Cancel" — showBmdConfirm's default, which this call site
+# overrides), and the empty state's title has no full stop. Corrected against
+# offline_queue_screen.dart:309-323 and bmd_overlays.dart:274.
 - tapOn:
     id: "queue_item_menu"
     index: 0
 - tapOn: "Discard…"
-- assertVisible: "Discard captured attendance?"
-- tapOn: "Cancel"
+- assertVisible: "Discard this capture?"
+- tapOn: "Keep it queued"
 - assertVisible: "Pending sync"
 
 # Discard -> confirm -> item removed.
@@ -42,5 +51,5 @@ tags:
     index: 0
 - tapOn: "Discard…"
 - tapOn:
-    id: "queue_discard_confirm" # "Discard" in the dialog
-- assertVisible: "Everything is synced."
+    id: "queue_discard_confirm" # "Discard capture" in the dialog
+- assertVisible: "Everything is synced"
