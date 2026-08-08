@@ -33,6 +33,11 @@ class DevLauncherScreen extends StatelessWidget {
       label: 'CRM case (conflict)',
       route: '/verification/cases/CASE_CONFLICT',
     ),
+    // The launcher itself is a bare Scaffold with no AppShell, so the account
+    // menu that normally opens the picker does not exist on /dev. Without this
+    // entry a locale flow would have to hop through a data-backed screen first
+    // just to find the menu.
+    (id: 'dev_open_language', label: 'Language', route: '/settings/language'),
   ];
 
   @override

@@ -71,6 +71,10 @@ const List<RouteEntry> routeTable = [
   RouteEntry('/queue', Requires(Permission.attendanceCapture)),
 
   RouteEntry('/analytics', Requires(Permission.export)),
+
+  // Language is a display preference, not a privileged operation: any
+  // signed-in role may change it.
+  RouteEntry('/settings/language', Authenticated()),
 ];
 
 final Map<String, Access> _byPath = {

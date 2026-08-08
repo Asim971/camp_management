@@ -16,6 +16,7 @@ import '../../features/dev/presentation/dev_launcher_screen.dart';
 import '../../features/gallery/presentation/gallery_screen.dart';
 import '../../features/offline_queue/presentation/offline_queue_screen.dart';
 import '../../features/registration/presentation/registration_workspace_screen.dart';
+import '../../features/settings/presentation/language_screen.dart';
 import '../di/providers.dart';
 import 'route_guards.dart';
 
@@ -134,6 +135,10 @@ List<RouteBase> _appRoutes({required bool devRoutesEnabled}) => [
       screenId: 'A-02',
       prdRefs: ['CM-FR-080..087'],
     ),
+  ),
+  GoRoute(
+    path: '/settings/language',
+    builder: (_, __) => const LanguageScreen(),
   ),
 ];
 

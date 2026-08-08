@@ -107,19 +107,37 @@ class _AccountMenu extends ConsumerWidget {
     };
     if (name == null) return const SizedBox.shrink();
 
-    return PopupMenuButton<String>(
-      tooltip: 'Account',
-      icon: const Icon(Icons.account_circle_outlined),
-      onSelected: (value) async {
-        if (value == 'signOut') {
-          await ref.read(sessionManagerProvider).signOut();
-        }
-      },
-      itemBuilder: (_) => [
-        PopupMenuItem<String>(enabled: false, child: Text(name)),
-        const PopupMenuDivider(),
-        const PopupMenuItem<String>(value: 'signOut', child: Text('Sign out')),
-      ],
+    // Semantics identifiers (not Keys) so Maestro flows can open the menu and
+    // reach the language picker: `id:` maps to Semantics(identifier:).
+    return Semantics(
+      identifier: 'account_menu',
+      child: PopupMenuButton<String>(
+        tooltip: 'Account',
+        icon: const Icon(Icons.account_circle_outlined),
+        onSelected: (value) async {
+          switch (value) {
+            case 'language':
+              context.go('/settings/language');
+            case 'signOut':
+              await ref.read(sessionManagerProvider).signOut();
+          }
+        },
+        itemBuilder: (_) => [
+          PopupMenuItem<String>(enabled: false, child: Text(name)),
+          const PopupMenuDivider(),
+          PopupMenuItem<String>(
+            value: 'language',
+            child: Semantics(
+              identifier: 'account_language',
+              child: const Text('Language'),
+            ),
+          ),
+          const PopupMenuItem<String>(
+            value: 'signOut',
+            child: Text('Sign out'),
+          ),
+        ],
+      ),
     );
   }
 }

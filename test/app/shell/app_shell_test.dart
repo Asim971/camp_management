@@ -4,6 +4,7 @@ import 'package:acsl_campaign/app/shell/nav_destinations.dart';
 import 'package:acsl_campaign/core/auth/rbac.dart';
 import 'package:acsl_campaign/core/auth/session.dart';
 import 'package:acsl_campaign/core/auth/session_manager.dart';
+import 'package:acsl_campaign/features/settings/presentation/language_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -182,6 +183,69 @@ void main() {
 
         expect(manager.state, isA<AuthSignedOut>());
         expect(tokenStore.value, isNull);
+      },
+    );
+
+    testWidgets(
+      'the account menu reaches the language picker through the Semantics '
+      'identifiers Maestro drives (account_menu → account_language)',
+      (tester) async {
+        // The menu is the ONLY way into /settings/language, and Task 12's
+        // Bengali flow has to walk it on an emulator, where a missing
+        // identifier is the most expensive kind of defect to discover.
+        tester.view.physicalSize = const Size(1440, 900);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.reset);
+
+        final router = GoRouter(
+          initialLocation: '/',
+          routes: [
+            GoRoute(
+              path: '/',
+              builder: (_, __) =>
+                  const AppShell(title: 'Campaigns', body: Text('BODY')),
+            ),
+            GoRoute(
+              path: '/settings/language',
+              builder: (_, __) => const LanguageScreen(),
+            ),
+          ],
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              authStateProvider.overrideWith(
+                (ref) => signedIn(Permission.values.toSet()),
+              ),
+            ],
+            child: MaterialApp.router(routerConfig: router),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        Finder byIdentifier(String id) => find.byWidgetPredicate(
+          (w) => w is Semantics && w.properties.identifier == id,
+        );
+
+        // find.bySemanticsIdentifier reads the RENDERED semantics tree, which
+        // is what Maestro sees; the widget-tree predicate alone would still
+        // pass if the identifier were merged away.
+        final semantics = tester.ensureSemantics();
+
+        expect(find.bySemanticsIdentifier('account_menu'), findsOneWidget);
+        await tester.tap(byIdentifier('account_menu'));
+        await tester.pumpAndSettle();
+
+        expect(find.bySemanticsIdentifier('account_language'), findsOneWidget);
+        // Disposed inline: the binding checks for live SemanticsHandles at the
+        // end of the test BODY, before any tearDown runs.
+        semantics.dispose();
+
+        await tester.tap(byIdentifier('account_language'));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(LanguageScreenBody), findsOneWidget);
       },
     );
 
