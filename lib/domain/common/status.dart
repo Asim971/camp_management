@@ -26,8 +26,6 @@ enum CampaignStatus {
     completed => 'COMPLETED',
     cancelled => 'CANCELLED',
   };
-
-  String get l10nKey => 'campaignStatus_$name';
 }
 
 enum RegistrationStatus {
@@ -36,9 +34,7 @@ enum RegistrationStatus {
   pendingProfileSync,
   ineligible,
   waitlisted,
-  cancelled;
-
-  String get l10nKey => 'registrationStatus_$name';
+  cancelled,
 }
 
 /// Same wording is used on mobile capture, CRM and analytics (§5.4).
@@ -49,9 +45,7 @@ enum AttendanceStatus {
   crmReview,
   approved,
   rejected,
-  returned;
-
-  String get l10nKey => 'attendanceStatus_$name';
+  returned,
 }
 
 enum ImportStatus {
@@ -61,9 +55,7 @@ enum ImportStatus {
   completed,
   partiallyCompleted,
   failed,
-  cancelled;
-
-  String get l10nKey => 'importStatus_$name';
+  cancelled,
 }
 
 /// Neutral, non-accusatory language (§2.1) — a failed check is "Review
@@ -74,9 +66,7 @@ enum IntegrityFlag {
   suspectedSpoof,
   duplicate,
   geofenceException,
-  manualOverride;
-
-  String get l10nKey => 'integrityFlag_$name';
+  manualOverride,
 }
 
 /// Semantic intent for chip/badge rendering. Reserve brand red for the primary

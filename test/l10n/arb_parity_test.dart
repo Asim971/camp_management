@@ -65,8 +65,24 @@ void main() {
         jsonDecode(File(bn).readAsStringSync()) as Map<String, Object?>;
     const newKeys = [
       'registrationStatus_invited',
+      'registrationStatus_registered',
+      'registrationStatus_pendingProfileSync',
+      'registrationStatus_ineligible',
+      'registrationStatus_waitlisted',
+      'registrationStatus_cancelled',
       'importStatus_dryRun',
+      'importStatus_readyToCommit',
+      'importStatus_processing',
+      'importStatus_completed',
+      'importStatus_partiallyCompleted',
+      'importStatus_failed',
+      'importStatus_cancelled',
       'integrityFlag_noReference',
+      'integrityFlag_poorQuality',
+      'integrityFlag_suspectedSpoof',
+      'integrityFlag_duplicate',
+      'integrityFlag_geofenceException',
+      'integrityFlag_manualOverride',
     ];
     for (final key in newKeys) {
       final meta = bnJson['@$key'];
