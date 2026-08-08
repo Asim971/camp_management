@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "notices": [
+    {
+      "version": 1,
+      "language": "en",
+      "title": "Attendance photo and identity verification",
+      "body": "PLACEHOLDER — pending Legal sign-off (🔒 T-0.5.2). We will take your photograph to confirm your attendance at this session. The photograph is reviewed by our team to verify your identity against your registered profile. It is stored securely, is not shared outside this programme, and is retained only for the period set by our retention policy. You may decline; declining means your attendance cannot be recorded for this session."
+    },
+    {
+      "version": 1,
+      "language": "bn",
+      "title": "উপস্থিতির ছবি এবং পরিচয় যাচাই",
+      "body": "প্লেসহোল্ডার — আইনি অনুমোদনের অপেক্ষায় (🔒 T-0.5.2)। এই সেশনে আপনার উপস্থিতি নিশ্চিত করার জন্য আমরা আপনার ছবি তুলব। আপনার নিবন্ধিত প্রোফাইলের সাথে পরিচয় যাচাই করতে আমাদের দল ছবিটি পর্যালোচনা করে। ছবিটি নিরাপদে সংরক্ষণ করা হয়, এই কর্মসূচির বাইরে শেয়ার করা হয় না, এবং শুধুমাত্র আমাদের নীতিতে নির্ধারিত সময় পর্যন্ত রাখা হয়। আপনি অস্বীকার করতে পারেন; অস্বীকার করলে এই সেশনের জন্য আপনার উপস্থিতি নথিভুক্ত করা যাবে না।"
+    }
+  ]
+}
