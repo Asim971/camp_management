@@ -20,10 +20,25 @@ tags:
 - assertVisible: "Verification case"
 
 # Evidence + the clearly-separated advisory block are both present.
-- assertVisible: "Evidence"
-- assertVisible: "Machine recommendation (advisory)"
+#
+# Wrapped in `.*` because Flutter merges each non-interactive SECTION into one
+# semantics node and Maestro ANCHORS text patterns. The nodes here are
+#   "Evidence\nCaptured\nImage unavailable\nVerified profile photo\n..."
+#   "Machine recommendation (advisory)\n• Landmark alignment within tolerance"
+# so the bare headings matched nothing. The parentheses are escaped because
+# these patterns are regexes, not literals.
+- assertVisible: ".*Evidence.*"
+- assertVisible: ".*Machine recommendation \\(advisory\\).*"
 
 # Reason is mandatory: Submit stays disabled until an outcome + reason are set.
+#
+# The Decision card sits BELOW THE FOLD on a phone-profile emulator (the
+# failure screenshot shows it just cut off under the advisory block), and
+# `tapOn` does not scroll to find an element by id — so scroll to it first.
+- scrollUntilVisible:
+    element:
+      id: "crm_outcome_approved"
+    direction: DOWN
 - tapOn:
     id: "crm_outcome_approved" # radio "Approve"
 - assertVisible:
