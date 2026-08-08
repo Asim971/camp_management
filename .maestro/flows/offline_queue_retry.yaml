@@ -21,13 +21,21 @@ tags:
     id: "dev_launcher"
 - tapOn:
     id: "dev_open_queue"
-- assertVisible: "Pending sync"
+- assertVisible: ".*Status: Pending sync.*"
 
-# Manual retry.
+# Manual retry. The seeded task's media path is synthetic (e2e_seeder.dart:60
+# writes a payload with no real evidence file), so the upload CANNOT succeed —
+# the retry legitimately ends in 'Upload failed'. That is asserted, rather than
+# assumed, because it is the proof the retry actually ran; the flow used to
+# assume the row stayed 'Pending sync' afterwards, which is why the later
+# assertion failed.
 - tapOn:
     id: "queue_item_menu"
     index: 0
 - tapOn: "Retry"
+- extendedWaitUntil:
+    visible: ".*Status: Upload failed.*"
+    timeout: 20000
 
 # Discard -> confirmation required; declining keeps the item.
 #
@@ -41,9 +49,12 @@ tags:
     id: "queue_item_menu"
     index: 0
 - tapOn: "Discard…"
-- assertVisible: "Discard this capture?"
+- assertVisible: ".*Discard this capture.*" # `?` omitted: it is a regex metachar and YAML rejects ? in a double-quoted scalar
 - tapOn: "Keep it queued"
-- assertVisible: "Pending sync"
+# Declining keeps the ITEM. Asserted by the row's identity, not by its status:
+# the retry above has already moved it to 'Upload failed', and what this step
+# proves is that a declined discard did not DELETE anything.
+- assertVisible: ".*Carpenter CARP_E2E_2.*"
 
 # Discard -> confirm -> item removed.
 - tapOn:
@@ -52,4 +63,4 @@ tags:
 - tapOn: "Discard…"
 - tapOn:
     id: "queue_discard_confirm" # "Discard capture" in the dialog
-- assertVisible: "Everything is synced"
+- assertVisible: ".*Everything is synced.*"
