@@ -60,7 +60,9 @@ So **19 keys are missing**, and 45 (26 + 19) is the target count in each ARB fil
 6. `lib/core/consent/notice.dart` — `ConsentNotice`, `ConsentRecord`, hash computation
 7. `lib/core/consent/notice_repository.dart` — resolution, bundled-asset loader, `DioNoticeSource` (🔒)
 8. `assets/consent/notice_v1.json` — the bundled floor, both languages
-9. Modified: `lib/core/storage/app_database.dart` (schema **v3**), `capture_controller.dart` (the waiting TODO), `status.dart` (delete `l10nKey`), `lib/l10n/app_en.arb` + `app_bn.arb` (+19 keys), `pubspec.yaml` (asset), `lib/app/shell/app_shell.dart` (menu entry)
+9. `.github/workflows/ci.yml` — a new **`e2e`** job (emulator + Maestro, all `android`-tagged flows) — see §7.1
+10. `.maestro/flows/locale_bengali.yaml` — a new flow launching with `LOCALE: bn` and asserting Bengali renders
+11. Modified: `lib/core/storage/app_database.dart` (schema **v3**), `capture_controller.dart` (the waiting TODO), `status.dart` (delete `l10nKey`), `lib/l10n/app_en.arb` + `app_bn.arb` (+19 keys), `pubspec.yaml` (asset), `lib/app/shell/app_shell.dart` (menu entry), `lib/app/flavors.dart` (`AppConfig.locale` from the `LOCALE` dart-define), `TASK_BREAKDOWN.md` (close the epic **and** correct T-0.1.4's "cancelled, not deferred" note)
 
 ## 4. Component contracts
 
@@ -180,13 +182,49 @@ Each step ends with analyze clean and tests green.
 7. `notice.dart` (shapes + hash) + `notice_hash_test`
 8. Bundled asset + `NoticeRepository` + `DioNoticeSource` + `notice_repository_test`
 9. Schema v3 + extended `migration_test`
-10. `capture_controller` consent write + `capture_controller_test`; close the epic in `TASK_BREAKDOWN.md`
+10. `capture_controller` consent write + `capture_controller_test`
+11. `AppConfig.locale` from the `LOCALE` dart-define, wired as `LocaleController`'s initial value — the argument the flows have always passed and the app has always ignored
+12. The **`e2e` CI job** + `locale_bengali.yaml` flow; iterate until all 8 `android`-tagged flows are green (the 7 existing + `locale_bengali`) (§7.1). Close the epic in `TASK_BREAKDOWN.md`, including the T-0.1.4 correction
+
+Step 12 is last because it verifies everything before it, and because it is the step most likely to need iteration — emulator timing, install races and animation waits are tuned against a real run, not predicted. **The epic does not close until that job is green.**
 
 Step 1 leads because a failing test is the cheapest possible proof the keys were actually added to both files. Be precise about what fails initially, though: `arb_parity_test` has **two** assertions, and before the 19 keys land only the second one fails. The key sets are *already* identical at 26 each, so the parity assertion passes from the start — it is there to prevent future drift, not to detect current drift. The count assertion (45 in each file) is the one that goes red first and green after.
 
 Step 3 must precede 4–6: without registered delegates, no locale work is observable, so a locale test written before step 3 could pass while proving nothing.
 
 **Verification gates:** `dart format --set-exit-if-changed .`, `flutter analyze --fatal-infos` (exit 0), `flutter test`, `flutter build web`, and CI's `gate` job green — CI is where `flutter build apk --flavor dev` runs, since this sandbox cannot reach Flutter's Android artifacts (SSL/PKIX).
+
+### 7.1 Hard exit criterion: the emulator E2E suite must pass
+
+**This epic is not complete until the app has run on an Android emulator and the E2E suite is green.** That is a deliberate strengthening of the exit bar, and it changes this epic's scope: it adds a CI job.
+
+**Why it must run in CI rather than locally.** The development sandbox cannot execute this at all, and I verified that rather than assuming it:
+
+| Requirement | State in the sandbox |
+|---|---|
+| Android emulator defined | ✅ one (`Resizable_Experimental`) |
+| **Build any installable APK** | ❌ **`flutter build apk --debug` yields 61 TLS/resolution errors** fetching `io.flutter:*` artifacts — debug as well as release, so nothing installable can be produced |
+| **Maestro CLI** | ❌ not installed |
+| `adb` / `emulator` on `PATH` | ❌ absent (Flutter locates the SDK itself) |
+
+The APK failure is the same sandbox TLS-interception problem proven during P0.3 and P0.4, independent of any code change. So a local gate would be unverifiable by the party writing the code, which is precisely the shape of claim this project has been burned by.
+
+**This reverses a prior decision, deliberately.** `TASK_BREAKDOWN.md` T-0.1.4 records that the Maestro/emulator E2E job and a nightly suite were **"cancelled, not deferred."** Adding an `e2e` job reverses that cancellation on purpose, and the row must be updated to say so rather than leaving two contradictory statements in the same document.
+
+**Scope of the suite — 7 flows, not 8.** The flows are already tagged by platform:
+
+| Tag | Flows |
+|---|---|
+| `android` | `carpenter_search_confirm`, `crm_case_conflict`, `crm_case_decision`, `field_capture_recapture`, `field_offline_capture`, `field_online_capture`, `offline_queue_retry` (**7**) |
+| `web` | `campaign_list_smoke` (**1**) — its own header notes "Maestro web support is experimental" |
+
+An Android emulator job runs the `android`-tagged flows: the **7 existing** ones, plus the **`locale_bengali`** flow this epic adds, for **8** at close. The job selects by tag rather than by an enumerated list, so a future flow is picked up automatically instead of silently skipped — the same reason P0.4 derived `registeredRoutePaths` from the router rather than a hand-maintained literal. `campaign_list_smoke` is explicitly out of the emulator gate; it stays a web flow and is not what "E2E passing" means here. Two flows also carry `prsmoke`, indicating the original design intended a fast per-PR subset — the job runs all 7, and narrowing to `prsmoke` is the escape hatch if runtime proves unacceptable.
+
+**What the job does:** boot the emulator, `flutter build apk --debug --flavor dev` with `--dart-define=E2E=true`, install it, `maestro test` the `android`-tagged flows against `.maestro/config.yaml` (which needs `APP_ID` exported — the dev flavor's application ID), and upload Maestro's output on failure so a red run is diagnosable rather than merely red.
+
+**A locale assertion this epic uniquely enables.** Every existing flow already passes `LOCALE: en` as a launch argument, and **`AppConfig` does not read it** — the harness has been passing a locale the app ignores. P0.5 makes that argument meaningful, so `AppConfig` gains a `locale` field wired into `LocaleController`'s initial value, and one new flow launches with `LOCALE: bn` and asserts a Bengali string renders. That is the one assertion no widget test can make: a real app process on a real Android surface, with the real font stack, rendering Bengali glyphs. It closes the same class of gap that let commented-out delegates survive since P0.2.
+
+**Honest expectations.** Android emulators on hosted runners are slow (10–15 minutes) and prone to flakiness — boot races, install timing, animation timing. The first run will likely need tuning, and that tuning is part of this work rather than a surprise. If a flow proves irreducibly flaky, the correct response is to fix or quarantine it explicitly with a recorded reason, never to drop the job.
 
 ## 8. Risks
 
@@ -197,7 +235,10 @@ Step 3 must precede 4–6: without registered delegates, no locale work is obser
 | **Registering the delegates could change existing rendering** — every screen currently draws from `Global*` delegates only. | Only Material/Cupertino/Widgets strings are affected, and only where a locale differs from the device default. The 29 Linux-gated goldens render the gallery and will catch layout shifts in CI; a golden failure is a signal to investigate, not to regenerate baselines. |
 | **Schema v3 runs on real field devices** holding un-uploaded attendance evidence. | The migration only adds a table and four columns; the migration test asserts existing rows survive with contents intact, as v1→v2's does. |
 | **Deleting `l10nKey` is a breaking change** to `status.dart`'s public API. | It has zero consumers (verified by grep), so the blast radius is nil — and the compiler catches any that appear. |
-| **Locale persistence in `cached_reference` shares a table with sync data.** A future `cached_reference` cleanup could evict the locale row. | Use a reserved key prefix and document it beside the table; worst case the user's choice reverts to system locale, which D7 already treats as a benign path. |
+| **Locale persistence in `cached_reference` shares a table with sync data.** A future `cached_reference` cleanup could evict the locale row. | The reserved `pref:` key prefix, documented beside the table; worst case the user's choice reverts to system locale, which D7 already treats as a benign path. |
+| **The `e2e` job cannot be verified by whoever writes this epic.** The sandbox cannot build an APK or run Maestro (§7.1), so the author is structurally unable to confirm the gate they are adding. | CI is the sole authority and its result is reported verbatim, pass or fail. No claim that E2E passes may be made from a local run, because no local run is possible. This is the same discipline P0.3/P0.4 applied to `flutter build apk`. |
+| **Android emulator jobs are slow and flaky on hosted runners.** A flaky gate that people learn to re-run erodes into no gate at all. | Budget 10–15 minutes and expect first-run tuning. A flow that proves irreducibly flaky is fixed or explicitly quarantined **with a recorded reason** — never silently dropped, and never by deleting the job. `prsmoke` (2 flows) is the documented fallback if full-suite runtime is unacceptable. |
+| **Adding `e2e` contradicts T-0.1.4's recorded "cancelled, not deferred".** Leaving both statements in the same document would make the record self-contradictory. | The T-0.1.4 row is corrected in the same commit that adds the job, noting the reversal and why — the same pattern used when P0.4 corrected that row's branch-protection claim. |
 
 ## 9. Out of scope
 
