@@ -79,10 +79,9 @@ void main() {
     // Regression guard for the codegen alphabetization trap: without an
     // explicit callback this resolves to supportedLocales.first == Locale('bn').
     expect(
-      app.localeListResolutionCallback!(
-        const [Locale('fr', 'FR')],
-        AppL10n.supportedLocales,
-      ),
+      app.localeListResolutionCallback!(const [
+        Locale('fr', 'FR'),
+      ], AppL10n.supportedLocales),
       const Locale('en'),
     );
     // ...and the same fact observed through the real resolution pipeline rather
@@ -98,10 +97,9 @@ void main() {
     final app = await pumpApp(tester);
 
     expect(
-      app.localeListResolutionCallback!(
-        const [Locale('bn', 'BD')],
-        AppL10n.supportedLocales,
-      ),
+      app.localeListResolutionCallback!(const [
+        Locale('bn', 'BD'),
+      ], AppL10n.supportedLocales),
       const Locale('bn'),
     );
     expect(_resolvedLocale(tester), const Locale('bn'));
@@ -114,10 +112,9 @@ void main() {
     final app = await pumpApp(tester);
 
     expect(
-      app.localeListResolutionCallback!(
-        const [Locale('en', 'US')],
-        AppL10n.supportedLocales,
-      ),
+      app.localeListResolutionCallback!(const [
+        Locale('en', 'US'),
+      ], AppL10n.supportedLocales),
       const Locale('en'),
     );
     expect(_resolvedLocale(tester), const Locale('en'));
