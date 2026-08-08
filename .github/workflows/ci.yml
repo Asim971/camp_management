@@ -233,24 +233,18 @@ jobs:
           arch: x86_64
           target: google_apis
           disable-animations: true
+          # This action runs `script:` LINE BY LINE, each in its own `sh -c`, so
+          # a multi-line for/if cannot work here and variables do not survive
+          # between lines. The first run of this job died in all five configs
+          # with `Syntax error: end of file unexpected (expecting "done")`
+          # because `do` and `done` landed in different shells. The loop
+          # therefore lives in a script file, invoked as one line; it also
+          # attempts every flow rather than stopping at the first red one,
+          # because a ~15-minute emulator boot is too expensive to spend
+          # discovering red flows one at a time.
           script: |
             adb install -r build/app/outputs/flutter-apk/app-dev-debug.apk
-            # One `maestro test` per flow, and every flow is attempted even
-            # after a failure: a run that stops at the first red flow hides how
-            # many others are red, and each 15-minute emulator boot is too
-            # expensive to spend discovering them one at a time.
-            failed=""
-            for flow in ${{ matrix.config.flows }}; do
-              echo "::group::$flow"
-              if ! maestro test --env APP_ID=com.acsl.campaign.dev "$flow"; then
-                failed="$failed $flow"
-              fi
-              echo "::endgroup::"
-            done
-            if [ -n "$failed" ]; then
-              echo "FAILED FLOWS:$failed"
-              exit 1
-            fi
+            sh tool/scripts/run_maestro_flows.sh ${{ matrix.config.flows }}
 
       # A red E2E run that leaves nothing to inspect is nearly impossible to
       # act on — the same reason the gate uploads golden diffs. Maestro records
