@@ -16,6 +16,11 @@
 
          Scoped to the debug source set on purpose: release and profile builds
          keep Android's secure default, and the manifest merger only applies
-         this to `--debug` output. Do NOT move it to src/main. -->
+         this to debug output. Do NOT move it to src/main.
+
+         (Careful editing this comment: XML forbids a double hyphen inside a
+         comment, so the build flag cannot be written out in full here. Doing
+         so fails :app:processDevDebugMainManifest with a bare "Error parsing"
+         that names no line.) -->
     <application android:usesCleartextTraffic="true"/>
 </manifest>
