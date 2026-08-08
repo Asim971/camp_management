@@ -45,10 +45,30 @@ void main() {
 
   test('labels differ between locales', () {
     // Guards against a copy-paste that points bn at the en getters, which
-    // would pass every "isNotEmpty" assertion above.
+    // would pass every "isNotEmpty" assertion above. Tests all five families,
+    // using a machine-drafted key from RegistrationStatus, ImportStatus and
+    // IntegrityFlag (the three families with new keys) since those are most
+    // likely to be stale. CampaignStatus and AttendanceStatus use existing
+    // keys since they have no new additions.
     expect(
       CampaignStatus.draft.label(AppL10nEn()),
       isNot(CampaignStatus.draft.label(AppL10nBn())),
+    );
+    expect(
+      AttendanceStatus.notCaptured.label(AppL10nEn()),
+      isNot(AttendanceStatus.notCaptured.label(AppL10nBn())),
+    );
+    expect(
+      RegistrationStatus.invited.label(AppL10nEn()),
+      isNot(RegistrationStatus.invited.label(AppL10nBn())),
+    );
+    expect(
+      ImportStatus.dryRun.label(AppL10nEn()),
+      isNot(ImportStatus.dryRun.label(AppL10nBn())),
+    );
+    expect(
+      IntegrityFlag.noReference.label(AppL10nEn()),
+      isNot(IntegrityFlag.noReference.label(AppL10nBn())),
     );
   });
 }
