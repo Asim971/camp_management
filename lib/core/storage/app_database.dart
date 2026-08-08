@@ -34,6 +34,17 @@ class AttendanceDrafts extends Table {
   DateTimeColumn get capturedAt => dateTime()();
   TextColumn get capturedBy => text()();
 
+  /// The consent notice shown before this capture (T-0.5.2).
+  ///
+  /// Nullable because rows queued by a pre-P0.5 build have no consent to
+  /// backfill — inventing values would be worse than recording their absence.
+  /// Presence is enforced at the write site in `capture_controller`, which is
+  /// where the requirement actually belongs.
+  IntColumn get consentVersion => integer().nullable()();
+  TextColumn get consentLanguage => text().nullable()();
+  DateTimeColumn get consentShownAt => dateTime().nullable()();
+  TextColumn get consentContentHash => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -88,8 +99,55 @@ class AuditEvents extends Table {
   TextColumn get lastError => text().nullable()();
 }
 
+/// Durable cache of fetched consent-notice versions (Guideline §10.3).
+///
+/// Keyed on `(version, language)` because the same version exists once per
+/// language, and both must be able to coexist.
+///
+/// THIS TABLE DELIBERATELY NEVER PRUNES. Three reasons, recorded so the next
+/// person does not "clean it up":
+/// 1. `driftNoticeWriter` inserts with `InsertMode.insertOrReplace` against the
+///    `(version, language)` primary key, so there is at most one row per
+///    version per language. Growth is bounded by the number of notice versions
+///    ever published — a handful over the app's lifetime, not unbounded.
+/// 2. `NoticeRepository.resolve` picks the winner with a strict-`>` max fold,
+///    not a sort, so how many rows the cache holds no longer influences which
+///    notice wins. The regime that made pruning look urgent does not exist.
+/// 3. Old versions are evidence. An `attendance_draft` stores the hash of the
+///    version shown at capture time, and keeping that version's row is what
+///    lets the wording be verified LOCALLY during a dispute. Pruning could
+///    delete the very text the stored hash exists to check.
+@DataClassName('ConsentNoticeRow')
+class ConsentNotices extends Table {
+  IntColumn get version => integer()();
+  TextColumn get language => text()();
+  TextColumn get title => text()();
+  TextColumn get body => text()();
+
+  /// The hash of this exact text, so a consent record can be verified against
+  /// the version it names.
+  ///
+  /// Written but never read by production code, on purpose: `ConsentNotice` has
+  /// no `contentHash` field, only `hash()`, so `driftNoticeReader` reconstructs
+  /// notices without it. This column is the dispute-verification artifact —
+  /// it is what makes a stored `attendance_drafts.consentContentHash`
+  /// checkable offline. Do not delete it as dead weight.
+  TextColumn get contentHash => text()();
+
+  DateTimeColumn get fetchedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {version, language};
+}
+
 @DriftDatabase(
-  tables: [SyncTasks, AttendanceDrafts, CachedReferences, AuditEvents],
+  tables: [
+    SyncTasks,
+    AttendanceDrafts,
+    CachedReferences,
+    AuditEvents,
+    ConsentNotices,
+  ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
@@ -99,7 +157,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.open() : super(driftDatabase(name: 'acsl_campaign'));
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -107,6 +165,29 @@ class AppDatabase extends _$AppDatabase {
       // v2 adds the audit buffer. The three v1 tables are untouched, which is
       // what makes the data-survival assertion in migration_test.dart hold.
       from1To2: (m, schema) async => m.createTable(schema.auditEvents),
+      // v3 adds the consent cache and four NULLABLE columns on
+      // attendance_drafts. Nothing is dropped, renamed or backfilled, which is
+      // what makes the data-survival assertion in migration_test.dart hold:
+      // a queued capture on a real device is field evidence nobody can retake.
+      from2To3: (m, schema) async {
+        await m.createTable(schema.consentNotices);
+        await m.addColumn(
+          schema.attendanceDrafts,
+          schema.attendanceDrafts.consentVersion,
+        );
+        await m.addColumn(
+          schema.attendanceDrafts,
+          schema.attendanceDrafts.consentLanguage,
+        );
+        await m.addColumn(
+          schema.attendanceDrafts,
+          schema.attendanceDrafts.consentShownAt,
+        );
+        await m.addColumn(
+          schema.attendanceDrafts,
+          schema.attendanceDrafts.consentContentHash,
+        );
+      },
     ),
   );
 }

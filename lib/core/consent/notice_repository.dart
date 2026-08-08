@@ -1,11 +1,15 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+// `show InsertMode` only: a bare drift import would pull `Table`, `Column` and
+// friends into a file that has no business declaring tables.
+import 'package:drift/drift.dart' show InsertMode;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
 import '../network/dio_client.dart';
 import '../result/result.dart';
+import '../storage/app_database.dart';
 import 'notice.dart';
 
 /// Transport seam for newer notice versions.
@@ -144,3 +148,61 @@ class NoticeRepository {
         .toList();
   }
 }
+
+/// Drift-backed reader for [NoticeRepository]'s `readCached` seam.
+///
+/// `contentHash` is deliberately dropped: [ConsentNotice] has no such field,
+/// only [ConsentNotice.hash], and the hash is recomputable from the four fields
+/// that ARE read. The stored column exists for offline dispute verification,
+/// not for this path.
+///
+/// The seam stays a plain function type rather than becoming a method, so the
+/// repository's tests keep running with no database at all.
+Future<List<ConsentNotice>> Function() driftNoticeReader(AppDatabase db) =>
+    () async => (await db.select(db.consentNotices).get())
+        .map(
+          (r) => ConsentNotice(
+            version: r.version,
+            language: r.language,
+            title: r.title,
+            body: r.body,
+          ),
+        )
+        .toList();
+
+/// Drift-backed writer for [NoticeRepository]'s `writeCached` seam.
+///
+/// Hashing is asynchronous and a Drift `batch` callback is NOT, so every hash
+/// is awaited into a list before the batch opens. It is never written as a
+/// placeholder and backfilled: a row whose hash is blank or wrong silently
+/// defeats the verification the column exists for, and the failure would only
+/// ever surface during a dispute — the worst possible moment to discover it.
+///
+/// `insertOrReplace` against the `(version, language)` primary key means a
+/// re-fetch updates a version in place instead of accumulating duplicates,
+/// which is what bounds this table without any pruning.
+Future<void> Function(List<ConsentNotice>) driftNoticeWriter(AppDatabase db) =>
+    (notices) async {
+      // Await every hash first — outside the batch.
+      final hashed = <(ConsentNotice, String)>[];
+      for (final notice in notices) {
+        hashed.add((notice, await notice.hash()));
+      }
+
+      await db.batch((b) {
+        for (final (notice, hash) in hashed) {
+          b.insert(
+            db.consentNotices,
+            ConsentNoticesCompanion.insert(
+              version: notice.version,
+              language: notice.language,
+              title: notice.title,
+              body: notice.body,
+              contentHash: hash,
+              fetchedAt: DateTime.now().toUtc(),
+            ),
+            mode: InsertMode.insertOrReplace,
+          );
+        }
+      });
+    };
