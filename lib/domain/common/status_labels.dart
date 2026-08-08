@@ -1,4 +1,5 @@
 import '../../l10n/generated/app_localizations.dart';
+import '../session/campaign_session.dart';
 import 'status.dart';
 
 /// Localized labels for the typed status vocabulary (Guideline Appendix B).
@@ -19,6 +20,20 @@ extension CampaignStatusL10n on CampaignStatus {
     CampaignStatus.paused => l.campaignStatus_paused,
     CampaignStatus.completed => l.campaignStatus_completed,
     CampaignStatus.cancelled => l.campaignStatus_cancelled,
+  };
+}
+
+/// [SessionStatus] lives in `domain/session/campaign_session.dart` rather than
+/// `status.dart`, which is why it was missed when the other five families were
+/// localized: it is the one status family the campaign detail screen renders
+/// that `status.dart` never declared.
+extension SessionStatusL10n on SessionStatus {
+  String label(AppL10n l) => switch (this) {
+    SessionStatus.upcoming => l.sessionStatus_upcoming,
+    SessionStatus.active => l.sessionStatus_active,
+    SessionStatus.captureClosed => l.sessionStatus_captureClosed,
+    SessionStatus.paused => l.sessionStatus_paused,
+    SessionStatus.completed => l.sessionStatus_completed,
   };
 }
 

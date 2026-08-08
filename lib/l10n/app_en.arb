@@ -12,6 +12,12 @@
   "campaignStatus_completed": "Completed",
   "campaignStatus_cancelled": "Cancelled",
 
+  "sessionStatus_upcoming": "Upcoming",
+  "sessionStatus_active": "Active",
+  "sessionStatus_captureClosed": "Capture closed",
+  "sessionStatus_paused": "Paused",
+  "sessionStatus_completed": "Completed",
+
   "attendanceStatus_notCaptured": "Not captured",
   "attendanceStatus_pendingSync": "Pending sync",
   "attendanceStatus_matchProcessing": "Match processing",

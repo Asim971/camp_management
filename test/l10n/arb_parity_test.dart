@@ -35,11 +35,14 @@ void main() {
     );
   });
 
-  test('both files hold all 45 expected keys', () {
-    // 26 pre-existing + 19 added by this task. This is the assertion that
-    // goes red before the keys land and green after.
-    expect(_translatableKeys(en), hasLength(45));
-    expect(_translatableKeys(bn), hasLength(45));
+  test('both files hold all 50 expected keys', () {
+    // 26 pre-existing + 19 added by Task 1 + 5 for SessionStatus, the sixth
+    // status family, added by Task 6b when wiring the labels into the UI
+    // revealed that the campaign detail screen renders a status enum the other
+    // five families never covered. This is the assertion that goes red before
+    // the keys land and green after.
+    expect(_translatableKeys(en), hasLength(50));
+    expect(_translatableKeys(bn), hasLength(50));
   });
 
   test('every status family the enums advertise has a full set of keys', () {
@@ -51,6 +54,7 @@ void main() {
         keys.where((k) => k.startsWith(prefix)).length;
 
     expect(countPrefixed('campaignStatus_'), 8);
+    expect(countPrefixed('sessionStatus_'), 5);
     expect(countPrefixed('registrationStatus_'), 6);
     expect(countPrefixed('attendanceStatus_'), 7);
     expect(countPrefixed('importStatus_'), 7);
@@ -59,11 +63,17 @@ void main() {
 
   test('new machine-drafted bn values are marked unreviewed', () {
     // The 26 pre-existing bn values are genuine human translations. The 19
-    // added here are machine drafts, and an unmarked draft is worse than an
-    // obviously provisional one because it invites nobody to check it.
+    // added by Task 1 and the 5 sessionStatus_* keys added by Task 6b are
+    // machine drafts, and an unmarked draft is worse than an obviously
+    // provisional one because it invites nobody to check it.
     final bnJson =
         jsonDecode(File(bn).readAsStringSync()) as Map<String, Object?>;
     const newKeys = [
+      'sessionStatus_upcoming',
+      'sessionStatus_active',
+      'sessionStatus_captureClosed',
+      'sessionStatus_paused',
+      'sessionStatus_completed',
       'registrationStatus_invited',
       'registrationStatus_registered',
       'registrationStatus_pendingProfileSync',

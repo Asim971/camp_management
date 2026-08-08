@@ -12,6 +12,27 @@
   "campaignStatus_completed": "সম্পন্ন",
   "campaignStatus_cancelled": "বাতিল",
 
+  "sessionStatus_upcoming": "আসন্ন",
+  "@sessionStatus_upcoming": {
+    "description": "UNREVIEWED machine draft — needs native Bengali review (P0.5 D6)"
+  },
+  "sessionStatus_active": "চলমান",
+  "@sessionStatus_active": {
+    "description": "UNREVIEWED machine draft — needs native Bengali review (P0.5 D6)"
+  },
+  "sessionStatus_captureClosed": "ধারণ বন্ধ",
+  "@sessionStatus_captureClosed": {
+    "description": "UNREVIEWED machine draft — needs native Bengali review (P0.5 D6)"
+  },
+  "sessionStatus_paused": "স্থগিত",
+  "@sessionStatus_paused": {
+    "description": "UNREVIEWED machine draft — needs native Bengali review (P0.5 D6)"
+  },
+  "sessionStatus_completed": "সম্পন্ন",
+  "@sessionStatus_completed": {
+    "description": "UNREVIEWED machine draft — needs native Bengali review (P0.5 D6)"
+  },
+
   "attendanceStatus_notCaptured": "ধারণ করা হয়নি",
   "attendanceStatus_pendingSync": "সিঙ্কের অপেক্ষায়",
   "attendanceStatus_matchProcessing": "মিল যাচাই চলছে",

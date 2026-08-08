@@ -10,6 +10,8 @@ import '../../../core/responsive/breakpoints.dart';
 import '../../../domain/campaign/campaign.dart';
 import '../../../domain/campaign/campaign_repository.dart';
 import '../../../domain/common/status.dart';
+import '../../../domain/common/status_labels.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../application/approval_controller.dart';
 
 /// Campaign Approval (W-04). Two columns: the submitted plan and the decision
@@ -72,7 +74,10 @@ class _PlanSummary extends StatelessWidget {
                 style: Theme.of(context).textTheme.titleLarge,
               ),
             ),
-            StatusChip(label: campaign.status.name, tone: StatusTone.info),
+            StatusChip(
+              label: campaign.status.label(AppL10n.of(context)),
+              tone: StatusTone.info,
+            ),
           ],
         ),
         const SizedBox(height: 12),

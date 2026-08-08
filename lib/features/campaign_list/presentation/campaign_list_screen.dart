@@ -11,6 +11,8 @@ import '../../../core/design_system/bmd_data_table.dart';
 import '../../../core/design_system/status_chip.dart';
 import '../../../domain/campaign/campaign.dart';
 import '../../../domain/common/status.dart';
+import '../../../domain/common/status_labels.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../application/campaign_list_notifier.dart';
 
 /// Campaign List (W-02). Exemplar wiring an AsyncNotifier to the design system.
@@ -22,6 +24,12 @@ class CampaignListScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(campaignListProvider);
+    // Resolved once here rather than inside the cell/rowDetail closures: those
+    // are invoked later by BmdDataTable and, for the row detail, from inside a
+    // side-sheet route whose own context sits under a different Navigator.
+    // Capturing the bundle keeps every chip on the locale this frame was built
+    // for.
+    final l10n = AppL10n.of(context);
 
     return AppShell(
       title: 'Campaigns',
@@ -53,7 +61,10 @@ class CampaignListScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    StatusChip(label: c.status.name, tone: _toneFor(c.status)),
+                    StatusChip(
+                      label: c.status.label(l10n),
+                      tone: _toneFor(c.status),
+                    ),
                     const SizedBox(height: BmdSpace.s3),
                     Text('Target audience: ${c.targetAudience}'),
                     Text('Verified attendance: ${c.verifiedAttendance}'),
@@ -74,7 +85,7 @@ class CampaignListScreen extends ConsumerWidget {
                     priority: BmdColumnPriority.primary,
                     minWidth: 160,
                     cell: (c) => StatusChip(
-                      label: c.status.name,
+                      label: c.status.label(l10n),
                       tone: _toneFor(c.status),
                     ),
                   ),

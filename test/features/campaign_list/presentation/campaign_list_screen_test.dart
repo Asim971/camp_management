@@ -6,6 +6,7 @@ import 'package:acsl_campaign/domain/campaign/campaign.dart';
 import 'package:acsl_campaign/domain/campaign/campaign_repository.dart';
 import 'package:acsl_campaign/features/campaign_list/application/campaign_list_notifier.dart';
 import 'package:acsl_campaign/features/campaign_list/presentation/campaign_list_screen.dart';
+import 'package:acsl_campaign/l10n/generated/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -65,7 +66,17 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: MaterialApp.router(routerConfig: router),
+        child: MaterialApp.router(
+          // Required since Task 6b: the status chips resolve their labels
+          // through AppL10n, and `AppL10n.of` is a non-nullable getter, so a
+          // MaterialApp without the delegate throws while building the screen
+          // rather than quietly falling back to English. The real app registers
+          // these (test/app/l10n_wiring_test.dart pins that), so a harness that
+          // omitted them was never faithful.
+          localizationsDelegates: AppL10n.localizationsDelegates,
+          supportedLocales: AppL10n.supportedLocales,
+          routerConfig: router,
+        ),
       ),
     );
     await tester.pumpAndSettle();
