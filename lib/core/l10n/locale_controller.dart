@@ -18,14 +18,32 @@ class LocaleController extends Notifier<Locale?> {
   Locale? build() => null;
 
   /// Adopts any persisted preference. Called once at boot.
+  ///
+  /// Precedence is stored choice, then the `LOCALE` dart-define, then the
+  /// system: a user's explicit selection must beat a build-time default, and a
+  /// build-time default must beat the device.
   Future<void> load() async {
     try {
-      state = await ref.read(localeStoreProvider).read();
+      final persisted = await ref.read(localeStoreProvider).read();
+      if (persisted != null) {
+        state = persisted;
+        return;
+      }
     } catch (error) {
-      // A display preference must never block startup (spec D7).
+      // A display preference must never block startup (spec D7). Falling
+      // through rather than returning is deliberate: a storage fault should
+      // still leave a LOCALE-provisioned build in its intended language.
       debugPrint('Locale preference could not be loaded ($error).');
-      state = null;
     }
+
+    // No stored choice: honour --dart-define=LOCALE if it names a language we
+    // support, else stay null and follow the system. `supportedLanguageCodes`
+    // is derived from the ARB-generated supportedLocales, so an absent define
+    // ('') and an unsupported one ('fr') both correctly fall through.
+    final fromDefine = ref.read(appConfigProvider).locale;
+    state = supportedLanguageCodes.contains(fromDefine)
+        ? Locale(fromDefine)
+        : null;
   }
 
   /// Applies [locale] and persists it. `null` returns to the system locale
