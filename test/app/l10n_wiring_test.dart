@@ -1,6 +1,10 @@
 import 'package:acsl_campaign/app/app.dart';
 import 'package:acsl_campaign/app/di/providers.dart';
 import 'package:acsl_campaign/app/flavors.dart';
+import 'package:acsl_campaign/core/l10n/locale_controller.dart';
+import 'package:acsl_campaign/core/l10n/locale_store.dart';
+import 'package:acsl_campaign/domain/common/status.dart';
+import 'package:acsl_campaign/domain/common/status_labels.dart';
 import 'package:acsl_campaign/l10n/generated/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,7 +21,13 @@ import '../support/fake_auth.dart';
 /// configuration of the `MaterialApp` that `AcslCampaignApp` actually builds, so
 /// re-commenting those lines fails the suite.
 void main() {
-  Future<MaterialApp> pumpApp(WidgetTester tester) async {
+  late ProviderContainer lastContainer;
+
+  Future<MaterialApp> pumpApp(
+    WidgetTester tester, {
+    List<Override> overrides = const <Override>[],
+    Future<void> Function(ProviderContainer container)? beforePump,
+  }) async {
     final container = ProviderContainer(
       overrides: [
         appConfigProvider.overrideWithValue(
@@ -32,10 +42,15 @@ void main() {
         // empty, so the router lands on /login — irrelevant here: every
         // assertion below is about MaterialApp configuration, not the route.
         tokenStoreProvider.overrideWithValue(FakeTokenStore()),
+        ...overrides,
       ],
     );
+    lastContainer = container;
     addTearDown(container.dispose);
     await container.read(sessionManagerProvider).restore();
+    // Boot-order fidelity: main() adopts the persisted locale *before* runApp,
+    // so the first frame is already in the right language.
+    await beforePump?.call(container);
 
     await tester.pumpWidget(
       UncontrolledProviderScope(
@@ -134,6 +149,87 @@ void main() {
       const Locale('en'),
     );
   });
+
+  // The whole point of the epic, end to end: a preference sitting in the store
+  // reaches MaterialApp.router's `locale:`, survives the trip *through* the
+  // localeListResolutionCallback above (WidgetsApp passes [widget.locale!] as
+  // the preferred list, so the choice goes through that code rather than round
+  // it), and lands as a real Bengali bundle in the Localizations scope. Nothing
+  // covered this composition: the controller tests stop at the Notifier's state
+  // and the callback tests stop at the callback.
+  testWidgets('a persisted Bengali preference drives the resolved locale and '
+      'the strings that render', (tester) async {
+    // Device is English. Any Bengali observed below can only have come from the
+    // stored preference, never from the platform locale.
+    tester.platformDispatcher.localesTestValue = const [Locale('en', 'US')];
+    addTearDown(tester.platformDispatcher.clearLocalesTestValue);
+
+    final app = await pumpApp(
+      tester,
+      overrides: [
+        localeStoreProvider.overrideWithValue(
+          _StubLocaleStore(const Locale('bn')),
+        ),
+      ],
+      beforePump: (container) =>
+          container.read(localeControllerProvider.notifier).load(),
+    );
+
+    expect(app.locale, const Locale('bn'), reason: 'locale: must be wired');
+    expect(_resolvedLocale(tester), const Locale('bn'));
+
+    // Read the bundle the app's own Localizations scope hands out, so this is
+    // the delegate that actually loaded, not one this test registered.
+    final l10n = AppL10n.of(tester.element(find.byType(Navigator).first));
+    expect(l10n.appTitle, 'ক্যাম্পেইন ব্যবস্থাপনা');
+    expect(CampaignStatus.draft.label(l10n), 'খসড়া');
+    // A partial fallback (bn locale, English bundle) would otherwise read as
+    // success, so assert the English strings are absent rather than only that
+    // the Bengali ones are present.
+    expect(l10n.appTitle, isNot('Campaign Management'));
+    expect(CampaignStatus.draft.label(l10n), isNot('Draft'));
+  });
+
+  testWidgets('selecting a locale at runtime re-resolves the live app', (
+    tester,
+  ) async {
+    tester.platformDispatcher.localesTestValue = const [Locale('en', 'US')];
+    addTearDown(tester.platformDispatcher.clearLocalesTestValue);
+
+    await pumpApp(
+      tester,
+      overrides: [localeStoreProvider.overrideWithValue(_StubLocaleStore())],
+    );
+    expect(_resolvedLocale(tester), const Locale('en'));
+
+    // What the language picker will do. `locale:` must be watched, not read
+    // once at first build, or the app would need a restart to change language.
+    await lastContainer
+        .read(localeControllerProvider.notifier)
+        .select(const Locale('bn'));
+    await tester.pumpAndSettle();
+
+    expect(_resolvedLocale(tester), const Locale('bn'));
+    expect(
+      AppL10n.of(tester.element(find.byType(Navigator).first)).appTitle,
+      'ক্যাম্পেইন ব্যবস্থাপনা',
+    );
+  });
+}
+
+/// In-memory [LocaleStore], so pumping the app here never opens a database.
+class _StubLocaleStore implements LocaleStore {
+  _StubLocaleStore([this.value]);
+  Locale? value;
+
+  @override
+  Future<Locale?> read() async => value;
+
+  @override
+  Future<void> write(Locale locale) async => value = locale;
+
+  @override
+  Future<void> clear() async => value = null;
 }
 
 /// The locale that `WidgetsApp`'s `Localizations` scope actually settled on,
