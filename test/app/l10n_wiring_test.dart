@@ -1,6 +1,5 @@
 import 'package:acsl_campaign/app/app.dart';
 import 'package:acsl_campaign/app/di/providers.dart';
-import 'package:acsl_campaign/app/flavors.dart';
 import 'package:acsl_campaign/core/l10n/locale_controller.dart';
 import 'package:acsl_campaign/core/l10n/locale_store.dart';
 import 'package:acsl_campaign/domain/common/status.dart';
@@ -10,7 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../support/fake_auth.dart';
+import '../support/harness.dart';
 
 /// The guard that was missing for three epics. `AppL10n.localizationsDelegates`
 /// and `AppL10n.supportedLocales` sat COMMENTED OUT in `AcslCampaignApp` from
@@ -28,25 +27,12 @@ void main() {
     List<Override> overrides = const <Override>[],
     Future<void> Function(ProviderContainer container)? beforePump,
   }) async {
-    final container = ProviderContainer(
-      overrides: [
-        appConfigProvider.overrideWithValue(
-          const AppConfig(
-            flavor: Flavor.dev,
-            apiBaseUrl: 'https://example.invalid',
-            mediaHost: 'https://example.invalid',
-          ),
-        ),
-        // Same in-memory fake the rest of the suite uses, so this stays a pure
-        // widget test with no Keystore/localStorage dependency. It starts
-        // empty, so the router lands on /login — irrelevant here: every
-        // assertion below is about MaterialApp configuration, not the route.
-        tokenStoreProvider.overrideWithValue(FakeTokenStore()),
-        ...overrides,
-      ],
-    );
+    // The harness's FakeTokenStore keeps this a pure widget test with no
+    // Keystore/localStorage dependency. It starts empty, so the router lands on
+    // /login — irrelevant here: every assertion below is about MaterialApp
+    // configuration, not the route.
+    final container = buildTestContainer(overrides: overrides);
     lastContainer = container;
-    addTearDown(container.dispose);
     await container.read(sessionManagerProvider).restore();
     // Boot-order fidelity: main() adopts the persisted locale *before* runApp,
     // so the first frame is already in the right language.
