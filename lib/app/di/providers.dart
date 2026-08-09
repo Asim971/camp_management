@@ -134,8 +134,23 @@ final campaignRepositoryProvider = Provider<CampaignRepository>(
 
 // ---- Offline sync stack (mobile field) ------------------------------------
 
+/// Overridden only by tests, so the real [AppDatabase.open] can run against a
+/// temp directory. `null` means "use path_provider", i.e. production.
+final databaseDirectoryProvider = Provider<Future<Object> Function()?>(
+  (ref) => null,
+);
+
+/// Also test-only. drift_flutter defaults this to `getTemporaryDirectory()`,
+/// which has no plugin under `flutter_test` — the specific call that throws.
+final tempDirectoryPathProvider = Provider<Future<String?> Function()?>(
+  (ref) => null,
+);
+
 final appDatabaseProvider = Provider<AppDatabase>((ref) {
-  final db = AppDatabase.open();
+  final db = AppDatabase.open(
+    databaseDirectory: ref.watch(databaseDirectoryProvider),
+    tempDirectoryPath: ref.watch(tempDirectoryPathProvider),
+  );
   ref.onDispose(db.close);
   return db;
 });

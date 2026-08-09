@@ -154,7 +154,30 @@ class AppDatabase extends _$AppDatabase {
 
   /// Opens the on-device database across native and web (wasm). Tests use the
   /// primary constructor with an in-memory `NativeDatabase.memory()` executor.
-  AppDatabase.open() : super(driftDatabase(name: 'acsl_campaign'));
+  ///
+  /// Both seams default to null, which is exactly today's production behaviour:
+  /// drift_flutter then resolves `getApplicationDocumentsDirectory()` and
+  /// `getTemporaryDirectory()` from `package:path_provider`. They exist so a
+  /// TEST can exercise this real code path — `open()` plus the whole migration
+  /// chain — against a temp directory, because neither path_provider call has a
+  /// plugin implementation under `flutter_test`.
+  ///
+  /// `tempDirectoryPath` is not optional-in-practice for tests: drift_flutter
+  /// defaults it to `getTemporaryDirectory()`, and that is the call that
+  /// actually throws MissingPluginException, so seaming only the database
+  /// directory would leave the test broken.
+  AppDatabase.open({
+    Future<Object> Function()? databaseDirectory,
+    Future<String?> Function()? tempDirectoryPath,
+  }) : super(
+         driftDatabase(
+           name: 'acsl_campaign',
+           native: DriftNativeOptions(
+             databaseDirectory: databaseDirectory,
+             tempDirectoryPath: tempDirectoryPath,
+           ),
+         ),
+       );
 
   @override
   int get schemaVersion => 3;
