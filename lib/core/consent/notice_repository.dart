@@ -129,6 +129,16 @@ class NoticeRepository {
   }
 
   /// Opportunistic. Never called from the capture path, never surfaced.
+  ///
+  /// 🔒 SEAM, NOT YET WIRED: nothing in `lib/` calls this, so in production
+  /// [DioNoticeSource] never fetches, `driftNoticeWriter` never runs, and
+  /// `consent_notices` stays empty — every resolve is served by the bundled
+  /// floor. That is a complete, correct path, not a bug, but it means the
+  /// server-override half of the design is inert until the notice contract
+  /// lands (TASK_BREAKDOWN T-0.5.2, 🔒 Legal §10.3). Both halves are covered by
+  /// tests, so wiring a call site later is additive. Do not read
+  /// `app_database.dart`'s "this table never prunes" rationale as evidence that
+  /// rows arrive today — they do not.
   Future<void> refreshInBackground() async {
     final result = await _source.fetchLatest();
     if (result case Ok(:final value) when value.isNotEmpty) {

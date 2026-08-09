@@ -264,6 +264,35 @@ void main() {
       expect(stateOf(c).step, CaptureStep.purposeNotice);
     });
 
+    test('a THROWING notice repository blocks rather than hanging', () async {
+      // The final whole-branch review found `ref.read(noticeRepositoryProvider)`
+      // sitting outside loadNotice's try. That provider builds over
+      // appDatabaseProvider, so on a device where the database cannot open (web,
+      // per main.dart) the read itself throws — and because loadNotice is called
+      // unawaited, the throw escaped and left the notice step on a permanent
+      // spinner instead of the block message. Still fail-closed either way; this
+      // pins WHICH failure the user is shown.
+      final container = ProviderContainer(
+        overrides: [
+          noticeRepositoryProvider.overrideWith(
+            (ref) => throw StateError('database unavailable'),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(
+        captureControllerProvider(_args).notifier,
+      );
+
+      await expectLater(notifier.loadNotice('bn'), completes);
+
+      final state = container.read(captureControllerProvider(_args));
+      expect(state.noticeBlocked, isTrue);
+      expect(state.notice, isNull);
+      expect(state.step, CaptureStep.purposeNotice);
+    });
+
     test('selectNoticeLanguage re-resolves and replaces the notice', () async {
       final c = containerWith(const {'bn': _bn, 'en': _en});
       await notifierOf(c).loadNotice('bn');

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:drift/drift.dart' show Value;
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
@@ -119,7 +120,22 @@ class CaptureController
   /// Resolves the notice to show. Called when the notice step is entered and
   /// again whenever the language is switched.
   Future<void> loadNotice(String language) async {
-    final result = await ref.read(noticeRepositoryProvider).resolve(language);
+    // The provider read is INSIDE the try, not before it: noticeRepositoryProvider
+    // builds over appDatabaseProvider, so constructing it can throw when the
+    // database is unavailable (a real condition on web — see main.dart). Left
+    // outside, that throw escaped an `unawaited` call and left the notice step on
+    // a permanent spinner instead of the block message §5 promises. Still
+    // fail-closed either way; this is about which failure the user is shown.
+    // LocaleController.select moved the same read inside its try for the same
+    // reason.
+    final Result<ConsentNotice> result;
+    try {
+      result = await ref.read(noticeRepositoryProvider).resolve(language);
+    } catch (error) {
+      debugPrint('Consent notice could not be resolved ($error). Blocking.');
+      state = CaptureState(step: state.step, noticeBlocked: true);
+      return;
+    }
 
     if (result case Ok(:final value)) {
       // Explicit construction, not copyWith: see [CaptureState.copyWith].

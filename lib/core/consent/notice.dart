@@ -27,13 +27,10 @@ class ConsentNotice {
     body: body,
   );
 
-  Map<String, Object?> toJson() => {
-    'version': version,
-    'language': language,
-    'title': title,
-    'body': body,
-  };
-
+  /// No `toJson`: an earlier design cached notices as JSON blobs, but the Drift
+  /// cache stores them as typed columns (`driftNoticeWriter`), so nothing ever
+  /// serialised one. `fromJson` stays because it is the reader for both the
+  /// bundled asset and the 🔒 remote payload.
   static ConsentNotice fromJson(Map<String, Object?> json) => ConsentNotice(
     version: (json['version']! as num).toInt(),
     language: json['language']! as String,
