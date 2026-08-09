@@ -6,7 +6,7 @@ import 'package:acsl_campaign/features/dev/presentation/dev_launcher_screen.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../support/fake_auth.dart';
+import '../support/harness.dart';
 
 /// Substitutes for the manual Maestro check in task-9-brief.md Step 5b
 /// (`flutter run -d chrome --dart-define=E2E=true ...`), which this
@@ -29,15 +29,10 @@ void main() {
         e2eRole: 'crm_verifier',
       );
 
-      final container = ProviderContainer(
-        overrides: [
-          appConfigProvider.overrideWithValue(config),
-          // Swap real Keystore/localStorage-backed storage for the same
-          // in-memory fake used elsewhere, so this stays a pure widget test.
-          tokenStoreProvider.overrideWithValue(FakeTokenStore()),
-        ],
-      );
-      addTearDown(container.dispose);
+      // The harness swaps real Keystore/localStorage-backed storage for an
+      // in-memory FakeTokenStore, so this stays a pure widget test. The E2E
+      // config is the whole point of the file, so it is passed explicitly.
+      final container = buildTestContainer(config: config);
 
       // Mirrors main(): restore() first (finds nothing, since the fake token
       // store starts empty), then the E2E sign-in - both awaited before the
