@@ -1,9 +1,13 @@
 import 'package:acsl_campaign/core/l10n/locale_store.dart';
 import 'package:acsl_campaign/core/storage/app_database.dart';
-// `show Value` and not a bare import: drift also exports `isNull`, which
+// `Schema4` so the retry-safety test can create the v4 `preferences` table with
+// drift's own generated DDL rather than a hand-copied CREATE TABLE that could
+// drift out of agreement with it.
+import 'package:acsl_campaign/core/storage/schema_versions.dart' show Schema4;
+// A `show` list and not a bare import: drift also exports `isNull`, which
 // collides with matcher's `isNull` and makes every null assertion below
 // ambiguous.
-import 'package:drift/drift.dart' show Value;
+import 'package:drift/drift.dart' show Migrator, Value;
 import 'package:drift/native.dart';
 import 'package:drift_dev/api/migrations_native.dart';
 import 'package:flutter/widgets.dart' show Locale;
@@ -316,6 +320,76 @@ void main() {
     final cached = await db.select(db.cachedReferences).get();
     expect(cached.map((r) => r.key), contains('session:S1:registrations'));
     expect(cached.map((r) => r.key), isNot(contains('pref:locale')));
+
+    await db.close();
+  });
+
+  test('v3 to v4 survives being re-run after a half-applied migration', () async {
+    // WHY THIS STATE IS REACHABLE: drift does NOT wrap migration steps in a
+    // transaction - `VersionedSchema.stepByStepHelper` calls `runMigrationSteps`
+    // bare, and drift's own doc comment there shows the transaction as
+    // something the CALLER adds. And `user_version` is bumped only after the
+    // whole `onUpgrade` returns. So every statement in `from3To4` autocommits on
+    // its own, and a process kill between the INSERT and the DELETE leaves the
+    // device durably at v3 with `pref:locale` in BOTH tables. A mid-migration
+    // reload is likelier still on web-wasm.
+    //
+    // WHY IT MATTERS MORE THAN DATA LOSS: on the next launch the step re-runs.
+    // With a plain `INSERT` the primary key is hit again and SQLite raises
+    // `UNIQUE constraint failed: preferences.key`, which throws out of
+    // `beforeOpen` - so the database fails to open on that launch and on EVERY
+    // launch after, because the version never advances. The queued attendance
+    // evidence becomes unreachable rather than merely deleted, with no in-app
+    // recovery path. Hence `INSERT OR REPLACE`, and hence this test.
+    final connection = await verifier.schemaAt(3);
+
+    final oldDb = v3.DatabaseAtV3(connection.newConnection());
+    await oldDb
+        .into(oldDb.cachedReferences)
+        .insert(
+          v3.CachedReferencesData(
+            key: 'pref:locale',
+            valueJson: '{"languageCode":"bn"}',
+            fetchedAt: DateTime.utc(2026, 8, 9),
+          ),
+        );
+    await oldDb
+        .into(oldDb.cachedReferences)
+        .insert(
+          v3.CachedReferencesData(
+            key: 'session:S1:registrations',
+            valueJson: '[]',
+            fetchedAt: DateTime.utc(2026, 8, 9),
+          ),
+        );
+
+    // Replay exactly what `from3To4` gets through before the kill: the
+    // createTable and the INSERT, but NOT the DELETE. The table is created from
+    // the generated `Schema4` entity so this is byte-for-byte the DDL the real
+    // migration emits.
+    await Migrator(oldDb).createTable(Schema4(database: oldDb).preferences);
+    await oldDb.customStatement(
+      'INSERT INTO preferences (key, value) '
+      'SELECT key, value_json FROM cached_references '
+      "WHERE key LIKE 'pref:%'",
+    );
+    await oldDb.close();
+
+    // Now the next launch. This is still a v3 database as far as SQLite is
+    // concerned, so the step runs again over its own half-finished output.
+    final db = AppDatabase(connection.newConnection());
+    await verifier.migrateAndValidate(db, 4); // must NOT throw
+
+    // The preference is intact and not duplicated.
+    final prefs = await db.select(db.preferences).get();
+    expect(prefs, hasLength(1));
+    expect(prefs.single.key, localePrefKey);
+    expect(prefs.single.value, '{"languageCode":"bn"}');
+
+    // The retry completed the half that had been missed.
+    final cached = await db.select(db.cachedReferences).get();
+    expect(cached.map((r) => r.key), isNot(contains('pref:locale')));
+    expect(cached.map((r) => r.key), contains('session:S1:registrations'));
 
     await db.close();
   });

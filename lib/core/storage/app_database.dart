@@ -249,7 +249,26 @@ class AppDatabase extends _$AppDatabase {
       // v4 splits preferences off the evictable cache. Nothing is dropped:
       // the pref: rows are MOVED, and every cache row and every queued capture
       // is untouched.
+      //
+      // EVERY STATEMENT HERE MUST BE IDEMPOTENT, because this step can run more
+      // than once against its own half-finished output. Drift does NOT wrap
+      // migration steps in a transaction - `VersionedSchema.stepByStepHelper`
+      // calls `runMigrationSteps` bare, and drift's doc comment there shows the
+      // transaction as something the caller adds - and `user_version` is bumped
+      // only after the whole `onUpgrade` returns. So each statement autocommits
+      // alone, and a process kill part-way through leaves the device durably at
+      // v3 with the work so far already committed. On the next launch the step
+      // starts over. (A mid-migration reload is likelier still on web-wasm.)
+      //
+      // The failure mode this avoids is worse than losing the preference: a
+      // plain `INSERT` re-run over an already-inserted row raises `UNIQUE
+      // constraint failed: preferences.key`, which throws out of `beforeOpen`,
+      // so the database fails to open on that launch and on every launch after,
+      // because the version never advances. The queued attendance evidence
+      // becomes UNREACHABLE rather than deleted, with no in-app recovery path.
+      // `test/core/storage/migration_test.dart` reproduces exactly that.
       from3To4: (m, schema) async {
+        // Idempotent already: drift emits CREATE TABLE IF NOT EXISTS.
         await m.createTable(schema.preferences);
         // Carry existing preferences across. A v3 device in the field has a
         // pref:locale row; losing it would silently reset the language. The
@@ -258,11 +277,23 @@ class AppDatabase extends _$AppDatabase {
         // of any particular preference's encoding. The table names are the
         // real SQL ones (`cached_references`, plural) as dumped to
         // drift_schemas/drift_schema_v4.json.
+        //
+        // OR REPLACE, not `ON CONFLICT(key) DO UPDATE`: both fix the retry, but
+        // OR REPLACE has no SQLite version floor (upsert needs 3.24+) and no
+        // INSERT-SELECT/ON-CONFLICT parse ambiguity, and this statement has to
+        // hold on Android, iOS and web-wasm alike. Its delete-then-insert
+        // semantics are harmless here - `preferences` has no triggers and
+        // nothing references it by foreign key. It also cannot clobber a newer
+        // user choice: a half-migrated database is stuck at v3 and never opens,
+        // so no write can reach `preferences` between the two attempts.
         await m.database.customStatement(
-          'INSERT INTO preferences (key, value) '
+          'INSERT OR REPLACE INTO preferences (key, value) '
           'SELECT key, value_json FROM cached_references '
           "WHERE key LIKE 'pref:%'",
         );
+        // Idempotent by construction: deleting an already-deleted row is a
+        // no-op, so a kill after the INSERT and before this line is recoverable
+        // in the other direction too.
         await m.database.customStatement(
           "DELETE FROM cached_references WHERE key LIKE 'pref:%'",
         );

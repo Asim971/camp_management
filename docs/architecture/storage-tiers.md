@@ -80,13 +80,42 @@ would abandon the stored preference on every installed device.
 - `pref:locale` survives v3→v4 **with its value**, and still resolves to
   `Locale('bn')` through `DriftLocaleStore`;
 - a queued capture and its sync task survive v3→v4 — this is the first
-  migration that deletes rows at all.
+  migration that deletes rows at all;
+- the step **survives being re-run** over its own half-finished output.
 
 The value and `read()` assertions are not decoration. `migrateAndValidate`
 compares **shapes only**: with the `INSERT` removed, the shape test
 `migrates v3 to v4` still passes while the preference is gone. Only the data
 assertion catches it. Any future migration in this repo needs its own
 data-survival assertion for the same reason.
+
+### Every migration step must be idempotent
+
+Drift does **not** wrap migration steps in a transaction:
+`VersionedSchema.stepByStepHelper` calls `runMigrationSteps` bare, and drift's own
+doc comment there shows the transaction as something the *caller* adds. And
+`user_version` is bumped only after the whole `onUpgrade` returns. So each
+statement in a step autocommits alone, and a process kill part-way through leaves
+the device **durably on the old version with the work so far already committed**.
+The next launch starts the step over. Web-wasm makes a mid-migration reload
+likelier still.
+
+The consequence is worse than losing a row. `from3To4` originally used a plain
+`INSERT INTO preferences … SELECT`; re-run over its own already-inserted row it
+raises `SqliteException(1555): UNIQUE constraint failed: preferences.key`, which
+throws out of `beforeOpen` — so the database fails to open on that launch **and
+every launch after**, because the version never advances. Queued attendance
+evidence becomes *unreachable* rather than deleted, with no in-app recovery path.
+
+It uses `INSERT OR REPLACE` instead. `ON CONFLICT(key) DO UPDATE` would work too,
+but OR REPLACE has no SQLite version floor (upsert needs 3.24+) and no
+INSERT-SELECT/ON-CONFLICT parse ambiguity, and the statement has to hold on
+Android, iOS and web-wasm alike.
+
+So: `createTable` is safe already (drift emits `CREATE TABLE IF NOT EXISTS`),
+`DELETE … WHERE` is safe by construction, and any `INSERT`, `ALTER` or backfill
+needs to be made re-runnable on purpose. Do not rely on transaction semantics
+inside `beforeOpen`.
 
 ---
 
@@ -132,7 +161,11 @@ blocked, so building them now would mean guessing their shapes.
 4. **Write a data-survival assertion**, not just `migrateAndValidate`. Probe it
    by deleting the data-carrying statement from your migration and confirming
    the test fails.
-5. **Update both `PRAGMA user_version` assertions** —
+5. **Make every statement idempotent and test the retry** — construct the
+   half-applied state and assert the step recovers. See
+   "Every migration step must be idempotent" above; drift gives you no
+   transaction, so a kill mid-step can otherwise brick the database permanently.
+6. **Update both `PRAGMA user_version` assertions** —
    `test/app/di/composition_root_test.dart` and
    `test/core/storage/database_seam_test.dart`. They are the two places that
    notice a migration step was never wired up.
