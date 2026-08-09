@@ -176,6 +176,14 @@ class AppDatabase extends _$AppDatabase {
              databaseDirectory: databaseDirectory,
              tempDirectoryPath: tempDirectoryPath,
            ),
+           web: DriftWebOptions(
+             // Relative URIs: both files are served from the web root because
+             // they live in `web/`. Without this parameter drift_flutter's web
+             // opener throws ArgumentError synchronously, which is why the web
+             // build could not start.
+             sqlite3Wasm: Uri.parse('sqlite3.wasm'),
+             driftWorker: Uri.parse('drift_worker.js'),
+           ),
          ),
        );
 
