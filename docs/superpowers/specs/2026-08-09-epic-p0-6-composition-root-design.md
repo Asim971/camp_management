@@ -86,7 +86,7 @@ Derived from the PRDs, not from the current schema. "Platform" is where the requ
 
 ### D-C. Composition-root test
 A container overriding **only** `appConfigProvider` and `databaseDirectoryProvider`, which then:
-- **uses** the database — asserts `user_version == 3` — so `open()` and the migration chain execute against a real file;
+- **uses** the database — asserts `user_version == 4` — so `open()` and the migration chain execute against a real file;
 - resolves the full core provider set. This half is **explicitly labelled weak in its own comment**, citing F2: it passes today with nothing overridden, so it guards wiring and cycle breakage only.
 
 ### D-D. Guarded, testable bootstrap
@@ -142,7 +142,7 @@ Deliberate asymmetry with D-C: this harness **fakes** the database, because feat
 
 | Test | Asserts |
 |---|---|
-| Composition root | the real database reaches `user_version == 3` on disk; every core provider resolves (weak half, labelled) |
+| Composition root | the real database reaches `user_version == 4` on disk; every core provider resolves (weak half, labelled) |
 | Bootstrap resilience | `bootstrap()` **completes** with a throwing `appDatabaseProvider` — the exact web case — **and records** the failure. The probe that found F1 becomes this regression test. |
 | Web assets | `web/sqlite3.wasm` and `web/drift_worker.js` exist |
 | `restore()` guard | a throwing token store degrades to `AuthSignedOut` rather than propagating |
@@ -150,7 +150,7 @@ Deliberate asymmetry with D-C: this harness **fakes** the database, because feat
 | Seam default | `databaseDirectoryProvider` defaults to `null` (the production path) |
 | Tier split | a cache sweep removes cached rows and leaves preferences intact; `pref:locale` survives the migration |
 
-**Baseline to hold:** 367 passing / **29 skipped**. The 29 are Linux-gated goldens; the skip count is how a broken golden gets noticed locally and must not change.
+**Baseline to hold:** 392 passing / **29 skipped**. The 29 are Linux-gated goldens; the skip count is how a broken golden gets noticed locally and must not change.
 
 **Unverifiable in Dart tests**, said rather than implied: real `path_provider` path resolution (D1's accepted consequence), and web runtime behaviour. The latter must be confirmed by loading the web build in a browser once D-B lands — the one check that would have caught F4 at any point in the last four epics.
 

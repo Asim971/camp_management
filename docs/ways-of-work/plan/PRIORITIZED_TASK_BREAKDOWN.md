@@ -482,6 +482,15 @@ Every feature task is done only when:
 - [ ] Measure app startup, local search, capture commit, queue drain, dashboard freshness, and evidence-view latency.
 - [ ] Document operational alerts, reconciliation runbook, rollback path, and known pilot limits.
 
+### P0.R5 Schema Migration Retry Safety
+
+**Defect:** `from2To3` (the schema-v3 step added by P0.5) uses `addColumn`, which is not idempotent. Drift does not wrap migration steps in a transaction, and `user_version` is bumped only after `onUpgrade` returns, so a device killed mid-migration re-runs the step, raises `duplicate column name`, and that throws out of `beforeOpen` — the database then fails to open on that launch and on every launch after, because the version never advances. Queued attendance evidence becomes unreachable with no in-app recovery path.  
+**Widened by P0.6:** a v2 device's `onUpgrade` used to be `from2To3` alone before its version bump; it is now `from2To3` and then `from3To4`'s three statements before a single bump. `from3To4`'s `INSERT OR REPLACE` cannot help such a device, because the retry dies inside `from2To3` before v4 is ever reached.  
+**Priority:** blocking before the first pilot device, not backlog. It is latent only because v2 existed solely between P0.3 and P0.5 and the app is pre-pilot.
+
+- [ ] Wrap `runMigrationSteps` in a transaction instead of adding another per-step idempotency idiom. Transactions are supported inside `beforeOpen` (`_BeforeOpeningExecutor.beginTransactionInContext` delegates to the base executor) and let SQLite roll DDL back cleanly, which removes the whole category rather than one instance of it.
+- [ ] Add a v2 -> v4 retry-safety test in the style of the v3 -> v4 one added in P0.6 (`test/core/storage/migration_test.dart`, "v3 to v4 survives being re-run after a half-applied migration").
+
 ## 12. External Decisions and Owners
 
 | Decision/contract | Required by | Suggested owner | Target priority |
