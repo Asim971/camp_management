@@ -51,7 +51,10 @@ class _GatedTokenStore implements TokenStore {
 void main() {
   SessionManager build({
     ScriptedAuthService? service,
-    FakeTokenStore? tokens,
+    // TokenStore, not FakeTokenStore: the unreadable-store case below needs a
+    // store that throws, and callers that inspect `value`/`persistCalls` hold
+    // their own typed reference anyway.
+    TokenStore? tokens,
     DateTime? now,
   }) => SessionManager(
     service: service ?? ScriptedAuthService(),
@@ -175,6 +178,27 @@ void main() {
         manager.dispose();
       },
     );
+
+    test('an unreadable store fails before it touches state', () async {
+      // restore() deliberately does not swallow this - bootstrap() records it,
+      // and a guard here would hide it from that recorder (see restore()'s
+      // note). What restore() owes its caller is that the failure lands before
+      // any _emit, so catching it leaves the app on AuthSignedOut and able to
+      // show a login screen - never stranded on a permanent AuthRestoring
+      // splash. This locks that ordering, which is the whole reason the
+      // unguarded version is safe.
+      final manager = build(tokens: ThrowingTokenStore());
+      final seen = <AuthState>[];
+      final sub = manager.changes.listen(seen.add);
+
+      await expectLater(manager.restore(), throwsStateError);
+      await pumpEventQueue();
+
+      expect(seen, isEmpty);
+      expect(manager.state, isA<AuthSignedOut>());
+      await sub.cancel();
+      manager.dispose();
+    });
 
     test('a rejected stored token clears storage and signs out', () async {
       final tokens = FakeTokenStore('stale-r');

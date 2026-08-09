@@ -102,3 +102,18 @@ class FakeTokenStore implements TokenStore {
     value = null;
   }
 }
+
+/// [TokenStore] whose read fails, standing in for storage that is present but
+/// unusable — on web `SecureStore` is localStorage, which a privacy mode or a
+/// quota-exhausted origin can refuse outright. Writes are no-ops rather than
+/// throws, because it is the boot-path *read* this models.
+class ThrowingTokenStore implements TokenStore {
+  @override
+  Future<void> persist(String refreshToken) async {}
+
+  @override
+  Future<String?> read() async => throw StateError('storage unavailable');
+
+  @override
+  Future<void> clear() async {}
+}

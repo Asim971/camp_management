@@ -198,6 +198,25 @@ class SessionManager {
   }
 
   /// Exchanges any persisted refresh token for a session. Call once at boot.
+  ///
+  /// Deliberately does NOT catch a failing [TokenStore.read] - on web
+  /// `SecureStore` is localStorage, which a privacy mode or an exhausted quota
+  /// can refuse outright. Swallowing it here was tried and reverted: `bootstrap`
+  /// is what turns a pre-frame failure into a *recorded* degradation on
+  /// `BootDiagnostics`, and a second, lower guard catching it first made the
+  /// failure invisible to that recorder - "guarded but silent", which is the
+  /// exact failure mode P0.6 exists to remove. Removing the guard was proved
+  /// safe rather than assumed: with it gone, `test/app/bootstrap_test.dart`'s
+  /// unreadable-store case still leaves the user signed out AND now shows the
+  /// step in `failures`.
+  ///
+  /// What this method must guarantee instead is that it fails *before* touching
+  /// state, so a caller that catches is left with a usable app: the guard at the
+  /// top means state is [AuthSignedOut] on entry, and the store read is the
+  /// first `await`, ahead of any [_emit]. Keep it that way - moving the read
+  /// after the `_emit(AuthRestoring())` below would strand a throwing store on a
+  /// permanent splash, which is no better than the blank screen this closes.
+  /// `session_manager_test.dart` locks that ordering.
   Future<void> restore() async {
     // A live session (signed in, or already restoring) must not be torn down
     // by a stray extra call - restore() is meant to run once at boot, and

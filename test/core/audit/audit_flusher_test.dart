@@ -52,6 +52,26 @@ void main() {
     maxAttempts: maxAttempts,
   );
 
+  test('an unavailable database does not escape flush()', () async {
+    // The regression this locks: _flushOnce had no try/catch, and flush() is
+    // invoked as unawaited(flush()) from Timer.periodic and notifyBuffered().
+    // A database failure - web without the Drift wasm assets, a locked file -
+    // therefore became a RECURRING UNHANDLED async error while no audit event
+    // was ever delivered: silent and continuous, which is the worst shape a
+    // compliance path can fail in. Closing the database reproduces that
+    // unavailability without needing a real broken platform.
+    await seed('a');
+    final transport = _ScriptedTransport([const Ok(null)]);
+    final flusher = buildFlusher(transport);
+    await db.close();
+
+    await expectLater(flusher.flush(), completes);
+
+    // The failure was real, not a vacuously empty queue: a row was seeded and
+    // the transport was never reached.
+    expect(transport.batches, isEmpty);
+  });
+
   test('deletes rows the server confirmed', () async {
     await seed('a');
     await seed('b');
