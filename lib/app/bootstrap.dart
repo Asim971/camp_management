@@ -59,7 +59,13 @@ Future<ProviderContainer> bootstrap({ProviderContainer? container}) async {
   );
 
   // Audit must flush regardless of which screen the user visits. Reading the
-  // flusher resolves the database, which is where the web failure landed.
+  // flusher resolves the database too, but it is NOT the first step to do so:
+  // `localeController.load` above already resolves it through
+  // `localeStoreProvider`, so on web — where `AppDatabase.open()` threw — that
+  // step is the one that degrades first (earlier still in an E2E build, where
+  // the seeding step resolves it). Every one of them records its own failure,
+  // which is the point: the boot no longer depends on which step happens to
+  // touch the database first.
   await step(
     'auditFlusher.start',
     () async => c.read(auditFlusherProvider).start(),

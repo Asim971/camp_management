@@ -13,10 +13,15 @@ import 'fake_auth.dart';
 /// One container builder for the whole suite, so a test writes only the
 /// overrides it is actually ABOUT.
 ///
-/// Before this existed, `authStateProvider` was overridden 13 times across 12
+/// Before this existed, `authStateProvider` was overridden 13 times across 9
 /// files through two different mechanisms (`overrideWith` and
-/// `overrideWithValue`), and every file re-declared its own `AppConfig` and its
-/// own signed-in [Session] — which is how test suites drift apart.
+/// `overrideWithValue`), and 15 files hand-rolled their own `ProviderContainer`
+/// — 13 of which now come from here, the other 2 deliberately left alone
+/// (`test/app/di/composition_root_test.dart` and
+/// `test/core/storage/database_seam_test.dart`, both of which exist precisely to
+/// exercise the un-overridden wiring this harness replaces). Every one of them
+/// re-declared its own `AppConfig` and its own signed-in [Session] — which is
+/// how test suites drift apart.
 ///
 /// The database is deliberately in-memory here: feature tests should not pay
 /// for real file I/O, and [appDatabaseProvider]'s real `AppDatabase.open()`
@@ -66,8 +71,15 @@ ProviderContainer buildTestContainer({
     ],
   );
 
-  addTearDown(container.dispose);
+  // Order is deliberate and must not be "tidied": `addTearDown` runs LIFO, so
+  // registering the close FIRST makes it run LAST — dispose the providers, then
+  // close the database they hold. The other way round closes the executor while
+  // providers that own it are still alive, so any dispose that actually awaits
+  // the database would run against a closed connection. Harmless today (the
+  // database is in-memory and `auditFlusherProvider`'s dispose is unawaited),
+  // which is exactly why the next awaited dispose would find it the hard way.
   addTearDown(() async => db?.close());
+  addTearDown(container.dispose);
   return container;
 }
 
