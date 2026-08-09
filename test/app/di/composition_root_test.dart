@@ -48,15 +48,18 @@ void main() {
   test('the real database opens, migrates and answers a query', () async {
     // THE load-bearing assertion. Resolving appDatabaseProvider proves almost
     // nothing (Riverpod construction is lazy and drift defers the open), so this
-    // QUERIES it: open() runs, the v1->v2->v3 chain runs, schema v3 is reached.
+    // QUERIES it: open() runs, the v1->v2->v3->v4 chain runs, schema v4 is
+    // reached. Bump this deliberately with every schemaVersion bump - it is one
+    // of the two places that notice a migration step was never wired up.
     final db = container.read(appDatabaseProvider);
 
     final version = await db.customSelect('PRAGMA user_version;').getSingle();
-    expect(version.data.values.first, 3);
+    expect(version.data.values.first, 4);
 
-    // And the v3 tables are really there, not merely the version number.
+    // And the tables are really there, not merely the version number.
     expect(await db.select(db.consentNotices).get(), isEmpty);
     expect(await db.select(db.syncTasks).get(), isEmpty);
+    expect(await db.select(db.preferences).get(), isEmpty);
   });
 
   test('every core provider builds against the real graph', () {

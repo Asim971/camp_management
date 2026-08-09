@@ -17,7 +17,7 @@ void main() {
 
   test('open() honours an injected directory and can be queried', () async {
     // The point of the seam: a REAL AppDatabase.open() - not
-    // NativeDatabase.memory() - running open() and the whole v1->v2->v3
+    // NativeDatabase.memory() - running open() and the whole v1->v2->v3->v4
     // migration chain against a real file on disk.
     final dir = await Directory.systemTemp.createTemp('acsl_seam_');
     addTearDown(() => dir.delete(recursive: true));
@@ -31,7 +31,7 @@ void main() {
     addTearDown(db.close);
 
     final row = await db.customSelect('PRAGMA user_version;').getSingle();
-    expect(row.data.values.first, 3);
+    expect(row.data.values.first, 4);
     expect(File('${dir.path}/acsl_campaign.sqlite').existsSync(), isTrue);
   });
 }

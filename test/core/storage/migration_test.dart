@@ -1,3 +1,4 @@
+import 'package:acsl_campaign/core/l10n/locale_store.dart';
 import 'package:acsl_campaign/core/storage/app_database.dart';
 // `show Value` and not a bare import: drift also exports `isNull`, which
 // collides with matcher's `isNull` and makes every null assertion below
@@ -5,11 +6,13 @@ import 'package:acsl_campaign/core/storage/app_database.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:drift_dev/api/migrations_native.dart';
+import 'package:flutter/widgets.dart' show Locale;
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../generated/schema.dart';
 import '../../generated/schema_v1.dart' as v1;
 import '../../generated/schema_v2.dart' as v2;
+import '../../generated/schema_v3.dart' as v3;
 
 void main() {
   late SchemaVerifier verifier;
@@ -218,5 +221,127 @@ void main() {
     await put(1, 'bn');
 
     expect(await db.select(db.consentNotices).get(), hasLength(2));
+  });
+
+  test('migrates v3 to v4', () async {
+    final schema = await verifier.schemaAt(3);
+    final db = AppDatabase(schema.newConnection());
+
+    await verifier.migrateAndValidate(db, 4);
+
+    await db.close();
+  });
+
+  test('v3 to v4 moves the locale preference and keeps caches', () async {
+    // The tier split must not cost a user their language. And a v3 device in
+    // the field has a pref:locale row that has to survive.
+    final connection = await verifier.schemaAt(3);
+
+    final oldDb = v3.DatabaseAtV3(connection.newConnection());
+    await oldDb
+        .into(oldDb.cachedReferences)
+        .insert(
+          v3.CachedReferencesData(
+            key: 'pref:locale',
+            valueJson: '{"languageCode":"bn"}',
+            fetchedAt: DateTime.utc(2026, 8, 9),
+          ),
+        );
+    await oldDb
+        .into(oldDb.cachedReferences)
+        .insert(
+          v3.CachedReferencesData(
+            key: 'session:S1:registrations',
+            valueJson: '[]',
+            fetchedAt: DateTime.utc(2026, 8, 9),
+          ),
+        );
+    // A queued capture, because this migration is the first one that DELETEs
+    // rows. Nothing else asserted that field evidence survives v3->v4, and it
+    // is the one loss that cannot be undone - the carpenter has left the venue.
+    await oldDb
+        .into(oldDb.syncTasks)
+        .insert(
+          v3.SyncTasksData(
+            id: 'task-1',
+            type: 'attendance',
+            payloadJson: '{"sessionId":"s1"}',
+            status: 'pendingSync',
+            retryCount: 1,
+            createdAt: DateTime.utc(2026, 8, 9, 9, 30),
+          ),
+        );
+    await oldDb
+        .into(oldDb.attendanceDrafts)
+        .insert(
+          v3.AttendanceDraftsData(
+            id: 'task-1',
+            sessionId: 's1',
+            carpenterId: 'c1',
+            encryptedMediaPath: '/enc/task-1.bin',
+            capturedAt: DateTime.utc(2026, 8, 9, 9, 29),
+            capturedBy: 'field-user-1',
+          ),
+        );
+    await oldDb.close();
+
+    final db = AppDatabase(connection.newConnection());
+    await verifier.migrateAndValidate(db, 4);
+
+    // The queued capture is untouched by the tier split.
+    final drafts = await db.select(db.attendanceDrafts).get();
+    expect(drafts, hasLength(1));
+    expect(drafts.single.encryptedMediaPath, '/enc/task-1.bin');
+    expect(await db.select(db.syncTasks).get(), hasLength(1));
+
+    // The preference moved to its own table...
+    final prefs = await db.select(db.preferences).get();
+    expect(prefs.map((p) => p.key), contains('pref:locale'));
+
+    // ...carrying its VALUE, not just its key. Asserting only the key would
+    // pass a migration that inserted an empty string and silently reset the
+    // language - which is the exact failure this whole task exists to prevent.
+    expect(
+      prefs.singleWhere((p) => p.key == localePrefKey).value,
+      '{"languageCode":"bn"}',
+    );
+
+    // And the value is still one DriftLocaleStore can honour. This is the
+    // user-visible guarantee: after upgrading, the phone is still in Bengali.
+    // It is why DriftLocaleStore reads the legacy JSON form as well as the
+    // bare code it now writes - the migration copies v3 rows verbatim.
+    expect(await DriftLocaleStore(db).read(), const Locale('bn'));
+
+    // ...and the server cache stayed where it belongs.
+    final cached = await db.select(db.cachedReferences).get();
+    expect(cached.map((r) => r.key), contains('session:S1:registrations'));
+    expect(cached.map((r) => r.key), isNot(contains('pref:locale')));
+
+    await db.close();
+  });
+
+  test('a cache sweep cannot delete preferences', () async {
+    // The whole point of the split. Before it, a sweep over cached_references
+    // would have taken pref:locale with it.
+    final db = AppDatabase(NativeDatabase.memory());
+    addTearDown(db.close);
+
+    await db
+        .into(db.preferences)
+        .insert(PreferencesCompanion.insert(key: 'pref:locale', value: 'bn'));
+    await db
+        .into(db.cachedReferences)
+        .insert(
+          CachedReferencesCompanion.insert(
+            key: 'session:S1:registrations',
+            valueJson: '[]',
+            fetchedAt: DateTime.utc(2026, 8, 9),
+          ),
+        );
+
+    await db.delete(db.cachedReferences).go(); // the sweep
+
+    expect(await db.select(db.cachedReferences).get(), isEmpty);
+    expect(await db.select(db.preferences).get(), hasLength(1));
   });
 }
