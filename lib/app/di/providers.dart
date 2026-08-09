@@ -11,6 +11,7 @@ import '../../core/auth/auth_service.dart';
 import '../../core/auth/e2e_session.dart';
 import '../../core/auth/session_manager.dart';
 import '../../core/auth/token_store.dart';
+import '../../core/consent/notice_repository.dart';
 import '../../core/media/capture_source.dart';
 import '../../core/media/evidence_store.dart';
 import '../../core/media/face_quality.dart';
@@ -142,6 +143,23 @@ final appDatabaseProvider = Provider<AppDatabase>((ref) {
 final evidenceStoreProvider = Provider<EvidenceStore>(
   (ref) => createEvidenceStore(),
 );
+
+/// Resolves the consent notice shown before a capture, and caches fetched
+/// versions.
+///
+/// The two Drift seams are the whole point of this provider: without them
+/// `resolve` would silently always return the bundled floor and no device would
+/// ever read or write a `consent_notices` row — a failure no other test in the
+/// suite can see, because this is the only place [NoticeRepository] is
+/// constructed. `test/features/capture_consent_test.dart` asserts both.
+final noticeRepositoryProvider = Provider<NoticeRepository>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  return NoticeRepository(
+    source: DioNoticeSource(ref.watch(dioProvider)),
+    readCached: driftNoticeReader(db),
+    writeCached: driftNoticeWriter(db),
+  );
+});
 
 final secureStoreProvider = Provider<SecureStore>(
   (ref) => FlutterSecureStore(),

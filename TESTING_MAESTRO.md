@@ -2,7 +2,7 @@
 
 **Scope:** UI end-to-end tests (Maestro) for the currently implemented screens.
 **Companion to:** [`ARCHITECTURE_Flutter.md`](ARCHITECTURE_Flutter.md) §14 (testing strategy), [`TASK_BREAKDOWN.md`](TASK_BREAKDOWN.md).
-**Status:** Plan + scaffolded flows in [`.maestro/`](.maestro). Flows are runnable once the enablement prerequisites in §3 are met.
+**Status:** Flows in [`.maestro/`](.maestro), run by the `e2e` matrix job in CI (§7.1). The prerequisites in §3 are met. **The flows have never had a green run** — the `e2e` job is new in P0.5 and configuration reached the app for the first time with it, so treat any flow you have not personally seen pass as unproven.
 
 ---
 
@@ -44,7 +44,7 @@ Not yet built (out of scope for this plan): session readiness (M-01), CRM queue 
 
 ## 3. E2E enablement prerequisites
 
-> **Status: app-side enablement is now implemented.** The `E2E=true` build mode (fake auth, `/dev` launcher, fake camera, fail-then-pass quality, local data seeding) and the `Semantics(identifier:)` test IDs are in the codebase (`lib/app/flavors.dart`, `lib/core/auth/e2e_session.dart`, `lib/features/dev/`, `lib/core/media/capture_source.dart`, `lib/core/dev/e2e_seeder.dart`). What remains before every flow is green: the **mock backend** (§3.4) and the real **ML Kit** quality impl. Flows needing only client state (`carpenter_search_confirm`, `field_capture_recapture`, the capture→queued portion, `offline_queue_retry`) run with no mock; the reconnect-sync transition and CRM flows need the mock server.
+> **Status: app-side enablement is now implemented.** The `E2E=true` build mode (fake auth, `/dev` launcher, fake camera, fail-then-pass quality, local data seeding) and the `Semantics(identifier:)` test IDs are in the codebase (`lib/app/flavors.dart`, `lib/core/auth/e2e_session.dart`, `lib/features/dev/`, `lib/core/media/capture_source.dart`, `lib/core/dev/e2e_seeder.dart`). The **mock backend** (§3.4) is implemented too — `tool/mock_server/`. What remains is the real **ML Kit** quality impl (E2E uses `E2EQualityChecker`) and, until CI has had a green run, the flows' own accuracy. Flows needing only client state (`carpenter_search_confirm`, `field_capture_recapture`, the capture→queued portion, `offline_queue_retry`) run with no mock; the reconnect-sync transition and CRM flows need the mock server.
 
 Maestro drives a *running* app. These were the blockers, each a small, well-scoped task:
 
@@ -57,15 +57,27 @@ Semantics(identifier: 'capture_shutter', child: BmdButton(label: 'Capture', ...)
 
 Minimum identifier set the scaffolded flows expect:
 
-| id | Widget |
-|----|--------|
-| `capture_accept` / `capture_ready` / `capture_shutter` / `capture_submit` / `capture_recapture` | camera_capture steps |
-| `capture_done` | captured confirmation |
-| `search_field` / `search_result` / `confirm_ack` / `confirm_continue` | carpenter_search |
-| `queue_pending_count` / `queue_item_menu` / `queue_retry` / `queue_discard_confirm` | offline_queue |
-| `crm_reason` / `crm_outcome_approve` / `crm_submit` | crm_case |
+| id | Widget | Exists? |
+|----|--------|---------|
+| `capture_accept` / `capture_ready` / `capture_shutter` / `capture_submit` / `capture_recapture` | camera_capture steps | yes |
+| `capture_done` | captured confirmation | yes |
+| `search_field` / `search_result` / `confirm_ack` / `confirm_continue` | carpenter_search | yes |
+| `queue_item_menu` / `queue_discard_confirm` | offline_queue | yes |
+| `queue_pending_count` / `queue_retry` | offline_queue | **no — see below** |
+| `crm_reason` / `crm_submit` / `crm_outcome_<outcome>` | crm_case | yes |
+| `dev_launcher` / `dev_open_*` | dev launcher | yes |
 
-Until these land, flows fall back to visible-text selectors (English), which is why every flow sets `--dart-define=LOCALE=en`.
+Two entries in the original list never landed and one was misnamed:
+
+- **`queue_pending_count` does not exist and cannot.** The count lives inside `OfflineBar`, which wraps its whole row in `Semantics(excludeSemantics: true)` — that drops every descendant node, so an identifier added under it would be invisible to Maestro. What *is* visible is the bar's own accessibility label, `"<n> captures waiting to upload. Last successful sync <ts>."`, and that is what `field_offline_capture` asserts.
+- **`queue_retry` does not exist.** Retry is a `PopupMenuItem`, reached by tapping `queue_item_menu` and then the item text `"Retry"`.
+- The CRM radios are `crm_outcome_${outcome.name}`, i.e. `crm_outcome_approved` — not `crm_outcome_approve`.
+
+**`Semantics(identifier:)` and Maestro's `enabled:` filter.** A bare `Semantics(identifier: 'x', child: someButton)` compiles to its **own** semantics node, separate from the button's. Probed on Flutter 3.44.8, the identifier node carried `isEnabled: Tristate.none` (no enabled state at all) while the label and the real disabled state sat on a child node. Flutter's Android `AccessibilityBridge` reports a node with no enabled state as `enabled=true`, so `assertVisible: {id: …, enabled: false}` failed and its `enabled: true` counterpart passed *vacuously*. `BmdButton` therefore states `enabled:` on the identifier node itself (`lib/core/design_system/bmd_button.dart`, pinned by a mutation-checked test in `test/design_system/bmd_button_test.dart`). **Any new `Semantics(identifier:)` wrapper around a control whose enabled state a flow asserts must do the same.**
+
+Until the remaining ids land, flows fall back to visible-text selectors, which is why the emulator builds are **English** — English is `AppConfig.locale`'s effective default when no `LOCALE` is supplied, and it is a property of the **build**, not of the flow.
+
+> **Correction (P0.5).** This section used to end: *"which is why every flow sets `--dart-define=LOCALE=en`"*. That was factually wrong and stayed wrong for three epics. No flow has ever set a `--dart-define`. The flows set Maestro `launchApp: arguments:`, which are Android **intent extras** delivered at runtime; `AppConfig` reads `const String.fromEnvironment`, resolved at **compile time**. Nothing bridges them — `MainActivity.kt` is a bare five-line `FlutterActivity`, and `Intent`, `getExtra`, `MethodChannel` and `defaultRouteName` appear nowhere in `lib/` or `android/app/src/main/kotlin`. **Every `arguments:` block in `.maestro/` was inert.** They have been removed and replaced with a comment naming the build each flow requires. See §7.1.
 
 ### 3.2 E2E build mode (`--dart-define=E2E=true`)
 A single flag that makes the app driveable without live backends:
@@ -100,8 +112,9 @@ Located in [`.maestro/flows/`](.maestro/flows). Shared steps in [`.maestro/subfl
 | `offline_queue_retry.yaml` | Failed item → Retry; Discard needs confirm dialog | P-05 (recovery) | mock 500 then 200 |
 | `crm_case_decision.yaml` | Open case → machine block visible → reason required → submit | part of **P-06** | mock case + images |
 | `crm_case_conflict.yaml` | Submit → 409 → "another reviewer" message + reload | P-06 (concurrency §9.4) | mock 409 |
+| `locale_bengali.yaml` | Bengali notice (bundled) + Bengali status chip on the list | P0.5 | `LOCALE=bn` build, mock `/campaigns` with a DRAFT row |
 
-**Target E2E count: 8 flows.** Deliberately small — every added flow is real device wall-clock and maintenance.
+**Target E2E count: 9 flows.** Deliberately small — every added flow is real device wall-clock and maintenance.
 
 ---
 
@@ -153,52 +166,106 @@ Mock empty → assert empty copy; mock error → assert "Couldn't load campaigns
 
 ## 7. CI integration
 
-- **Where:** Maestro Cloud or a self-hosted Android emulator runner. Offline flows require Android (airplane mode).
-- **When:** not on every PR (too slow). Run the full suite nightly and on release-candidate branches; run a 2-flow smoke (`field_online_capture`, `crm_case_decision`) on PRs touching those features.
-- **Artifacts:** Maestro records video + screenshots per step; upload on failure.
+- **Where:** the `e2e` job in `.github/workflows/ci.yml`, on a hosted Android emulator (`reactivecircus/android-emulator-runner`, api-level 34 / x86_64 / google_apis). Offline flows require Android (airplane mode).
+- **When:** on every PR and every push to `main`, after `gate` passes. Booting an emulator to test code that does not compile wastes ~15 minutes.
+- **Artifacts:** Maestro writes a screenshot and view hierarchy per step to `~/.maestro/tests`; uploaded always, per configuration. The mock server log is uploaded too.
 - **Data isolation:** each flow starts with `clearState` and re-seeds; never share state between flows.
 
+### 7.1 One APK per configuration — the `e2e` matrix
+
+**Read this before adding or editing a flow.** `AppConfig` reads `E2E`, `ROLE`, `QUALITY`,
+`SEED`, `LOCALE` and `API_BASE_URL` through `const String.fromEnvironment` /
+`const bool.fromEnvironment`. Those are **compile-time** constants: the value is baked into
+the APK. Maestro's `launchApp: arguments:` sends Android **intent extras** at **runtime**,
+and this app has no bridge between the two — `MainActivity.kt` is a bare five-line
+`FlutterActivity`. **A Maestro argument cannot configure this app. It never could.**
+
+So the suite is not "one APK, filter by tag". CI builds **one APK per distinct dart-define
+set** and runs only the flows that build suits:
+
+| Matrix key | Extra dart-defines | Flows |
+|---|---|---|
+| `field` | *(none — defaults `ROLE=field_user`, `QUALITY=pass`, no `SEED`)* | `carpenter_search_confirm`, `field_online_capture`, `field_offline_capture` |
+| `crm` | `ROLE=crm_verifier` | `crm_case_decision`, `crm_case_conflict` |
+| `recapture` | `QUALITY=fail` | `field_capture_recapture` |
+| `queue` | `SEED=queue` | `offline_queue_retry` |
+| `locale` | `LOCALE=bn` | `locale_bengali` |
+
+Every configuration also gets `--dart-define=E2E=true` and
+`--dart-define=API_BASE_URL=http://10.0.2.2:8080` (`10.0.2.2` is how an Android emulator
+reaches the host loopback). `fail-fast: false`, so one red configuration does not mask the
+other four.
+
+Why each split is load-bearing, not tidiness:
+
+- **`crm`** — with the default `field_user` the session has no `verificationDecide`, so
+  `/verification/cases/:id` redirects to `/forbidden` and both CRM flows die before their
+  first assertion.
+- **`recapture`** — `E2EQualityChecker(failFirst: true)` fails exactly once *per app
+  process*, so it cannot share an APK with a flow whose first capture must pass.
+- **`queue`** — `SEED=queue` seeds one pending sync task. `field_offline_capture` asserts an
+  *exact* pending count of one, so it must NOT run on this APK. `e2e_seeder.dart` says so at
+  the seed site.
+- **`locale`** — every other flow falls back to English visible-text selectors and would
+  break against a Bengali build.
+
+**Flows are selected by file path, never by `--include-tags`.** `field_offline_capture` is
+tagged `field, critical, offline` with **no `android` tag**, yet §3.5 makes offline flows
+Android-only — a tag filter would silently skip the highest-value flow in the suite.
+`campaign_list_smoke` is `web`-tagged and stays out of the emulator job.
+
+**If total runtime becomes a problem**, the documented fallback is `pr-smoke`
+(`field_online_capture`, `crm_case_decision`) on PRs with the full matrix nightly. Propose
+that; do not delete coverage. Note the five configurations run **in parallel**, so wall
+clock is roughly one configuration (~10–15 min), not five.
+
+### 7.2 Running it locally
+
+Start the mock backend first and leave it running — five flows need it:
+
 ```bash
-# local run (Android emulator, E2E build installed)
-maestro test --env APP_ID=com.acsl.campaign.dev .maestro/flows/field_offline_capture.yaml
-# whole suite
-maestro test --env APP_ID=com.acsl.campaign.dev .maestro/
+cd tool/mock_server && dart pub get && dart run bin/server.dart &
+# fixture variants for the web smoke flow:
+#   MOCK_CAMPAIGNS=empty dart run bin/server.dart
 ```
 
-Build the E2E app first:
+Then build the configuration you need and run its flows:
+
 ```bash
 flutter build apk --flavor dev --debug \
   --dart-define=E2E=true \
-  --dart-define=LOCALE=en \
-  --dart-define=API_BASE_URL=http://10.0.2.2:8080
+  --dart-define=API_BASE_URL=http://10.0.2.2:8080 \
+  --dart-define=ROLE=crm_verifier          # ← the per-configuration part
+adb install -r build/app/outputs/flutter-apk/app-dev-debug.apk
+maestro test --env APP_ID=com.acsl.campaign.dev .maestro/flows/crm_case_decision.yaml
 ```
 
-**App ID and tags:** since the Android flavors (Task 2) gave `dev` its own application ID
-(`com.acsl.campaign.dev`), flows no longer carry a literal app ID — every `appId:` field
-reads `appId: ${APP_ID}` and must be supplied at run time:
+`.maestro/config.yaml` lists every flow, but running the whole file against a single APK
+fails five flows for configuration reasons alone. It is kept current for inventory and for
+single-configuration local runs.
 
-```bash
-maestro test --env APP_ID=com.acsl.campaign.dev --include-tags pr-smoke .maestro/
-```
+**App ID:** since the Android flavors (Task 2) gave `dev` its own application ID
+(`com.acsl.campaign.dev`), flows carry no literal app ID — every `appId:` field reads
+`appId: ${APP_ID}`, supplied at run time. Confirmed rather than assumed: Maestro supports
+`appId: ${APP_ID}` and resolves it from `maestro test --env APP_ID=…` (or `-e`) — documented
+Maestro env-injection behavior. Two caveats: the value must arrive through `--env`/`-e` (a
+bare shell environment variable does not reach a flow unless it is prefixed `MAESTRO_`); and
+there is an open upstream Maestro bug where **web** platform detection reads `appId` before
+env expansion, which affects `campaign_list_smoke.yaml`, the one web flow — already outside
+the emulator job.
 
-Selection uses two tags: `pr-smoke` marks the 2 flows (`field_online_capture`,
-`crm_case_decision`) run on every PR, and `android` marks the 7 flows run nightly on the
-emulator. `campaign_list_smoke` carries neither — it's a web flow that needs the mock
-server restarted with different `MOCK_CAMPAIGNS` values, so it can't run in the Android
-job.
+**Cleartext HTTP:** `android/app/src/debug/AndroidManifest.xml` sets
+`android:usesCleartextTraffic="true"`. Android blocks cleartext by default for apps
+targeting API 28+ and this app targets 36, so without it every mock-backed request fails and
+surfaces as a *designed error state* ("Couldn't load campaigns.", the CRM case Retry button)
+— which reads like a flaky flow rather than a transport policy. It is scoped to the debug
+source set; release and profile builds keep the secure default. Do not move it to `src/main`.
 
-**Note on this being cancelled work:** neither an emulator E2E job (Task 8) nor a nightly
-suite (Task 9) will be built — both were cancelled, not deferred, so nothing in CI runs
-any of this automatically; the commands above are for manual/local use only. What is
-confirmed rather than assumed: Maestro **does** support `appId: ${APP_ID}` and resolves it
-from a value supplied via `maestro test --env APP_ID=…` (or the short form `-e`) — this is
-documented Maestro env-injection behavior, not something specific to this repo. Two
-caveats worth keeping in mind if this is ever run: the value must arrive through
-`--env`/`-e`; a bare shell environment variable does not reach a flow unless it is
-prefixed `MAESTRO_`. And there is an open upstream Maestro bug where **web** platform
-detection reads `appId` before env expansion runs, which would affect
-`campaign_list_smoke.yaml` — the one web flow here, already excluded from the tag-based
-selection above for unrelated reasons.
+**Correction (P0.5):** this section previously recorded that neither an emulator E2E job
+(Task 8) nor a nightly suite (Task 9) would be built — "cancelled, not deferred". **The E2E
+job half of that is reversed**: the `e2e` job above exists and a green `e2e` is a hard exit
+criterion for Epic P0.5. The nightly suite remains cancelled. `TASK_BREAKDOWN.md`'s T-0.1.4
+row carries the same correction.
 
 ---
 
@@ -219,3 +286,5 @@ selection above for unrelated reasons.
 4. **ML Kit quality impl** — E2E uses `E2EQualityChecker`; the real on-device checker (T-2.2.2) is still unbuilt.
 5. **Flutter-web selection is experimental** — treat `campaign_list` as smoke only; real web E2E coverage may need Playwright instead.
 6. **iOS offline** — not covered by Maestro; Android is the field target so acceptable.
+7. ~~No CI job~~ — **done** (P0.5): the `e2e` matrix job, §7.1. Note the corollary: no flow in this file had ever been executed by anything before that job, so several carried assertions on text the app does not render. Four were corrected against source in P0.5 (`offline_queue_retry`'s dialog title and cancel label, the queue empty-state full stop, `field_offline_capture`'s `"1 pending"` and `"All items synced"`). **Expect more.** A literal in a flow is only as good as the last run that exercised it.
+8. **Nightly suite** — still cancelled (T-0.1.4), and the full matrix now runs per-PR instead.

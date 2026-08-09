@@ -1,4 +1,12 @@
 # Maestro workspace config. See TESTING_MAESTRO.md for the full plan.
+#
+# NOTE: this file lists every flow, but the CI `e2e` job does NOT run it. Each
+# flow needs a different `--dart-define` set (ROLE, QUALITY, SEED, LOCALE) and
+# those are COMPILE-TIME values, so ci.yml builds one APK per configuration and
+# names the flows for it explicitly. Running this whole config against a single
+# APK fails five flows for configuration reasons alone. Keep the list current
+# anyway — it is what a local `maestro test .maestro/config.yaml` uses, and the
+# inventory in TESTING_MAESTRO.md §4 is checked against it by eye.
 appId: ${APP_ID}
 ---
 # Execution order is by file; flows are independent and each clears state.
@@ -11,3 +19,4 @@ flows:
   - flows/offline_queue_retry.yaml
   - flows/crm_case_decision.yaml
   - flows/crm_case_conflict.yaml
+  - flows/locale_bengali.yaml

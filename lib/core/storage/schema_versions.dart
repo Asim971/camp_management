@@ -362,8 +362,223 @@ i1.GeneratedColumn<int> _column_26(String aliasedName) =>
       type: i1.DriftSqlType.int,
       defaultValue: const CustomExpression('0'),
     );
+
+final class Schema3 extends i0.VersionedSchema {
+  Schema3({required super.database}) : super(version: 3);
+  @override
+  late final List<i1.DatabaseSchemaEntity> entities = [
+    syncTasks,
+    attendanceDrafts,
+    cachedReferences,
+    auditEvents,
+    consentNotices,
+  ];
+  late final Shape0 syncTasks = Shape0(
+    source: i0.VersionedTable(
+      entityName: 'sync_tasks',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)'],
+      columns: [
+        _column_0,
+        _column_1,
+        _column_2,
+        _column_3,
+        _column_4,
+        _column_5,
+        _column_6,
+        _column_7,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape4 attendanceDrafts = Shape4(
+    source: i0.VersionedTable(
+      entityName: 'attendance_drafts',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)'],
+      columns: [
+        _column_0,
+        _column_8,
+        _column_9,
+        _column_10,
+        _column_11,
+        _column_12,
+        _column_13,
+        _column_27,
+        _column_28,
+        _column_29,
+        _column_30,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape2 cachedReferences = Shape2(
+    source: i0.VersionedTable(
+      entityName: 'cached_references',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY("key")'],
+      columns: [_column_14, _column_15, _column_16],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape3 auditEvents = Shape3(
+    source: i0.VersionedTable(
+      entityName: 'audit_events',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: [],
+      columns: [
+        _column_17,
+        _column_18,
+        _column_19,
+        _column_20,
+        _column_21,
+        _column_22,
+        _column_23,
+        _column_24,
+        _column_25,
+        _column_26,
+        _column_7,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape5 consentNotices = Shape5(
+    source: i0.VersionedTable(
+      entityName: 'consent_notices',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(version, language)'],
+      columns: [
+        _column_31,
+        _column_32,
+        _column_33,
+        _column_34,
+        _column_35,
+        _column_16,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+}
+
+class Shape4 extends i0.VersionedTable {
+  Shape4({required super.source, required super.alias}) : super.aliased();
+  i1.GeneratedColumn<String> get id =>
+      columnsByName['id']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get sessionId =>
+      columnsByName['session_id']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get carpenterId =>
+      columnsByName['carpenter_id']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get encryptedMediaPath =>
+      columnsByName['encrypted_media_path']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get qualityJson =>
+      columnsByName['quality_json']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<DateTime> get capturedAt =>
+      columnsByName['captured_at']! as i1.GeneratedColumn<DateTime>;
+  i1.GeneratedColumn<String> get capturedBy =>
+      columnsByName['captured_by']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get consentVersion =>
+      columnsByName['consent_version']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get consentLanguage =>
+      columnsByName['consent_language']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<DateTime> get consentShownAt =>
+      columnsByName['consent_shown_at']! as i1.GeneratedColumn<DateTime>;
+  i1.GeneratedColumn<String> get consentContentHash =>
+      columnsByName['consent_content_hash']! as i1.GeneratedColumn<String>;
+}
+
+i1.GeneratedColumn<int> _column_27(String aliasedName) =>
+    i1.GeneratedColumn<int>(
+      'consent_version',
+      aliasedName,
+      true,
+      type: i1.DriftSqlType.int,
+    );
+i1.GeneratedColumn<String> _column_28(String aliasedName) =>
+    i1.GeneratedColumn<String>(
+      'consent_language',
+      aliasedName,
+      true,
+      type: i1.DriftSqlType.string,
+    );
+i1.GeneratedColumn<DateTime> _column_29(String aliasedName) =>
+    i1.GeneratedColumn<DateTime>(
+      'consent_shown_at',
+      aliasedName,
+      true,
+      type: i1.DriftSqlType.dateTime,
+    );
+i1.GeneratedColumn<String> _column_30(String aliasedName) =>
+    i1.GeneratedColumn<String>(
+      'consent_content_hash',
+      aliasedName,
+      true,
+      type: i1.DriftSqlType.string,
+    );
+
+class Shape5 extends i0.VersionedTable {
+  Shape5({required super.source, required super.alias}) : super.aliased();
+  i1.GeneratedColumn<int> get version =>
+      columnsByName['version']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get language =>
+      columnsByName['language']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get title =>
+      columnsByName['title']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get body =>
+      columnsByName['body']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get contentHash =>
+      columnsByName['content_hash']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<DateTime> get fetchedAt =>
+      columnsByName['fetched_at']! as i1.GeneratedColumn<DateTime>;
+}
+
+i1.GeneratedColumn<int> _column_31(String aliasedName) =>
+    i1.GeneratedColumn<int>(
+      'version',
+      aliasedName,
+      false,
+      type: i1.DriftSqlType.int,
+    );
+i1.GeneratedColumn<String> _column_32(String aliasedName) =>
+    i1.GeneratedColumn<String>(
+      'language',
+      aliasedName,
+      false,
+      type: i1.DriftSqlType.string,
+    );
+i1.GeneratedColumn<String> _column_33(String aliasedName) =>
+    i1.GeneratedColumn<String>(
+      'title',
+      aliasedName,
+      false,
+      type: i1.DriftSqlType.string,
+    );
+i1.GeneratedColumn<String> _column_34(String aliasedName) =>
+    i1.GeneratedColumn<String>(
+      'body',
+      aliasedName,
+      false,
+      type: i1.DriftSqlType.string,
+    );
+i1.GeneratedColumn<String> _column_35(String aliasedName) =>
+    i1.GeneratedColumn<String>(
+      'content_hash',
+      aliasedName,
+      false,
+      type: i1.DriftSqlType.string,
+    );
 i0.MigrationStepWithVersion migrationSteps({
   required Future<void> Function(i1.Migrator m, Schema2 schema) from1To2,
+  required Future<void> Function(i1.Migrator m, Schema3 schema) from2To3,
 }) {
   return (currentVersion, database) async {
     switch (currentVersion) {
@@ -372,6 +587,11 @@ i0.MigrationStepWithVersion migrationSteps({
         final migrator = i1.Migrator(database, schema);
         await from1To2(migrator, schema);
         return 2;
+      case 2:
+        final schema = Schema3(database: database);
+        final migrator = i1.Migrator(database, schema);
+        await from2To3(migrator, schema);
+        return 3;
       default:
         throw ArgumentError.value('Unknown migration from $currentVersion');
     }
@@ -380,6 +600,7 @@ i0.MigrationStepWithVersion migrationSteps({
 
 i1.OnUpgrade stepByStep({
   required Future<void> Function(i1.Migrator m, Schema2 schema) from1To2,
+  required Future<void> Function(i1.Migrator m, Schema3 schema) from2To3,
 }) => i0.VersionedSchema.stepByStepHelper(
-  step: migrationSteps(from1To2: from1To2),
+  step: migrationSteps(from1To2: from1To2, from2To3: from2To3),
 );

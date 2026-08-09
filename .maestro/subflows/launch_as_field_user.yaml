@@ -1,13 +1,17 @@
 # Shared setup: clear state and launch the app in E2E mode as a Field User.
 # Relies on --dart-define=E2E=true auto-authenticating a fake session and
 # exposing the /dev deep-link launcher (see TESTING_MAESTRO.md §3.2).
+#
+# Requires the `field` matrix APK (E2E=true with the DEFAULT ROLE=field_user and
+# QUALITY=pass, and no SEED). This used to pass `arguments: {E2E, LOCALE, ROLE}`
+# to launchApp. Those are Android intent extras; the app reads its
+# configuration through `const String.fromEnvironment`, which is resolved at
+# COMPILE time, and MainActivity.kt has no MethodChannel bridging the two — so
+# every one of those arguments was inert and had been since the flows were
+# written. Configuration lives in the build now. See ci.yml's e2e matrix.
 appId: ${APP_ID}
 ---
 - clearState
-- launchApp:
-    arguments:
-      E2E: true
-      LOCALE: en
-      ROLE: field_user
+- launchApp
 - assertVisible:
     id: "dev_launcher" # dev menu confirms E2E boot + auth

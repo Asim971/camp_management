@@ -4,4 +4,23 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+
+    <!-- E2E/dev only. The Maestro suite points API_BASE_URL at the host mock
+         server over plain HTTP (http://10.0.2.2:8080 — how an emulator reaches
+         the host). Android blocks cleartext by default for apps targeting
+         API 28+ and this app targets 36, so without this every mock-backed
+         flow would fail with "Cleartext HTTP traffic to 10.0.2.2 not
+         permitted" — an error that surfaces as a designed error state
+         ("Couldn't load campaigns.", the CRM case Retry button), which reads
+         like a flaky flow rather than a transport policy.
+
+         Scoped to the debug source set on purpose: release and profile builds
+         keep Android's secure default, and the manifest merger only applies
+         this to debug output. Do NOT move it to src/main.
+
+         (Careful editing this comment: XML forbids a double hyphen inside a
+         comment, so the build flag cannot be written out in full here. Doing
+         so fails :app:processDevDebugMainManifest with a bare "Error parsing"
+         that names no line.) -->
+    <application android:usesCleartextTraffic="true"/>
 </manifest>

@@ -1,18 +1,26 @@
 # W-02 smoke (web — Maestro web support is experimental; see plan §9.4).
 # Verifies the three designed data states render. Prereq: mock /campaigns with
 # toggleable fixtures (empty | error | rows) via the mock server.
+#
+# NOT in the CI e2e matrix: `web`-tagged, and Maestro web support is
+# experimental (there is also an upstream bug where web platform detection reads
+# `appId` before `${APP_ID}` expansion). Run it manually.
+#
+# The old `arguments:` block listed `CAMPAIGNS_FIXTURE`, which is not a field on
+# AppConfig and never was — no dart-define, no intent extra, nothing reads that
+# name anywhere in the repo. The fixture is chosen on the SERVER:
+# `MOCK_CAMPAIGNS=rows|empty|error dart run bin/server.dart`
+# (tool/mock_server/bin/server.dart:77). Maestro `arguments:` are Android intent
+# extras and cannot reach `const String.fromEnvironment` either way, so the role
+# comes from the build (`--dart-define=ROLE=campaign_creator`) if this is ever
+# automated.
 appId: ${APP_ID}
 tags:
   - web
   - smoke
 ---
 - clearState
-- launchApp:
-    arguments:
-      E2E: true
-      LOCALE: en
-      ROLE: campaign_creator
-      CAMPAIGNS_FIXTURE: rows # rows | empty | error
+- launchApp
 - tapOn:
     id: "dev_open_campaigns"
 
@@ -23,6 +31,6 @@ tags:
 - assertVisible: "ACSL Pilot Carpenter Drive" # seeded row
 
 # NOTE: empty ("No campaigns in scope...") and error ("Couldn't load
-# campaigns." + Retry) states are exercised by re-launching with
-# CAMPAIGNS_FIXTURE=empty and =error respectively. Keep those as separate
-# runs rather than mutating state mid-flow.
+# campaigns." + Retry) states are exercised by RESTARTING THE MOCK SERVER with
+# MOCK_CAMPAIGNS=empty and =error respectively. Keep those as separate runs
+# rather than mutating state mid-flow.

@@ -1,0 +1,96 @@
+# P0.5: proves the localization chain closes in a REAL app process on a real
+# Android surface, with the real font stack — which no widget test can do.
+# Registering AppL10n's delegates was commented out from P0.2 until P0.5 and
+# nothing noticed, so this is the guard at the outermost layer.
+#
+# Requires the `locale` matrix APK (--dart-define=LOCALE=bn). Maestro
+# `arguments:` are Android intent extras and CANNOT reach
+# `const String.fromEnvironment`, so the language lives in the build, not here.
+# See ci.yml's e2e matrix. Every other flow falls back to English visible-text
+# selectors, which is why this configuration is its own APK rather than a
+# `launchApp` argument.
+#
+# NOT the ARB's `appTitle`, which the plan proposed: nothing renders it.
+# `MaterialApp.router`'s `title:` is the hardcoded literal
+# 'ACSL Campaign Management' (lib/app/app.dart:24) and the platform never shows
+# a Flutter `title` on an Android task list here. The two assertions below are
+# the two halves of the chain that DO reach pixels.
+appId: ${APP_ID}
+tags:
+  - localization
+  - android
+---
+- clearState
+- launchApp
+- assertVisible:
+    id: "dev_launcher"
+
+# --- Half 1: LOCALE reached the app at all. Network-free on purpose. ---------
+# The consent notice's default language is the app locale (T-2.3.3) and the
+# notice resolves from the BUNDLED asset (assets/consent/notice_v1.json), never
+# the network. So this half fails only if LOCALE=bn did not become the app
+# locale — it cannot fail because the mock server is down, which is what makes a
+# red run here diagnostic rather than ambiguous.
+- tapOn:
+    id: "dev_open_capture" # /capture/SESSION_E2E/CARP_E2E → purpose notice
+- assertVisible: "উপস্থিতির ছবি এবং পরিচয় যাচাই"
+- assertNotVisible: "Attendance photo and identity verification"
+- back
+
+# --- Half 2: the gen-l10n bundle reaches a status chip. ----------------------
+# Task 6b's contract: every status chip rendered `status.name` until P0.5, so
+# nothing observable depended on the locale and the whole pipeline could have
+# been deleted with the suite still green. `খসড়া` is campaignStatus_draft, and
+# it is pinned in three places that must agree — app_bn.arb, the widget test
+# test/features/campaign_list/presentation/campaign_list_status_label_test.dart,
+# and the mock server's CAMP-3 DRAFT fixture.
+#
+# /campaigns and /campaigns/:id need only `Authenticated()` (route_table.dart),
+# so the matrix's default ROLE=field_user is sufficient — no ROLE define here.
+# Both need the mock server, so a failure here after Half 1 passed points at the
+# backend or the fixture, not at localization.
+- tapOn:
+    id: "dev_open_campaigns"
+
+# The campaign NAME, not the chip: `name` is the table's only
+# `BmdColumnPriority.identity` column and identity columns are never dropped
+# (bmd_data_table.dart:155-195), so this assertion is width-independent and it
+# is the cheapest proof that the mock server answered at all.
+#
+# Wrapped in `.*`: BmdDataTable merges each ROW into one accessibility node, so
+# the only text Maestro sees here is "Rajshahi Carpenter Drive\n40" (the name
+# and the target cell together), and Maestro ANCHORS its text patterns — a bare
+# name cannot match. Confirmed from this flow's own screen-hierarchy artifact.
+# `.` spans the newline because Maestro compiles these patterns DOTALL.
+- assertVisible: ".*Rajshahi Carpenter Drive.*" # CAMP-3, the DRAFT fixture
+
+# The chip is asserted on the campaign DETAIL header, not in the list table, on
+# purpose. In the table, `status` is a `primary` column with minWidth 160 next to
+# `name`'s 200, and BmdDataTable drops any column whose minimum will not fit,
+# after subtracting 44px of row-detail chrome. That needs ~404 logical px of
+# body width, which a phone-profile emulator (~393dp) does not have — the chip
+# would move into the row-detail sheet and this flow would fail for a layout
+# reason with nothing to do with localization. The detail header renders the
+# chip in a Row beside an Expanded title (campaign_detail_screen.dart:91), so it
+# is present at any width. The widget test covers the table at its own surface
+# size; this covers the same label on a real device.
+- tapOn: ".*Rajshahi Carpenter Drive.*" # same merged row node as the assertion above
+
+# StatusChip prefixes its own semantics label, so the node Maestro sees is
+# exactly "Status: খসড়া" — asserted in full rather than as `.*খসড়া.*`, because
+# matching the prefix too proves the text came from the CHIP and not from some
+# other Bengali glyph on screen.
+- assertVisible: "Status: খসড়া"
+
+# Both English forms must be ABSENT: the properly-cased label a partial fallback
+# (bn locale, English bundle) would produce, and the raw enum identifier a call
+# site left on `.name` would produce. Either would otherwise read as success
+# alongside a single Bengali glyph elsewhere on screen.
+#
+# WRAPPED IN `.*` FOR A REASON. Maestro ANCHORS text patterns, so bare "Draft"
+# only matches a node whose ENTIRE text is "Draft" — and no node ever is, since
+# the chip's label is "Status: <label>". These two assertions therefore used to
+# pass VACUOUSLY: they would have stayed green even with the chip reading
+# "Status: Draft", i.e. against the exact regression they exist to catch.
+- assertNotVisible: ".*Draft.*"
+- assertNotVisible: ".*draft.*"

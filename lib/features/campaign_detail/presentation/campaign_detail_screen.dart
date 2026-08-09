@@ -8,7 +8,9 @@ import '../../../core/auth/rbac.dart';
 import '../../../core/design_system/bmd_button.dart';
 import '../../../core/design_system/status_chip.dart';
 import '../../../domain/common/status.dart';
+import '../../../domain/common/status_labels.dart';
 import '../../../domain/session/campaign_session.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../application/campaign_detail_controller.dart';
 
 /// Campaign Detail & Session Operations (W-05). One operational source: header
@@ -85,7 +87,10 @@ class _Header extends StatelessWidget {
           Expanded(
             child: Text(c.name, style: Theme.of(context).textTheme.titleLarge),
           ),
-          StatusChip(label: c.status.name, tone: StatusTone.info),
+          StatusChip(
+            label: c.status.label(AppL10n.of(context)),
+            tone: StatusTone.info,
+          ),
           const SizedBox(width: 12),
           // Contextual primary next action.
           if (c.status == CampaignStatus.pendingApproval)
@@ -210,7 +215,10 @@ class _SessionCard extends StatelessWidget {
                     tone: StatusTone.warning,
                   )
                 else
-                  StatusChip(label: session.status.name, tone: StatusTone.info),
+                  StatusChip(
+                    label: session.status.label(AppL10n.of(context)),
+                    tone: StatusTone.info,
+                  ),
               ],
             ),
             const SizedBox(height: 8),

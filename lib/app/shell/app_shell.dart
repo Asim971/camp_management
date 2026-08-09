@@ -107,19 +107,45 @@ class _AccountMenu extends ConsumerWidget {
     };
     if (name == null) return const SizedBox.shrink();
 
-    return PopupMenuButton<String>(
-      tooltip: 'Account',
-      icon: const Icon(Icons.account_circle_outlined),
-      onSelected: (value) async {
-        if (value == 'signOut') {
-          await ref.read(sessionManagerProvider).signOut();
-        }
-      },
-      itemBuilder: (_) => [
-        PopupMenuItem<String>(enabled: false, child: Text(name)),
-        const PopupMenuDivider(),
-        const PopupMenuItem<String>(value: 'signOut', child: Text('Sign out')),
-      ],
+    // Semantics identifiers (not Keys) so Maestro flows can open the menu and
+    // reach the language picker: `id:` maps to Semantics(identifier:).
+    return Semantics(
+      identifier: 'account_menu',
+      child: PopupMenuButton<String>(
+        tooltip: 'Account',
+        icon: const Icon(Icons.account_circle_outlined),
+        onSelected: (value) async {
+          switch (value) {
+            case 'language':
+              // push, NOT go: `go` REPLACES the location, which left
+              // /settings/language with nothing beneath it — AppBar's
+              // automaticallyImplyLeading then rendered no back arrow and
+              // Android's back button exited the app. The screen matches no
+              // nav destination either, so it showed no bottom nav and the
+              // account menu was the only way off it. Pushing stacks it over
+              // wherever the user was, which restores both the arrow and back.
+              // (The dev launcher already pushes — see dev_launcher_screen.)
+              await context.push<void>('/settings/language');
+            case 'signOut':
+              await ref.read(sessionManagerProvider).signOut();
+          }
+        },
+        itemBuilder: (_) => [
+          PopupMenuItem<String>(enabled: false, child: Text(name)),
+          const PopupMenuDivider(),
+          PopupMenuItem<String>(
+            value: 'language',
+            child: Semantics(
+              identifier: 'account_language',
+              child: const Text('Language'),
+            ),
+          ),
+          const PopupMenuItem<String>(
+            value: 'signOut',
+            child: Text('Sign out'),
+          ),
+        ],
+      ),
     );
   }
 }

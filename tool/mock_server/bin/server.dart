@@ -304,6 +304,20 @@ class _Store {
       target: 60,
       verified: 0,
     );
+    // A DRAFT row exists for .maestro/flows/locale_bengali.yaml, which asserts
+    // the Bengali `campaignStatus_draft` chip ("খসড়া") on the campaign list.
+    // Without a DRAFT campaign in the fixture that chip never renders and the
+    // flow fails for a reason that has nothing to do with localization. The
+    // Bengali string is a three-way contract: this fixture,
+    // test/features/campaign_list/presentation/campaign_list_status_label_test.dart
+    // and lib/l10n/app_bn.arb.
+    campaigns['CAMP-3'] = _campaign(
+      id: 'CAMP-3',
+      name: 'Rajshahi Carpenter Drive',
+      status: 'DRAFT',
+      target: 40,
+      verified: 0,
+    );
   }
 
   final Map<String, Map<String, dynamic>> campaigns = {};

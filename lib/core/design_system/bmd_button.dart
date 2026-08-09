@@ -29,12 +29,36 @@ class BmdButton extends StatelessWidget {
   /// Android resource-id / iOS accessibilityIdentifier.
   final String? identifier;
 
+  /// Whether this button can currently be pressed. Single source of truth for
+  /// both the Material button (via `onPressed`) and the identifier node's
+  /// semantics, so the two cannot disagree.
+  bool get _interactive => !loading && onPressed != null;
+
   @override
   Widget build(BuildContext context) {
     final built = _build(context);
     return identifier == null
         ? built
-        : Semantics(identifier: identifier, child: built);
+        : Semantics(
+            identifier: identifier,
+            // `enabled:` is NOT redundant with the Material button's own
+            // disabled state. A bare `Semantics(identifier:)` wrapper compiles
+            // to its OWN semantics node, separate from the button's: probed on
+            // Flutter 3.44, `BmdButton(identifier: 'x', onPressed: null)`
+            // yields node A (identifier "x", isEnabled Tristate.none, no label)
+            // whose CHILD node B carries label + isEnabled false. Flutter's
+            // Android AccessibilityBridge reports a node with no enabled state
+            // as `enabled=true`, so `id:` is attached to a node that claims to
+            // be enabled even when the control is disabled — which makes
+            // Maestro's `assertVisible: {id: ..., enabled: false}` fail, and
+            // makes `enabled: true` pass vacuously. Two E2E flows assert
+            // exactly that (`confirm_continue`, `crm_submit`), and those
+            // assertions are the whole point of their flows: the second
+            // identity cue and the mandatory decision reason. Stating the state
+            // on the identifier node is what makes them mean something.
+            enabled: _interactive,
+            child: built,
+          );
   }
 
   Widget _build(BuildContext context) {
@@ -51,7 +75,7 @@ class BmdButton extends StatelessWidget {
           )
         : _labelRow();
 
-    final onTap = loading ? null : onPressed;
+    final onTap = _interactive ? onPressed : null;
 
     return SizedBox(
       height: height,

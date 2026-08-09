@@ -1,5 +1,16 @@
 # P-05 Offline attendance: capture while offline -> queued -> survives restart
 # -> syncs on reconnect. The highest-value field flow. Android only (airplane).
+#
+# Requires the `field` matrix APK (E2E=true with the DEFAULT ROLE=field_user,
+# QUALITY=pass and NO SEED). It must NOT run on the `queue` APK: SEED=queue
+# seeds a pending task, and this flow asserts an exact pending count of one.
+# e2e_seeder.dart:51 states that constraint at the seed site — "only when
+# requested (SEED=queue), so capture flows that assert an exact pending count
+# aren't polluted".
+#
+# Maestro `arguments:` are Android intent extras and CANNOT reach
+# `const String.fromEnvironment`, so configuration lives in the build.
+# See ci.yml's e2e matrix.
 appId: ${APP_ID}
 tags:
   - field
@@ -37,25 +48,55 @@ tags:
     id: "capture_done"
 
 # Queue shows one pending item — capture succeeded, upload did not.
+#
+# The count comes from OfflineBar, which renders the number in a badge and the
+# rest of the sentence separately, under `Semantics(excludeSemantics: true)`
+# (bmd_feedback.dart:128-133). So there is no "1 pending" text anywhere — the
+# old assertion here could never have passed — and no descendant identifier can
+# be added either, because excludeSemantics drops the whole subtree. The one
+# thing Maestro CAN see is the bar's own a11y label, which is asserted below.
+# TESTING_MAESTRO.md §3.1 lists a `queue_pending_count` id for this; it does not
+# exist and cannot be made to exist inside that subtree.
+#
+# `capture_done` is `Navigator.maybePop()` (capture_flow_screen.dart:417), so it
+# pops ONE route — back to the search screen this flow came through, NOT to
+# /dev. Verified from the failure screenshot: "Find carpenter" with "kar" still
+# in the field. A bare `back` is not a reliable substitute either, because the
+# search field regains focus on pop and raises the keyboard, so the first back
+# would dismiss the keyboard instead of navigating. Relaunching lands on /dev
+# deterministically and, with no clearState, keeps the queued item.
+- launchApp
 - tapOn:
     id: "dev_open_queue"
-- assertVisible: "1 pending"
-- assertVisible: "Pending sync"
+- assertVisible: "1 captures waiting to upload.*"
+# `.*Status: <label>.*`, not a bare label: the queue ROW is merged into ONE
+# accessibility node, so the only text Maestro can see is the combined
+#   "Carpenter CARP_E2E\nSession SESSION_E2E · captured <ts>\nStatus: Pending sync"
+# and Maestro ANCHORS its text patterns, so a bare "Pending sync" cannot match.
+# (Confirmed from this flow's own screen-hierarchy artifact. It is also why the
+# offline-bar assertion above needs its trailing `.*`.)
+- assertVisible: ".*Status: Pending sync.*"
 
 # Durability: kill and relaunch WITHOUT clearing state; item must persist.
+# Deliberately no `arguments:` — the previous ones were inert, and the relaunch
+# reuses the same APK, so the configuration is unchanged by construction.
 - stopApp
-- launchApp:
-    arguments:
-      E2E: true
-      LOCALE: en
-      ROLE: field_user
+- launchApp
 - tapOn:
     id: "dev_open_queue"
-- assertVisible: "Pending sync"
+- assertVisible: ".*Status: Pending sync.*"
 
 # Reconnect -> engine auto-drains -> item moves to Match processing.
+#
+# The final assertion was "All items synced", which no screen renders, and the
+# empty state it presumably meant ('Everything is synced') can never appear
+# here: SyncEngineImpl._onSuccess sets the task's status to matchProcessing and
+# leaves the ROW in place (sync_engine_impl.dart:130-136); only discard deletes.
+# What actually reaches zero is the pending count, so that is what is asserted.
 - setAirplaneMode: disabled
 - extendedWaitUntil:
-    visible: "Match processing"
+    visible: ".*Status: Match processing.*"
     timeout: 20000
-- assertVisible: "All items synced"
+- extendedWaitUntil:
+    visible: "0 captures waiting to upload.*"
+    timeout: 10000

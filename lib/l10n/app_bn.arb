@@ -12,6 +12,27 @@
   "campaignStatus_completed": "সম্পন্ন",
   "campaignStatus_cancelled": "বাতিল",
 
+  "sessionStatus_upcoming": "আসন্ন",
+  "@sessionStatus_upcoming": {
+    "description": "UNREVIEWED machine draft — needs native Bengali review (P0.5 D6)"
+  },
+  "sessionStatus_active": "চলমান",
+  "@sessionStatus_active": {
+    "description": "UNREVIEWED machine draft — needs native Bengali review (P0.5 D6)"
+  },
+  "sessionStatus_captureClosed": "ধারণ বন্ধ",
+  "@sessionStatus_captureClosed": {
+    "description": "UNREVIEWED machine draft — needs native Bengali review (P0.5 D6)"
+  },
+  "sessionStatus_paused": "স্থগিত",
+  "@sessionStatus_paused": {
+    "description": "UNREVIEWED machine draft — needs native Bengali review (P0.5 D6)"
+  },
+  "sessionStatus_completed": "সম্পন্ন",
+  "@sessionStatus_completed": {
+    "description": "UNREVIEWED machine draft — needs native Bengali review (P0.5 D6)"
+  },
+
   "attendanceStatus_notCaptured": "ধারণ করা হয়নি",
   "attendanceStatus_pendingSync": "সিঙ্কের অপেক্ষায়",
   "attendanceStatus_matchProcessing": "মিল যাচাই চলছে",
@@ -19,6 +40,85 @@
   "attendanceStatus_approved": "অনুমোদিত",
   "attendanceStatus_rejected": "প্রত্যাখ্যাত",
   "attendanceStatus_returned": "ফেরত পাঠানো হয়েছে",
+
+  "registrationStatus_invited": "আমন্ত্রিত",
+  "@registrationStatus_invited": {
+    "description": "UNREVIEWED machine draft — needs native Bengali review (P0.5 D6)"
+  },
+  "registrationStatus_registered": "নিবন্ধিত",
+  "@registrationStatus_registered": {
+    "description": "UNREVIEWED machine draft — needs native Bengali review (P0.5 D6)"
+  },
+  "registrationStatus_pendingProfileSync": "প্রোফাইল সিঙ্কের অপেক্ষায়",
+  "@registrationStatus_pendingProfileSync": {
+    "description": "UNREVIEWED machine draft — needs native Bengali review (P0.5 D6)"
+  },
+  "registrationStatus_ineligible": "অযোগ্য",
+  "@registrationStatus_ineligible": {
+    "description": "UNREVIEWED machine draft — needs native Bengali review (P0.5 D6)"
+  },
+  "registrationStatus_waitlisted": "অপেক্ষমাণ তালিকায়",
+  "@registrationStatus_waitlisted": {
+    "description": "UNREVIEWED machine draft — needs native Bengali review (P0.5 D6)"
+  },
+  "registrationStatus_cancelled": "বাতিল",
+  "@registrationStatus_cancelled": {
+    "description": "UNREVIEWED machine draft — needs native Bengali review (P0.5 D6)"
+  },
+
+  "importStatus_dryRun": "ড্রাই রান",
+  "@importStatus_dryRun": {
+    "description": "UNREVIEWED machine draft — needs native Bengali review (P0.5 D6)"
+  },
+  "importStatus_readyToCommit": "সংরক্ষণের জন্য প্রস্তুত",
+  "@importStatus_readyToCommit": {
+    "description": "UNREVIEWED machine draft — needs native Bengali review (P0.5 D6)"
+  },
+  "importStatus_processing": "প্রক্রিয়াধীন",
+  "@importStatus_processing": {
+    "description": "UNREVIEWED machine draft — needs native Bengali review (P0.5 D6)"
+  },
+  "importStatus_completed": "সম্পন্ন",
+  "@importStatus_completed": {
+    "description": "UNREVIEWED machine draft — needs native Bengali review (P0.5 D6)"
+  },
+  "importStatus_partiallyCompleted": "আংশিকভাবে সম্পন্ন",
+  "@importStatus_partiallyCompleted": {
+    "description": "UNREVIEWED machine draft — needs native Bengali review (P0.5 D6)"
+  },
+  "importStatus_failed": "ব্যর্থ",
+  "@importStatus_failed": {
+    "description": "UNREVIEWED machine draft — needs native Bengali review (P0.5 D6)"
+  },
+  "importStatus_cancelled": "বাতিল",
+  "@importStatus_cancelled": {
+    "description": "UNREVIEWED machine draft — needs native Bengali review (P0.5 D6)"
+  },
+
+  "integrityFlag_noReference": "রেফারেন্স ছবি নেই",
+  "@integrityFlag_noReference": {
+    "description": "UNREVIEWED machine draft — needs native Bengali review (P0.5 D6)"
+  },
+  "integrityFlag_poorQuality": "ছবির গুণমান খারাপ",
+  "@integrityFlag_poorQuality": {
+    "description": "UNREVIEWED machine draft — needs native Bengali review (P0.5 D6)"
+  },
+  "integrityFlag_suspectedSpoof": "সন্দেহজনক জাল ছবি",
+  "@integrityFlag_suspectedSpoof": {
+    "description": "UNREVIEWED machine draft — needs native Bengali review (P0.5 D6)"
+  },
+  "integrityFlag_duplicate": "ডুপ্লিকেট",
+  "@integrityFlag_duplicate": {
+    "description": "UNREVIEWED machine draft — needs native Bengali review (P0.5 D6)"
+  },
+  "integrityFlag_geofenceException": "ভেন্যুর নির্ধারিত সীমার বাইরে",
+  "@integrityFlag_geofenceException": {
+    "description": "UNREVIEWED machine draft — needs native Bengali review (P0.5 D6)"
+  },
+  "integrityFlag_manualOverride": "ম্যানুয়াল ওভাররাইড",
+  "@integrityFlag_manualOverride": {
+    "description": "UNREVIEWED machine draft — needs native Bengali review (P0.5 D6)"
+  },
 
   "action_submitForApproval": "অনুমোদনের জন্য জমা দিন",
   "action_captureAttendance": "উপস্থিতি ধারণ করুন",

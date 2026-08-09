@@ -29,7 +29,7 @@
 | T-0.1.1 | `flutter create` with web + android platforms; adopt scaffold in this repo | S | — | ✅ web + android; runs on Chrome and Android emulator |
 | T-0.1.2 | Configure flavors (dev/stg/prod) + `--dart-define` env (API base, media host) | M | 0.1.1 | ✅ Gradle flavors with distinct app IDs + `tool/scripts/run.ps1` |
 | T-0.1.3 | `analysis_options.yaml` (strict lints), format + import-order rules | S | 0.1.1 | ✅ `analyze --fatal-infos` exits 0; `dart format --set-exit-if-changed` and `flutter analyze` both run in CI's `gate` job on every PR |
-| T-0.1.4 | CI pipeline: analyze → test → build web + apk; artifact upload | M | 0.1.3 | ✅ `.github/workflows/ci.yml` `gate` job runs on every PR and is green (format → gen-l10n → codegen → analyze → test → build web → build apk-dev). There is no `e2e` job — Maestro/emulator E2E (Task 8) and a nightly suite (Task 9) were both cancelled, not deferred. **Correction (2026-08-07):** branch protection **is** enabled on `main`, with `gate` marked as a required status check and `strict: true` (up-to-date-before-merge enforcement); the earlier note in this row claiming the opposite was wrong. |
+| T-0.1.4 | CI pipeline: analyze → test → build web + apk; artifact upload | M | 0.1.3 | ✅ `.github/workflows/ci.yml` `gate` job runs on every PR and is green (format → gen-l10n → codegen → analyze → test → build web → build apk-dev). There is no `e2e` job — Maestro/emulator E2E (Task 8) and a nightly suite (Task 9) were both cancelled, not deferred. **Correction (2026-08-07):** branch protection **is** enabled on `main`, with `gate` marked as a required status check and `strict: true` (up-to-date-before-merge enforcement); the earlier note in this row claiming the opposite was wrong. **Correction (2026-08-07, P0.5):** the E2E job cancellation is **reversed**. P0.5 adds an `e2e` job that boots an Android emulator, installs the dev debug APK and runs the `android`-tagged Maestro flows; a green `e2e` is a hard exit criterion for that epic. The nightly suite remains cancelled. *Implementation note:* the job is a 5-way **matrix** — one APK per `--dart-define` set, with flows selected by file path — because `ROLE`/`QUALITY`/`SEED`/`LOCALE` are compile-time constants that Maestro's runtime `launchApp: arguments:` could never reach. See TESTING_MAESTRO.md §7.1. |
 | T-0.1.5 | Codegen wiring (`build_runner`, freezed, riverpod_generator, drift, l10n) | M | 0.1.1 | ✅ freezed + json_serializable + drift + gen-l10n. Riverpod codegen dropped — see ARCHITECTURE §6 amendment |
 
 ### Epic P0.2 — Design system & tokens ⭐
@@ -136,8 +136,63 @@
 ### Epic P0.5 — Localization ⭐
 | ID | Task | Est | Deps | Notes |
 |----|------|-----|------|-------|
-| T-0.5.1 | `flutter_localizations` + ARB scaffolding (en, bn) + Noto Sans Bengali fallback | M | 0.1.5 | ✅ ARB + gen-l10n. The Noto Sans Bengali fallback was declared in the theme but never bundled; the fonts landed in P0.2 (2026-08-05). |
-| T-0.5.2 | Versioned consent/purpose-notice content model (bn/en parity + version record) | M | 0.5.1 | 🔒 Legal §10.3 |
+| T-0.5.1 | `flutter_localizations` + ARB scaffolding (en, bn) + Noto Sans Bengali fallback | M | 0.1.5 | ✅ ARB + gen-l10n **and now actually applied**. The delegates were registered but **commented out** at `app.dart:26-27` from P0.2 until P0.5, so the generated localizations were never used — a Bengali user got English everywhere. Fonts landed in P0.2 (2026-08-05); the delegates, a per-device locale preference and a language picker landed here. |
+| T-0.5.2 | Versioned consent/purpose-notice content model (bn/en parity + version record) | M | 0.5.1 | ✅ **client-side model complete**, 🔒 **content still pending Legal §10.3**. `ConsentNotice`/`ConsentRecord` + a length-prefixed SHA-256 content hash, a bundled bilingual floor, Drift schema v3 (`consent_notices` + four columns on `attendance_drafts`), and the record written with every capture and onto the sync payload. Both bundled bodies say `PLACEHOLDER` in-text; the server-override seam (`refreshInBackground`) is deliberately **unwired** pending the contract. |
+
+> **P0.5 complete** (2026-08-09). The headline defect: `AppL10n.localizationsDelegates`
+> and `supportedLocales` sat **commented out** from P0.2 until now, so three epics
+> shipped with localization inert and nothing noticed — because no test rendered a
+> non-English string and no screen consumed `AppL10n`. Closing it needed a test that
+> pumps the real `AcslCampaignApp` rather than a self-built `MaterialApp`; the
+> first attempt asserted the chain in a harness that registered the delegates
+> itself, and so passed before the fix.
+>
+> Two related traps were removed. The five `l10nKey` getters returned runtime
+> strings (`'campaignStatus_$name'`) that could never resolve against gen-l10n's
+> named getters, and advertised keys for three families the ARB never contained;
+> they are replaced by exhaustive `label(AppL10n)` extensions with no `default`,
+> so a new status value is a **compile error** until it has a label. And every
+> status chip rendered `<enum>.name`, so users were shown raw camelCase
+> identifiers (`pendingApproval`); all five call sites now render localized
+> labels, which is also what made the Bengali E2E assertion possible at all.
+>
+> **Locale is per device, not per user** (a shared field phone in a
+> Bengali-speaking territory stays Bengali regardless of who signs in), persisted
+> in `cached_reference` under a reserved `pref:` key. Precedence is stored choice
+> → `LOCALE` dart-define → system. An **unsupported** device locale resolves to
+> English via an explicit `localeListResolutionCallback`: codegen emits
+> `supportedLocales` alphabetically as `[bn, en]`, and Flutter falls back to
+> `.first`, so a French phone would otherwise have got Bengali by accident of
+> alphabetization.
+>
+> **Consent fails closed; locale degrades.** No notice means no capture — the one
+> place in this epic where blocking the user is correct. Every locale fault
+> (corrupt row, unsupported code, unreadable store) falls back and continues. The
+> consent record stores a **hash over a length-prefixed pre-image**, so it proves
+> the wording shown rather than pointing at a version number; the format is a
+> contract, pinned in a test against a digest derived independently rather than
+> from the code under test. Verified end to end on a device: the stored hash
+> recomputed byte-for-byte from the bundled Bengali asset.
+>
+> **Still open, tracked here rather than only in the ledger:** the **24 Bengali
+> values added by this epic are unreviewed machine drafts**, each carrying
+> `UNREVIEWED` `@`-metadata and guarded by a parity test — they need native
+> review before pilot. A published notice version must be **immutable**, which is
+> a requirement on Legal/backend that the client cannot enforce. `~150`
+> screen-specific strings remain hardcoded English (T-4.2). Follow-ups recorded
+> by the final review: `BmdIconButton` and `BmdField` still carry bare
+> `Semantics(identifier:)` nodes without `enabled`, so the vacuous-assertion
+> hazard `BmdButton` fixed survives for those families; `PermissionGate.disabled`
+> wraps its child in `ExcludeSemantics`, which would erase a `BmdButton`
+> identifier if ever combined (no call site does today); and the notice screen's
+> language toggle is a dead end when one language fails to resolve.
+>
+> **T-0.1.4's E2E reversal is real:** the `e2e` job exists and is green across all
+> five matrix configs — the Maestro suite's first passing run ever. Getting there
+> exposed that every per-flow `launchApp: arguments:` had been **inert since the
+> flows were written**, because `ROLE`/`QUALITY`/`SEED`/`LOCALE` are compile-time
+> constants that Android intent extras cannot reach. Hence one APK per
+> configuration. Closes T-0.5.1 and the client half of T-0.5.2.
 
 ### Epic P0.6 — Riverpod DI baseline ⭐
 | ID | Task | Est | Deps |

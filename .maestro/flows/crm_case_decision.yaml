@@ -1,6 +1,12 @@
 # C-02: machine recommendation is shown as a separate advisory block, the
 # reason is mandatory, and a valid decision is recorded (part of P-06).
 # Prereq: mock /verification/cases/CASE_E2E + fixture images.
+#
+# Requires the `crm` matrix APK (--dart-define=ROLE=crm_verifier) via
+# launch_as_crm.yaml. Maestro `arguments:` are Android intent extras and CANNOT
+# reach `const String.fromEnvironment`, so the role lives in the build; with the
+# default field_user the session has no `verificationDecide` and the route
+# redirects to /forbidden. See ci.yml's e2e matrix.
 appId: ${APP_ID}
 tags:
   - crm
@@ -14,18 +20,63 @@ tags:
 - assertVisible: "Verification case"
 
 # Evidence + the clearly-separated advisory block are both present.
-- assertVisible: "Evidence"
-- assertVisible: "Machine recommendation (advisory)"
+#
+# Wrapped in `.*` because Flutter merges each non-interactive SECTION into one
+# semantics node and Maestro ANCHORS text patterns. The nodes here are
+#   "Evidence\nCaptured\nImage unavailable\nVerified profile photo\n..."
+#   "Machine recommendation (advisory)\n• Landmark alignment within tolerance"
+# so the bare headings matched nothing. The parentheses are escaped because
+# these patterns are regexes, not literals.
+- assertVisible: ".*Evidence.*"
+# scrollUntilVisible, not assertVisible: the advisory block is BELOW THE FOLD on
+# CI's api-34 emulator even though it is on screen on a larger local device, so
+# a bare assertion here passes locally and times out in CI. scrollUntilVisible
+# still fails if the element never appears, so this is an assertion too — just a
+# viewport-independent one. Every below-the-fold element in this flow is reached
+# the same way for the same reason.
+- scrollUntilVisible:
+    element:
+      text: ".*Machine recommendation \\(advisory\\).*"
+    direction: DOWN
 
 # Reason is mandatory: Submit stays disabled until an outcome + reason are set.
+#
+# The Decision card sits BELOW THE FOLD on a phone-profile emulator (the
+# failure screenshot shows it just cut off under the advisory block), and
+# `tapOn` does not scroll to find an element by id — so scroll to it first.
+- scrollUntilVisible:
+    element:
+      id: "crm_outcome_approved"
+    direction: DOWN
 - tapOn:
     id: "crm_outcome_approved" # radio "Approve"
+# The Decision card runs radios -> reason -> submit (crm_case_screen.dart:296,
+# 308, 327) and is TALLER than CI's api-34 viewport, so each element needs its
+# own scroll. This assertion especially: on CI it failed after the full 18s
+# timeout because crm_submit was OFF-SCREEN, not because it was enabled — a
+# false red that reads exactly like a real state bug.
+- scrollUntilVisible:
+    element:
+      id: "crm_submit"
+    direction: DOWN
 - assertVisible:
     id: "crm_submit"
     enabled: false
+# UP: the reason field sits ABOVE the button we just scrolled down to.
+- scrollUntilVisible:
+    element:
+      id: "crm_reason"
+    direction: UP
 - tapOn:
     id: "crm_reason"
 - inputText: "Face matches the verified profile photo."
+# The keyboard raised by inputText can cover the button on a short viewport, so
+# scroll again rather than assuming the earlier scroll still holds.
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: "crm_submit"
+    direction: DOWN
 - assertVisible:
     id: "crm_submit"
     enabled: true

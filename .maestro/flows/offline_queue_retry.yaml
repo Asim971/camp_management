@@ -1,40 +1,60 @@
 # M-04 recovery: a pending item can be retried, and Discard is guarded by a
 # confirmation dialog (destructive + controlled — §8.11).
-# Prereq: E2E seeds one pending sync item into the queue.
+#
+# Requires the `queue` matrix APK (--dart-define=SEED=queue), which makes
+# e2e_seeder insert exactly one pending sync task. Maestro `arguments:` are
+# Android intent extras and CANNOT reach `const String.fromEnvironment`, so SEED
+# lives in the build, not here; without it the queue is empty and every
+# assertion below finds nothing. It gets its own APK rather than sharing the
+# `field` one because the seeded item would make the capture flows' pending
+# count off by one — e2e_seeder.dart says so in as many words.
+# See ci.yml's e2e matrix.
 appId: ${APP_ID}
 tags:
   - field
   - offline
   - android
 ---
-# Launch inline with SEED=queue so exactly one pending item exists.
 - clearState
-- launchApp:
-    arguments:
-      E2E: true
-      LOCALE: en
-      ROLE: field_user
-      SEED: queue
+- launchApp
 - assertVisible:
     id: "dev_launcher"
 - tapOn:
     id: "dev_open_queue"
-- assertVisible: "Pending sync"
+- assertVisible: ".*Status: Pending sync.*"
 
-# Manual retry.
+# Manual retry. The seeded task's media path is synthetic (e2e_seeder.dart:60
+# writes a payload with no real evidence file), so the upload CANNOT succeed —
+# the retry legitimately ends in 'Upload failed'. That is asserted, rather than
+# assumed, because it is the proof the retry actually ran; the flow used to
+# assume the row stayed 'Pending sync' afterwards, which is why the later
+# assertion failed.
 - tapOn:
     id: "queue_item_menu"
     index: 0
 - tapOn: "Retry"
+- extendedWaitUntil:
+    visible: ".*Status: Upload failed.*"
+    timeout: 20000
 
-# Discard -> confirmation required; Cancel keeps the item.
+# Discard -> confirmation required; declining keeps the item.
+#
+# The three literals below were WRONG and had never been run against the app:
+# the dialog's title is 'Discard this capture?' (not "Discard captured
+# attendance?"), its cancel label is the deliberately non-neutral 'Keep it
+# queued' (not "Cancel" — showBmdConfirm's default, which this call site
+# overrides), and the empty state's title has no full stop. Corrected against
+# offline_queue_screen.dart:309-323 and bmd_overlays.dart:274.
 - tapOn:
     id: "queue_item_menu"
     index: 0
 - tapOn: "Discard…"
-- assertVisible: "Discard captured attendance?"
-- tapOn: "Cancel"
-- assertVisible: "Pending sync"
+- assertVisible: ".*Discard this capture.*" # `?` omitted: it is a regex metachar and YAML rejects ? in a double-quoted scalar
+- tapOn: "Keep it queued"
+# Declining keeps the ITEM. Asserted by the row's identity, not by its status:
+# the retry above has already moved it to 'Upload failed', and what this step
+# proves is that a declined discard did not DELETE anything.
+- assertVisible: ".*Carpenter CARP_E2E_2.*"
 
 # Discard -> confirm -> item removed.
 - tapOn:
@@ -42,5 +62,5 @@ tags:
     index: 0
 - tapOn: "Discard…"
 - tapOn:
-    id: "queue_discard_confirm" # "Discard" in the dialog
-- assertVisible: "Everything is synced."
+    id: "queue_discard_confirm" # "Discard capture" in the dialog
+- assertVisible: ".*Everything is synced.*"

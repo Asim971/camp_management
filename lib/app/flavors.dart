@@ -34,6 +34,7 @@ class AppConfig {
     this.e2eRole = 'field_user',
     this.e2eQuality = 'pass',
     this.e2eSeed = '',
+    this.locale = '',
   });
 
   final Flavor flavor;
@@ -47,6 +48,24 @@ class AppConfig {
   final String e2eRole; // ROLE: field_user | crm_verifier | campaign_creator
   final String e2eQuality; // QUALITY: pass | fail (fail → recapture path)
   final String e2eSeed; // SEED: extra fixtures to seed, e.g. "queue"
+
+  /// Language this build starts in (`--dart-define=LOCALE=bn`); empty means
+  /// unset. Deliberately *not* prefixed `e2e` like the three fields above,
+  /// because it has two callers, not one:
+  ///
+  ///  * E2E — every Maestro flow has passed `LOCALE` since it was written and
+  ///    the app ignored it until P0.5, so text selectors depended on the
+  ///    device happening to be English.
+  ///  * Provisioning — a build handed to a Bengali-speaking territory can ship
+  ///    with `LOCALE=bn` so the first frame is already Bengali, with no test
+  ///    harness involved.
+  ///
+  /// A persisted user choice takes precedence over this; an unsupported or
+  /// empty value falls through to the system locale — see
+  /// `LocaleController.load`. Note this is compile-time
+  /// (`String.fromEnvironment`), so it is fixed per APK: a Maestro
+  /// `launchApp: arguments:` entry of the same name cannot change it.
+  final String locale;
 
   static AppConfig fromEnvironment() {
     const flavorName = String.fromEnvironment('FLAVOR', defaultValue: 'dev');
@@ -64,6 +83,7 @@ class AppConfig {
       e2eRole: const String.fromEnvironment('ROLE', defaultValue: 'field_user'),
       e2eQuality: const String.fromEnvironment('QUALITY', defaultValue: 'pass'),
       e2eSeed: const String.fromEnvironment('SEED'),
+      locale: const String.fromEnvironment('LOCALE'),
     );
   }
 
