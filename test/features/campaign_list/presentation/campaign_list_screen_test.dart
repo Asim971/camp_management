@@ -1,7 +1,4 @@
-import 'package:acsl_campaign/app/di/providers.dart';
 import 'package:acsl_campaign/core/auth/rbac.dart';
-import 'package:acsl_campaign/core/auth/session.dart';
-import 'package:acsl_campaign/core/auth/session_manager.dart';
 import 'package:acsl_campaign/domain/campaign/campaign.dart';
 import 'package:acsl_campaign/domain/campaign/campaign_repository.dart';
 import 'package:acsl_campaign/features/campaign_list/application/campaign_list_notifier.dart';
@@ -11,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../../support/harness.dart';
 
 /// I5: PermissionGate had zero production call sites while four affordances
 /// led straight to /forbidden - the same defect diagnosed for the nav bar,
@@ -25,29 +24,16 @@ class _FixedCampaignListNotifier extends CampaignListNotifier {
 }
 
 void main() {
-  AuthState signedIn(Set<Permission> permissions) => AuthSignedIn(
-    Session(
-      userId: 'u-1',
-      displayName: 'Test User',
-      scope: AccessScope(
-        roles: const {AppRole.fieldUser},
-        permissions: permissions,
-        organizationId: 'ORG_1',
-      ),
-      accessToken: 'a',
-      refreshToken: 'r',
-      expiresAt: DateTime.now().add(const Duration(hours: 1)),
-    ),
-  );
-
-  Future<void> pump(WidgetTester tester, {required AuthState auth}) async {
-    final container = ProviderContainer(
+  Future<void> pump(
+    WidgetTester tester, {
+    required Set<Permission> permissions,
+  }) async {
+    final container = buildTestContainer(
+      permissions: permissions,
       overrides: [
-        authStateProvider.overrideWithValue(auth),
         campaignListProvider.overrideWith(_FixedCampaignListNotifier.new),
       ],
     );
-    addTearDown(container.dispose);
 
     final router = GoRouter(
       initialLocation: '/campaigns',
@@ -85,7 +71,7 @@ void main() {
   testWidgets(
     'a user lacking campaignCreate sees "Create campaign" disabled, not absent',
     (tester) async {
-      await pump(tester, auth: signedIn(const {}));
+      await pump(tester, permissions: const {});
 
       expect(find.byTooltip('Create campaign'), findsOneWidget);
 
@@ -113,7 +99,7 @@ void main() {
   testWidgets('a holder of campaignCreate can activate "Create campaign"', (
     tester,
   ) async {
-    await pump(tester, auth: signedIn({Permission.campaignCreate}));
+    await pump(tester, permissions: {Permission.campaignCreate});
 
     await tester.tap(find.byTooltip('Create campaign'));
     await tester.pumpAndSettle();
