@@ -50,13 +50,23 @@ tags:
     direction: DOWN
 - tapOn:
     id: "crm_outcome_approved" # radio "Approve"
+# The Decision card runs radios -> reason -> submit (crm_case_screen.dart:296,
+# 308, 327) and is TALLER than CI's api-34 viewport, so each element needs its
+# own scroll. This assertion especially: on CI it failed after the full 18s
+# timeout because crm_submit was OFF-SCREEN, not because it was enabled — a
+# false red that reads exactly like a real state bug.
+- scrollUntilVisible:
+    element:
+      id: "crm_submit"
+    direction: DOWN
 - assertVisible:
     id: "crm_submit"
     enabled: false
+# UP: the reason field sits ABOVE the button we just scrolled down to.
 - scrollUntilVisible:
     element:
       id: "crm_reason"
-    direction: DOWN
+    direction: UP
 - tapOn:
     id: "crm_reason"
 - inputText: "Face matches the verified profile photo."
