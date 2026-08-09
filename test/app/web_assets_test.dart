@@ -20,8 +20,20 @@ void main() {
 
     // A wasm module starts with the magic bytes \0asm. A downloaded 404 page
     // would satisfy existsSync() and fail here.
-    expect(wasm.readAsBytesSync().take(4).toList(), [0x00, 0x61, 0x73, 0x6d]);
+    final wasmBytes = wasm.readAsBytesSync();
+    expect(wasmBytes.take(4).toList(), [0x00, 0x61, 0x73, 0x6d]);
+    // The committed file is 730,989 bytes. A network-truncated download keeps
+    // the magic-byte header intact but cuts the body short, which the magic
+    // byte check above cannot catch. 500,000 is comfortably below the real
+    // size (so a genuine future sqlite3 version bump won't trip this) and
+    // comfortably above what a truncated/aborted download would leave behind.
+    expect(wasmBytes.length, greaterThan(500000));
+
     expect(worker.lengthSync(), greaterThan(1000));
-    expect(worker.readAsStringSync(), isNot(startsWith('<')));
+    // Assert what the file actually is (compiled Dart, emitted by dart2js/
+    // dart2wasm tooling), not merely what it isn't. A JSON error body or a
+    // plain-text CDN error longer than 1000 bytes would slip past a check
+    // that only excludes strings starting with '<'.
+    expect(worker.readAsStringSync(), startsWith('(function dartProgram(){'));
   });
 }
