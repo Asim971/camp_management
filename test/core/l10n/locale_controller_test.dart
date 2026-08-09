@@ -1,10 +1,11 @@
-import 'package:acsl_campaign/app/di/providers.dart';
 import 'package:acsl_campaign/app/flavors.dart';
 import 'package:acsl_campaign/core/l10n/locale_controller.dart';
 import 'package:acsl_campaign/core/l10n/locale_store.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../../support/harness.dart';
 
 /// In-memory [LocaleStore] so the controller is tested without a database.
 class _FakeLocaleStore implements LocaleStore {
@@ -34,31 +35,23 @@ void main() {
   // LocaleStore but not a _FakeLocaleStore, and the plan's signature would not
   // compile for the read-failure test.
   //
-  // appConfigProvider is always overridden, never left to the real
-  // fromEnvironment(): load() now reads AppConfig.locale, and the real config
-  // would let a `flutter test --dart-define=LOCALE=bn` invocation change what
-  // these tests assert. `defineLocale` defaults to '' — what an absent LOCALE
-  // produces.
+  // The config is always passed explicitly through the harness's `config:`,
+  // never left to the real fromEnvironment(): load() now reads
+  // AppConfig.locale, and the real config would let a
+  // `flutter test --dart-define=LOCALE=bn` invocation change what these tests
+  // assert. `defineLocale` defaults to '' — what an absent LOCALE produces.
   ProviderContainer containerWith(
     LocaleStore store, {
     String defineLocale = '',
-  }) {
-    final c = ProviderContainer(
-      overrides: [
-        localeStoreProvider.overrideWithValue(store),
-        appConfigProvider.overrideWithValue(
-          AppConfig(
-            flavor: Flavor.dev,
-            apiBaseUrl: 'https://example.invalid',
-            mediaHost: 'https://example.invalid',
-            locale: defineLocale,
-          ),
-        ),
-      ],
-    );
-    addTearDown(c.dispose);
-    return c;
-  }
+  }) => buildTestContainer(
+    config: AppConfig(
+      flavor: Flavor.dev,
+      apiBaseUrl: 'https://example.invalid',
+      mediaHost: 'https://example.invalid',
+      locale: defineLocale,
+    ),
+    overrides: [localeStoreProvider.overrideWithValue(store)],
+  );
 
   test('starts null, meaning follow the system', () {
     final c = containerWith(_FakeLocaleStore());
