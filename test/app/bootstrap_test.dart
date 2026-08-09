@@ -1,58 +1,39 @@
 import 'package:acsl_campaign/app/boot_diagnostics.dart';
 import 'package:acsl_campaign/app/bootstrap.dart';
 import 'package:acsl_campaign/app/di/providers.dart';
-import 'package:acsl_campaign/app/flavors.dart';
 import 'package:acsl_campaign/core/auth/session_manager.dart';
 import 'package:acsl_campaign/core/l10n/locale_controller.dart';
 import 'package:acsl_campaign/core/l10n/locale_store.dart';
-import 'package:acsl_campaign/core/storage/app_database.dart';
-import 'package:drift/native.dart';
 import 'package:flutter/widgets.dart' show Locale;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../support/fake_auth.dart';
+import '../support/harness.dart';
 
 void main() {
-  const config = AppConfig(
-    flavor: Flavor.dev,
-    apiBaseUrl: 'https://example.invalid',
-    mediaHost: 'https://example.invalid',
-  );
-
-  /// The two seams every boot step that touches storage needs under
-  /// `flutter_test`.
+  /// The one seam `buildTestContainer` does not already supply.
   ///
-  /// `AppDatabase.open()` hands drift a `LazyDatabase` whose open future is
-  /// created — and, on failure, REJECTED — inside its own constructor, with no
-  /// caller awaiting it. There is no path_provider plugin here, so leaving the
-  /// real provider in place makes a `MissingPluginException` escape as an
-  /// unhandled async error and fail the test, even though every `await` in
-  /// `bootstrap` is guarded. That is drift's plumbing, not a boot failure, so
-  /// these tests use the in-memory executor the rest of the suite uses; the
-  /// real `open()` path is covered by test/core/storage/database_seam_test.dart.
+  /// The harness covers the database: `AppDatabase.open()` hands drift a
+  /// `LazyDatabase` whose open future is created — and, on failure, REJECTED —
+  /// inside its own constructor, with no caller awaiting it. There is no
+  /// path_provider plugin here, so leaving the real provider in place makes a
+  /// `MissingPluginException` escape as an unhandled async error and fail the
+  /// test, even though every `await` in `bootstrap` is guarded. That is drift's
+  /// plumbing, not a boot failure, so these tests use the harness's in-memory
+  /// executor; the real `open()` path is covered by
+  /// test/core/storage/database_seam_test.dart and
+  /// test/app/di/composition_root_test.dart.
   ///
-  /// Connectivity is stubbed for the same reason: `AuditFlusher.start()`
-  /// subscribes to it, and `Connectivity().onConnectivityChanged` is an
-  /// EventChannel with no plugin under `flutter_test`.
-  List<Override> storageSeams() {
-    final db = AppDatabase(NativeDatabase.memory());
-    addTearDown(db.close);
-    return [
-      appDatabaseProvider.overrideWithValue(db),
-      connectivityStreamProvider.overrideWithValue(const Stream<bool>.empty()),
-    ];
-  }
+  /// Connectivity has to be stubbed for the same reason and is NOT in the
+  /// harness, because only the boot path subscribes to it:
+  /// `AuditFlusher.start()` does, and `Connectivity().onConnectivityChanged` is
+  /// an EventChannel with no plugin under `flutter_test`.
+  Override connectivitySeam() =>
+      connectivityStreamProvider.overrideWithValue(const Stream<bool>.empty());
 
   test('a clean boot records nothing', () async {
-    final container = ProviderContainer(
-      overrides: [
-        appConfigProvider.overrideWithValue(config),
-        tokenStoreProvider.overrideWithValue(FakeTokenStore()),
-        ...storageSeams(),
-      ],
-    );
-    addTearDown(container.dispose);
+    final container = buildTestContainer(overrides: [connectivitySeam()]);
 
     await bootstrap(container: container);
 
@@ -63,16 +44,16 @@ void main() {
     // This is the WEB case, exactly: AppDatabase.open() threw ArgumentError on
     // web, and main.dart resolved the database before runApp, so nothing
     // rendered. bootstrap() must reach the end regardless.
-    final container = ProviderContainer(
+    // The harness's in-memory database default is deliberately overridden here,
+    // which only works because caller overrides come last - see
+    // test/support/harness_test.dart.
+    final container = buildTestContainer(
       overrides: [
-        appConfigProvider.overrideWithValue(config),
-        tokenStoreProvider.overrideWithValue(FakeTokenStore()),
         appDatabaseProvider.overrideWith(
           (ref) => throw StateError('database unavailable'),
         ),
       ],
     );
-    addTearDown(container.dispose);
 
     await expectLater(bootstrap(container: container), completes);
 
@@ -89,14 +70,12 @@ void main() {
   test(
     'a throwing token store leaves the user signed out, not stuck',
     () async {
-      final container = ProviderContainer(
+      final container = buildTestContainer(
         overrides: [
-          appConfigProvider.overrideWithValue(config),
           tokenStoreProvider.overrideWithValue(ThrowingTokenStore()),
-          ...storageSeams(),
+          connectivitySeam(),
         ],
       );
-      addTearDown(container.dispose);
 
       await expectLater(bootstrap(container: container), completes);
 
@@ -118,15 +97,13 @@ void main() {
     // authServiceProvider is overridden so the refresh leg succeeds and the
     // failure is unambiguously the persist; the real DioAuthService would fail
     // first, against the network, and prove nothing about the write path.
-    final container = ProviderContainer(
+    final container = buildTestContainer(
       overrides: [
-        appConfigProvider.overrideWithValue(config),
         tokenStoreProvider.overrideWithValue(WriteThrowingTokenStore()),
         authServiceProvider.overrideWithValue(ScriptedAuthService()),
-        ...storageSeams(),
+        connectivitySeam(),
       ],
     );
-    addTearDown(container.dispose);
 
     await expectLater(bootstrap(container: container), completes);
 
@@ -144,15 +121,12 @@ void main() {
     // step()'s catch can never fire for it. Before load() gained onDegraded,
     // the user's persisted Bengali choice was dropped with NOTHING in
     // `failures` - the guarded-but-silent shape this task exists to remove.
-    final container = ProviderContainer(
+    final container = buildTestContainer(
       overrides: [
-        appConfigProvider.overrideWithValue(config),
-        tokenStoreProvider.overrideWithValue(FakeTokenStore()),
         localeStoreProvider.overrideWithValue(_ThrowingLocaleStore()),
-        ...storageSeams(),
+        connectivitySeam(),
       ],
     );
-    addTearDown(container.dispose);
 
     await expectLater(bootstrap(container: container), completes);
 
