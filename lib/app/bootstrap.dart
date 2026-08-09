@@ -17,12 +17,16 @@ Future<ProviderContainer> bootstrap({ProviderContainer? container}) async {
   final diagnostics = c.read(bootDiagnosticsProvider);
   final config = c.read(appConfigProvider); // pure; cannot fail
 
+  void degrade(String name, Object error) {
+    debugPrint('Boot step "$name" degraded: $error');
+    diagnostics.record(name, error);
+  }
+
   Future<void> step(String name, Future<void> Function() body) async {
     try {
       await body();
     } catch (error) {
-      debugPrint('Boot step "$name" degraded: $error');
-      diagnostics.record(name, error);
+      degrade(name, error);
     }
   }
 
@@ -37,11 +41,21 @@ Future<ProviderContainer> bootstrap({ProviderContainer? container}) async {
   }
 
   // Adopt the persisted language before the first frame so a Bengali device
-  // does not flash English. LocaleController.load already swallows store
-  // failures; the wrapper covers the provider read itself.
+  // does not flash English.
+  //
+  // `onDegraded` is not optional decoration here. LocaleController.load catches
+  // its own store failure and continues, because a display preference must not
+  // block startup (spec D7) - which means step()'s catch, whose only signal is
+  // a thrown error, can NEVER fire for the failure that actually happens. With
+  // the database unavailable the user's persisted Bengali choice was being
+  // dropped with nothing in `failures` to say so: guarded but silent, one layer
+  // below the recorder. The callback is the reporting channel; the locale still
+  // degrades to the LOCALE define or the system, and boot still continues.
   await step(
     'localeController.load',
-    () => c.read(localeControllerProvider.notifier).load(),
+    () => c
+        .read(localeControllerProvider.notifier)
+        .load(onDegraded: (error) => degrade('localeController.load', error)),
   );
 
   // Audit must flush regardless of which screen the user visits. Reading the

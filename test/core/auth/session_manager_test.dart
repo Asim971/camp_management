@@ -179,14 +179,14 @@ void main() {
       },
     );
 
-    test('an unreadable store fails before it touches state', () async {
+    test('an unreadable store throws before it touches state', () async {
       // restore() deliberately does not swallow this - bootstrap() records it,
-      // and a guard here would hide it from that recorder (see restore()'s
-      // note). What restore() owes its caller is that the failure lands before
-      // any _emit, so catching it leaves the app on AuthSignedOut and able to
-      // show a login screen - never stranded on a permanent AuthRestoring
-      // splash. This locks that ordering, which is the whole reason the
-      // unguarded version is safe.
+      // and a guard that returned normally would hide it from that recorder
+      // (see restore()'s note). What restore() owes its caller here is that the
+      // failure lands before ANY _emit, so its repair catch has nothing to fix
+      // and emits nothing: `seen` being empty is the assertion that pins the
+      // read-ahead-of-_emit ordering. Move the read below
+      // _emit(AuthRestoring()) and this test fails.
       final manager = build(tokens: ThrowingTokenStore());
       final seen = <AuthState>[];
       final sub = manager.changes.listen(seen.add);
@@ -199,6 +199,32 @@ void main() {
       await sub.cancel();
       manager.dispose();
     });
+
+    test(
+      'an unwritable store lands signed out, never stuck restoring',
+      () async {
+        // The asymmetric store: the read SUCCEEDS, so restore() gets past
+        // _emit(AuthRestoring()) before _adopt -> _persistIfCurrent throws. The
+        // exception alone is not enough - bootstrap()'s step() can record it but
+        // structurally cannot undo an emitted state - so restore() must repair
+        // state itself. Without that repair the router holds on the splash
+        // forever, which reads to a user as a hang: worse than the blank screen
+        // P0.6 closes, not better.
+        final manager = build(tokens: WriteThrowingTokenStore());
+        final seen = <AuthState>[];
+        final sub = manager.changes.listen(seen.add);
+
+        // Still throws, so bootstrap() records the degradation. Repair and
+        // report are both required; neither substitutes for the other.
+        await expectLater(manager.restore(), throwsStateError);
+        await pumpEventQueue();
+
+        expect(manager.state, isA<AuthSignedOut>());
+        expect(seen.map((s) => s.runtimeType), [AuthRestoring, AuthSignedOut]);
+        await sub.cancel();
+        manager.dispose();
+      },
+    );
 
     test('a rejected stored token clears storage and signs out', () async {
       final tokens = FakeTokenStore('stale-r');
