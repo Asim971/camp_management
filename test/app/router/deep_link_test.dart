@@ -1,6 +1,5 @@
 import 'package:acsl_campaign/app/app.dart';
 import 'package:acsl_campaign/app/di/providers.dart';
-import 'package:acsl_campaign/app/flavors.dart';
 import 'package:acsl_campaign/app/router/app_router.dart';
 import 'package:acsl_campaign/core/design_system/placeholder_screen.dart';
 import 'package:acsl_campaign/core/result/result.dart';
@@ -9,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/fake_auth.dart';
+import '../../support/harness.dart';
 
 /// I3: [RouteGuards.evaluate] carried a [location] parameter its doc comment
 /// claimed preserved the intended destination, but nothing ever built the
@@ -20,12 +20,6 @@ void main() {
   testWidgets(
     'an unauthenticated deep link to a permitted route survives sign-in',
     (tester) async {
-      const config = AppConfig(
-        flavor: Flavor.dev,
-        apiBaseUrl: 'https://example.invalid',
-        mediaHost: 'https://example.invalid',
-      );
-
       final service = ScriptedAuthService(
         loginResults: [
           Ok(
@@ -43,14 +37,9 @@ void main() {
         ],
       );
 
-      final container = ProviderContainer(
-        overrides: [
-          appConfigProvider.overrideWithValue(config),
-          tokenStoreProvider.overrideWithValue(FakeTokenStore()),
-          authServiceProvider.overrideWithValue(service),
-        ],
+      final container = buildTestContainer(
+        overrides: [authServiceProvider.overrideWithValue(service)],
       );
-      addTearDown(container.dispose);
 
       await container.read(sessionManagerProvider).restore();
 
