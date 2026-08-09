@@ -1,7 +1,4 @@
-import 'package:acsl_campaign/app/di/providers.dart';
 import 'package:acsl_campaign/core/auth/rbac.dart';
-import 'package:acsl_campaign/core/auth/session.dart';
-import 'package:acsl_campaign/core/auth/session_manager.dart';
 import 'package:acsl_campaign/domain/campaign/campaign.dart';
 import 'package:acsl_campaign/domain/common/status.dart';
 import 'package:acsl_campaign/domain/session/campaign_session.dart';
@@ -12,6 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../../support/harness.dart';
 
 /// Task 6b, second half. The campaign detail screen renders TWO status chips
 /// from two different enum families, and one of them — [SessionStatus] — had no
@@ -52,28 +51,12 @@ class _FixedDetailController extends CampaignDetailController {
 
 void main() {
   Future<void> pump(WidgetTester tester, Locale locale) async {
-    final container = ProviderContainer(
+    final container = buildTestContainer(
+      permissions: {Permission.campaignApprove},
       overrides: [
-        authStateProvider.overrideWithValue(
-          AuthSignedIn(
-            Session(
-              userId: 'u-1',
-              displayName: 'Test User',
-              scope: const AccessScope(
-                roles: {AppRole.fieldUser},
-                permissions: {Permission.campaignApprove},
-                organizationId: 'ORG_1',
-              ),
-              accessToken: 'a',
-              refreshToken: 'r',
-              expiresAt: DateTime.now().add(const Duration(hours: 1)),
-            ),
-          ),
-        ),
         campaignDetailProvider.overrideWith(_FixedDetailController.new),
       ],
     );
-    addTearDown(container.dispose);
 
     final router = GoRouter(
       initialLocation: '/campaigns/c-1',
