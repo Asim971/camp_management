@@ -30,9 +30,19 @@ class Db {
   /// [queryMode] defaults to the driver's normal choice (extended/prepared).
   /// Pass [QueryMode.simple] to run a multi-statement script as one Query
   /// message — the extended protocol rejects a `Parse` containing more than
-  /// one command, but the simple protocol runs the whole string as a single
-  /// implicit transaction, which is exactly wrong when the caller wants that
-  /// script to NOT be coupled to whatever runs after it.
+  /// one command, so a script like a migration (many `CREATE TABLE`/`CREATE
+  /// INDEX` statements) must use simple mode to run at all.
+  ///
+  /// The trap: Postgres's simple protocol already treats that one Query
+  /// message as implicitly atomic, all on its own. So a failure *inside* the
+  /// script (e.g. a bad statement partway through the migration text) proves
+  /// nothing about whether the script and a *separate* statement issued after
+  /// it — such as the `schema_migrations` version-row insert — share a
+  /// transaction. Postgres would roll the script back regardless. The actual
+  /// P0.R5 gap this codebase cares about sits in the window *between* the two
+  /// statements: whether the version insert is wrapped in the same
+  /// application-level transaction as the script, not whether the script is
+  /// internally atomic.
   Future<Result> execute(
     String sql, {
     Map<String, Object?>? params,

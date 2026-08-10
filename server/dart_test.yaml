@@ -1,0 +1,20 @@
+# Force serial execution of test *files* (dart_test's default concurrency
+# runs multiple test files in parallel processes/isolates).
+#
+# Why this matters here: every DB-touching test file shares one Postgres
+# database (see test/support/test_db.dart), and freshDb() resets state by
+# running `DROP SCHEMA public CASCADE; CREATE SCHEMA public` against that
+# single database. If two test files ran concurrently, one file's freshDb()
+# could drop the schema out from under another file's in-flight test,
+# corrupting or crashing an unrelated suite. Today only test/db/migrator_test
+# .dart touches the database, so the hazard is latent, but Tasks 4-9 add
+# test/auth/*, test/infra/*, and test/campaign/*, all of which will call
+# freshDb() too.
+#
+# Per-file/per-test schemas (e.g. a unique `CREATE SCHEMA test_<n>` per file,
+# with search_path pointed at it) were considered and rejected: at this
+# suite's size, the added setup/teardown complexity and the need to keep the
+# migrator schema-aware isn't worth it. Serializing with concurrency: 1 is a
+# one-line fix that removes the hazard entirely; revisit if the suite grows
+# large enough that serial DB tests become a real time cost.
+concurrency: 1
