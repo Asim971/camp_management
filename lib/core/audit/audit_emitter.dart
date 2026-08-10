@@ -173,16 +173,28 @@ class AuditFlusher {
   }
 
   Future<void> _flushOnce() async {
-    final rows =
-        await (_db.select(_db.auditEvents)
-              ..where((t) => t.attempts.isSmallerThanValue(_maxAttempts))
-              ..orderBy([(t) => OrderingTerm(expression: t.seq)])
-              ..limit(_batchSize))
-            .get();
-    if (rows.isEmpty) return;
+    try {
+      final rows =
+          await (_db.select(_db.auditEvents)
+                ..where((t) => t.attempts.isSmallerThanValue(_maxAttempts))
+                ..orderBy([(t) => OrderingTerm(expression: t.seq)])
+                ..limit(_batchSize))
+              .get();
+      if (rows.isEmpty) return;
 
-    await _sendAndHandle(rows);
-    await _checkHighWaterMark();
+      await _sendAndHandle(rows);
+      await _checkHighWaterMark();
+    } catch (error) {
+      // Reached when the database is unavailable (web without the Drift wasm
+      // assets, a locked file). flush() is invoked as unawaited(flush()) from
+      // Timer.periodic and from notifyBuffered(), so without this the failure
+      // became a recurring UNHANDLED async error while no audit event was ever
+      // flushed - silent and continuous. The timer keeps retrying, which is the
+      // existing design; this only stops the error escaping into nowhere.
+      // audit_flusher_test.dart's "an unavailable database does not escape
+      // flush()" fails without this catch.
+      debugPrint('Audit flush failed ($error). Will retry.');
+    }
   }
 
   /// Sends [rows] as one batch and applies the outcome. On a permanent

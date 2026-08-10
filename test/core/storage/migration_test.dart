@@ -1,15 +1,22 @@
+import 'package:acsl_campaign/core/l10n/locale_store.dart';
 import 'package:acsl_campaign/core/storage/app_database.dart';
-// `show Value` and not a bare import: drift also exports `isNull`, which
+// `Schema4` so the retry-safety test can create the v4 `preferences` table with
+// drift's own generated DDL rather than a hand-copied CREATE TABLE that could
+// drift out of agreement with it.
+import 'package:acsl_campaign/core/storage/schema_versions.dart' show Schema4;
+// A `show` list and not a bare import: drift also exports `isNull`, which
 // collides with matcher's `isNull` and makes every null assertion below
 // ambiguous.
-import 'package:drift/drift.dart' show Value;
+import 'package:drift/drift.dart' show Migrator, Value;
 import 'package:drift/native.dart';
 import 'package:drift_dev/api/migrations_native.dart';
+import 'package:flutter/widgets.dart' show Locale;
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../generated/schema.dart';
 import '../../generated/schema_v1.dart' as v1;
 import '../../generated/schema_v2.dart' as v2;
+import '../../generated/schema_v3.dart' as v3;
 
 void main() {
   late SchemaVerifier verifier;
@@ -218,5 +225,197 @@ void main() {
     await put(1, 'bn');
 
     expect(await db.select(db.consentNotices).get(), hasLength(2));
+  });
+
+  test('migrates v3 to v4', () async {
+    final schema = await verifier.schemaAt(3);
+    final db = AppDatabase(schema.newConnection());
+
+    await verifier.migrateAndValidate(db, 4);
+
+    await db.close();
+  });
+
+  test('v3 to v4 moves the locale preference and keeps caches', () async {
+    // The tier split must not cost a user their language. And a v3 device in
+    // the field has a pref:locale row that has to survive.
+    final connection = await verifier.schemaAt(3);
+
+    final oldDb = v3.DatabaseAtV3(connection.newConnection());
+    await oldDb
+        .into(oldDb.cachedReferences)
+        .insert(
+          v3.CachedReferencesData(
+            key: 'pref:locale',
+            valueJson: '{"languageCode":"bn"}',
+            fetchedAt: DateTime.utc(2026, 8, 9),
+          ),
+        );
+    await oldDb
+        .into(oldDb.cachedReferences)
+        .insert(
+          v3.CachedReferencesData(
+            key: 'session:S1:registrations',
+            valueJson: '[]',
+            fetchedAt: DateTime.utc(2026, 8, 9),
+          ),
+        );
+    // A queued capture, because this migration is the first one that DELETEs
+    // rows. Nothing else asserted that field evidence survives v3->v4, and it
+    // is the one loss that cannot be undone - the carpenter has left the venue.
+    await oldDb
+        .into(oldDb.syncTasks)
+        .insert(
+          v3.SyncTasksData(
+            id: 'task-1',
+            type: 'attendance',
+            payloadJson: '{"sessionId":"s1"}',
+            status: 'pendingSync',
+            retryCount: 1,
+            createdAt: DateTime.utc(2026, 8, 9, 9, 30),
+          ),
+        );
+    await oldDb
+        .into(oldDb.attendanceDrafts)
+        .insert(
+          v3.AttendanceDraftsData(
+            id: 'task-1',
+            sessionId: 's1',
+            carpenterId: 'c1',
+            encryptedMediaPath: '/enc/task-1.bin',
+            capturedAt: DateTime.utc(2026, 8, 9, 9, 29),
+            capturedBy: 'field-user-1',
+          ),
+        );
+    await oldDb.close();
+
+    final db = AppDatabase(connection.newConnection());
+    await verifier.migrateAndValidate(db, 4);
+
+    // The queued capture is untouched by the tier split.
+    final drafts = await db.select(db.attendanceDrafts).get();
+    expect(drafts, hasLength(1));
+    expect(drafts.single.encryptedMediaPath, '/enc/task-1.bin');
+    expect(await db.select(db.syncTasks).get(), hasLength(1));
+
+    // The preference moved to its own table...
+    final prefs = await db.select(db.preferences).get();
+    expect(prefs.map((p) => p.key), contains('pref:locale'));
+
+    // ...carrying its VALUE, not just its key. Asserting only the key would
+    // pass a migration that inserted an empty string and silently reset the
+    // language - which is the exact failure this whole task exists to prevent.
+    expect(
+      prefs.singleWhere((p) => p.key == localePrefKey).value,
+      '{"languageCode":"bn"}',
+    );
+
+    // And the value is still one DriftLocaleStore can honour. This is the
+    // user-visible guarantee: after upgrading, the phone is still in Bengali.
+    // It is why DriftLocaleStore reads the legacy JSON form as well as the
+    // bare code it now writes - the migration copies v3 rows verbatim.
+    expect(await DriftLocaleStore(db).read(), const Locale('bn'));
+
+    // ...and the server cache stayed where it belongs.
+    final cached = await db.select(db.cachedReferences).get();
+    expect(cached.map((r) => r.key), contains('session:S1:registrations'));
+    expect(cached.map((r) => r.key), isNot(contains('pref:locale')));
+
+    await db.close();
+  });
+
+  test('v3 to v4 survives being re-run after a half-applied migration', () async {
+    // WHY THIS STATE IS REACHABLE: drift does NOT wrap migration steps in a
+    // transaction - `VersionedSchema.stepByStepHelper` calls `runMigrationSteps`
+    // bare, and drift's own doc comment there shows the transaction as
+    // something the CALLER adds. And `user_version` is bumped only after the
+    // whole `onUpgrade` returns. So every statement in `from3To4` autocommits on
+    // its own, and a process kill between the INSERT and the DELETE leaves the
+    // device durably at v3 with `pref:locale` in BOTH tables. A mid-migration
+    // reload is likelier still on web-wasm.
+    //
+    // WHY IT MATTERS MORE THAN DATA LOSS: on the next launch the step re-runs.
+    // With a plain `INSERT` the primary key is hit again and SQLite raises
+    // `UNIQUE constraint failed: preferences.key`, which throws out of
+    // `beforeOpen` - so the database fails to open on that launch and on EVERY
+    // launch after, because the version never advances. The queued attendance
+    // evidence becomes unreachable rather than merely deleted, with no in-app
+    // recovery path. Hence `INSERT OR REPLACE`, and hence this test.
+    final connection = await verifier.schemaAt(3);
+
+    final oldDb = v3.DatabaseAtV3(connection.newConnection());
+    await oldDb
+        .into(oldDb.cachedReferences)
+        .insert(
+          v3.CachedReferencesData(
+            key: 'pref:locale',
+            valueJson: '{"languageCode":"bn"}',
+            fetchedAt: DateTime.utc(2026, 8, 9),
+          ),
+        );
+    await oldDb
+        .into(oldDb.cachedReferences)
+        .insert(
+          v3.CachedReferencesData(
+            key: 'session:S1:registrations',
+            valueJson: '[]',
+            fetchedAt: DateTime.utc(2026, 8, 9),
+          ),
+        );
+
+    // Replay exactly what `from3To4` gets through before the kill: the
+    // createTable and the INSERT, but NOT the DELETE. The table is created from
+    // the generated `Schema4` entity so this is byte-for-byte the DDL the real
+    // migration emits.
+    await Migrator(oldDb).createTable(Schema4(database: oldDb).preferences);
+    await oldDb.customStatement(
+      'INSERT INTO preferences (key, value) '
+      'SELECT key, value_json FROM cached_references '
+      "WHERE key LIKE 'pref:%'",
+    );
+    await oldDb.close();
+
+    // Now the next launch. This is still a v3 database as far as SQLite is
+    // concerned, so the step runs again over its own half-finished output.
+    final db = AppDatabase(connection.newConnection());
+    await verifier.migrateAndValidate(db, 4); // must NOT throw
+
+    // The preference is intact and not duplicated.
+    final prefs = await db.select(db.preferences).get();
+    expect(prefs, hasLength(1));
+    expect(prefs.single.key, localePrefKey);
+    expect(prefs.single.value, '{"languageCode":"bn"}');
+
+    // The retry completed the half that had been missed.
+    final cached = await db.select(db.cachedReferences).get();
+    expect(cached.map((r) => r.key), isNot(contains('pref:locale')));
+    expect(cached.map((r) => r.key), contains('session:S1:registrations'));
+
+    await db.close();
+  });
+
+  test('a cache sweep cannot delete preferences', () async {
+    // The whole point of the split. Before it, a sweep over cached_references
+    // would have taken pref:locale with it.
+    final db = AppDatabase(NativeDatabase.memory());
+    addTearDown(db.close);
+
+    await db
+        .into(db.preferences)
+        .insert(PreferencesCompanion.insert(key: 'pref:locale', value: 'bn'));
+    await db
+        .into(db.cachedReferences)
+        .insert(
+          CachedReferencesCompanion.insert(
+            key: 'session:S1:registrations',
+            valueJson: '[]',
+            fetchedAt: DateTime.utc(2026, 8, 9),
+          ),
+        );
+
+    await db.delete(db.cachedReferences).go(); // the sweep
+
+    expect(await db.select(db.cachedReferences).get(), isEmpty);
+    expect(await db.select(db.preferences).get(), hasLength(1));
   });
 }

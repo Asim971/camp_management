@@ -1,9 +1,9 @@
 import 'package:acsl_campaign/app/di/providers.dart';
 import 'package:acsl_campaign/core/auth/session_manager.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../support/fake_auth.dart';
+import '../support/harness.dart';
 
 void main() {
   test('authStateProvider reflects the SessionManager', () async {
@@ -12,10 +12,9 @@ void main() {
     final manager = SessionManager(service: service, tokens: tokens);
     addTearDown(manager.dispose);
 
-    final container = ProviderContainer(
+    final container = buildTestContainer(
       overrides: [sessionManagerProvider.overrideWithValue(manager)],
     );
-    addTearDown(container.dispose);
 
     expect(container.read(authStateProvider), isA<AuthSignedOut>());
 
@@ -33,10 +32,9 @@ void main() {
     );
     addTearDown(manager.dispose);
 
-    final container = ProviderContainer(
+    final container = buildTestContainer(
       overrides: [sessionManagerProvider.overrideWithValue(manager)],
     );
-    addTearDown(container.dispose);
 
     await manager.signIn('bob', 'pw');
     await pumpEventQueue();

@@ -5,9 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app/app.dart';
-import 'app/di/providers.dart';
-import 'core/dev/e2e_seeder.dart';
-import 'core/l10n/locale_controller.dart';
+import 'app/bootstrap.dart';
 
 /// Single entry point. Flavor + environment are selected via `--dart-define`
 /// (see lib/app/flavors.dart), so there is no per-flavor `main_*.dart`.
@@ -33,47 +31,10 @@ Future<void> main() async {
     );
   });
 
-  final container = ProviderContainer();
-  final config = container.read(appConfigProvider);
-
-  // E2E-only: seed deterministic local data before the app renders. Best-effort
-  // — a local-DB failure (e.g. Drift web wasm assets absent) must not block the
-  // UI, so DB-independent screens still boot.
-  if (config.e2e) {
-    try {
-      await seedE2EData(
-        container.read(appDatabaseProvider),
-        seed: config.e2eSeed,
-      );
-    } catch (_) {
-      /* seeding is non-critical for the demo */
-    }
-  }
-
-  // Adopt the persisted language before the first frame, so a device that chose
-  // Bengali does not flash English. Nothing to do with auth, so it sits with the
-  // other pre-frame setup rather than among the session calls below; it cannot
-  // throw (LocaleController.load swallows store failures and leaves the system
-  // locale), but it must be awaited or the first frame races it.
-  await container.read(localeControllerProvider.notifier).load();
-
-  // Audit must flush regardless of which screen the user visits, so the
-  // flusher is started here rather than lazily on a feature's first read.
-  container.read(auditFlusherProvider).start();
-
-  // Exchange any persisted refresh token before the first frame, so the
-  // router sees AuthRestoring rather than AuthSignedOut and does not flash
-  // the login screen on a mobile cold start that has a valid session.
-  await container.read(sessionManagerProvider).restore();
-
-  // E2E signs in for real against FakeAuthService rather than being handed a
-  // pre-built Session, so Maestro drives the same SessionManager path
-  // production does. Awaited, not fire-and-forget: the router evaluates its
-  // redirect on the first frame, and an unawaited sign-in would race it and
-  // land the run on /login.
-  if (config.e2e) {
-    await container.read(sessionManagerProvider).signIn(config.e2eRole, 'e2e');
-  }
+  // Every pre-frame step lives in bootstrap(), which never throws: what used
+  // to abort startup (and leave a blank screen) is now recorded on
+  // BootDiagnostics instead. See lib/app/bootstrap.dart.
+  final container = await bootstrap();
 
   runApp(
     UncontrolledProviderScope(

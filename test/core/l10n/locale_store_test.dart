@@ -12,9 +12,11 @@ void main() {
   tearDown(() => db.close());
 
   test('the preference key is reserved and frozen', () {
-    // The `pref:` prefix marks rows that are user preferences rather than
-    // cached server data, so a future cache-eviction sweep can exclude them by
-    // prefix instead of wiping the user's language choice.
+    // Frozen because it is the literal key stored on every device that ran
+    // P0.5, and the v3->v4 migration carries the row across by that key. The
+    // `pref:` prefix is kept for the same reason: renaming it would abandon the
+    // stored preference on every installed device. The prefix is no longer the
+    // thing protecting the preference from a cache sweep - a separate table is.
     expect(localePrefKey, 'pref:locale');
     expect(localePrefKey.startsWith('pref:'), isTrue);
   });
@@ -51,8 +53,34 @@ void main() {
     await store.write(const Locale('en'));
 
     expect(await store.read(), const Locale('en'));
-    final rows = await db.select(db.cachedReferences).get();
+    final rows = await db.select(db.preferences).get();
     expect(rows.where((r) => r.key == localePrefKey), hasLength(1));
+  });
+
+  test('the preference does not land in the evictable cache', () async {
+    // The tier split, asserted at the write site. If this ever regresses, the
+    // first cache sweep deletes the user's language (spec F9).
+    await DriftLocaleStore(db).write(const Locale('bn'));
+
+    expect(await db.select(db.cachedReferences).get(), isEmpty);
+    expect(await db.select(db.preferences).get(), hasLength(1));
+  });
+
+  test("a v3 device's migrated JSON value is still honoured", () async {
+    // P0.5 stored `{"languageCode":"bn"}` in cached_references.value_json, and
+    // the v3->v4 migration copies that value verbatim. If read() understood
+    // only the bare code it now writes, every upgrading device would silently
+    // fall back to the system language - the exact loss this epic prevents.
+    await db
+        .into(db.preferences)
+        .insert(
+          PreferencesCompanion.insert(
+            key: localePrefKey,
+            value: '{"languageCode":"bn"}',
+          ),
+        );
+
+    expect(await DriftLocaleStore(db).read(), const Locale('bn'));
   });
 
   test('clear removes the preference', () async {
@@ -67,32 +95,40 @@ void main() {
   test('a corrupt stored value returns null instead of throwing', () async {
     // A malformed row must degrade to "follow the system", not crash startup.
     // Locale is a display preference, not a compliance control (spec D7).
-    await db
-        .into(db.cachedReferences)
-        .insert(
-          CachedReferencesCompanion.insert(
-            key: localePrefKey,
-            valueJson: 'not-json{{{',
-            fetchedAt: DateTime.utc(2026, 8, 7),
-          ),
+    //
+    // Both malformed shapes are covered because they take different paths now
+    // that `value` holds a bare code: a value starting with `{` is parsed as
+    // P0.5's legacy blob and can THROW out of jsonDecode (only the try/catch
+    // saves it), while unparseable garbage is simply an unsupported code.
+    Future<void> store(String value) => db
+        .into(db.preferences)
+        .insertOnConflictUpdate(
+          PreferencesCompanion.insert(key: localePrefKey, value: value),
         );
 
+    await store('{"languageCode":"bn"'); // truncated legacy blob
+    expect(await DriftLocaleStore(db).read(), isNull);
+
+    await store('not-json{{{');
     expect(await DriftLocaleStore(db).read(), isNull);
   });
 
   test('an unsupported language code returns null', () async {
     // Guards against a stored value from a future build that supported more
-    // languages than this one does.
+    // languages than this one does. Asserted in both stored encodings.
     await db
-        .into(db.cachedReferences)
-        .insert(
-          CachedReferencesCompanion.insert(
+        .into(db.preferences)
+        .insert(PreferencesCompanion.insert(key: localePrefKey, value: 'fr'));
+    expect(await DriftLocaleStore(db).read(), isNull);
+
+    await db
+        .into(db.preferences)
+        .insertOnConflictUpdate(
+          PreferencesCompanion.insert(
             key: localePrefKey,
-            valueJson: '{"languageCode":"fr"}',
-            fetchedAt: DateTime.utc(2026, 8, 7),
+            value: '{"languageCode":"fr"}',
           ),
         );
-
     expect(await DriftLocaleStore(db).read(), isNull);
   });
 }

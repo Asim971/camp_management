@@ -22,7 +22,15 @@ class LocaleController extends Notifier<Locale?> {
   /// Precedence is stored choice, then the `LOCALE` dart-define, then the
   /// system: a user's explicit selection must beat a build-time default, and a
   /// build-time default must beat the device.
-  Future<void> load() async {
+  ///
+  /// [onDegraded] is called if the stored preference could not be read. It
+  /// exists because this method never throws (spec D7: a display preference
+  /// must not block startup), which means `bootstrap`'s `step()` wrapper - whose
+  /// only signal is a thrown error - cannot see this failure at all. Without a
+  /// channel out, a user's persisted Bengali choice is silently discarded and
+  /// nothing is recorded: guarded but silent, the shape P0.6 removes. Callers
+  /// that do not care may omit it; `bootstrap` records it on `BootDiagnostics`.
+  Future<void> load({void Function(Object error)? onDegraded}) async {
     try {
       final persisted = await ref.read(localeStoreProvider).read();
       if (persisted != null) {
@@ -34,6 +42,7 @@ class LocaleController extends Notifier<Locale?> {
       // through rather than returning is deliberate: a storage fault should
       // still leave a LOCALE-provisioned build in its intended language.
       debugPrint('Locale preference could not be loaded ($error).');
+      onDegraded?.call(error);
     }
 
     // No stored choice: honour --dart-define=LOCALE if it names a language we

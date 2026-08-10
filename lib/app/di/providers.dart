@@ -134,9 +134,32 @@ final campaignRepositoryProvider = Provider<CampaignRepository>(
 
 // ---- Offline sync stack (mobile field) ------------------------------------
 
+/// Overridden only by tests, so the real [AppDatabase.open] can run against a
+/// temp directory. `null` means "use path_provider", i.e. production.
+final databaseDirectoryProvider = Provider<Future<Object> Function()?>(
+  (ref) => null,
+);
+
+/// Also test-only. drift_flutter defaults this to `getTemporaryDirectory()`,
+/// which has no plugin under `flutter_test` — the specific call that throws.
+final tempDirectoryPathProvider = Provider<Future<String?> Function()?>(
+  (ref) => null,
+);
+
 final appDatabaseProvider = Provider<AppDatabase>((ref) {
-  final db = AppDatabase.open();
-  ref.onDispose(db.close);
+  final db = AppDatabase.open(
+    databaseDirectory: ref.watch(databaseDirectoryProvider),
+    tempDirectoryPath: ref.watch(tempDirectoryPathProvider),
+  );
+  // `unawaited` rather than the shorter `ref.onDispose(db.close)`: Dart's void
+  // covariance accepts a `Future<void> Function()` where a `void Function()` is
+  // expected, so the implicit form hides that the close is fire-and-forget.
+  // That hazard already cost this branch once - an unawaited close let a temp
+  // directory be removed under a live sqlite handle (invisible on POSIX,
+  // `PathAccessException` on Windows), which is why test/support/harness.dart
+  // registers its close before the container dispose. Behaviour is unchanged;
+  // the intent is now visible to the next reader.
+  ref.onDispose(() => unawaited(db.close()));
   return db;
 });
 

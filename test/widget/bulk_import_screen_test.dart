@@ -1,9 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:acsl_campaign/app/di/providers.dart';
 import 'package:acsl_campaign/core/auth/rbac.dart';
-import 'package:acsl_campaign/core/auth/session.dart';
-import 'package:acsl_campaign/core/auth/session_manager.dart';
 import 'package:acsl_campaign/features/bulk_import/application/import_controller.dart';
 import 'package:acsl_campaign/features/bulk_import/presentation/bulk_import_screen.dart';
 import 'package:file_selector_platform_interface/file_selector_platform_interface.dart';
@@ -12,25 +9,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
+import '../support/harness.dart';
 import '../support/single_primary.dart';
-
-/// A signed-in user holding the permission bulk import itself requires.
-/// AppShell (which BulkImportScreen now renders through) reads
-/// [authStateProvider] for its destinations and account menu.
-AuthState _signedInImporter() => AuthSignedIn(
-  Session(
-    userId: 'u-importer',
-    displayName: 'Test Importer',
-    scope: const AccessScope(
-      roles: {AppRole.campaignCreator},
-      permissions: {Permission.bulkImport},
-      organizationId: 'ORG_1',
-    ),
-    accessToken: 'a',
-    refreshToken: 'r',
-    expiresAt: DateTime.now().add(const Duration(hours: 1)),
-  ),
-);
 
 /// AppShell derives the selected nav index from GoRouterState.of(context),
 /// which requires the widget under test to be built by an actual GoRouter
@@ -92,13 +72,15 @@ void main() {
       FileSelectorPlatform.instance = _FakeFileSelectorPlatform(pickedFile);
 
       const campaignId = 'CAMP-1';
-      final container = ProviderContainer(
+      // Signed in holding the permission bulk import itself requires: AppShell
+      // (which BulkImportScreen renders through) reads authStateProvider for
+      // its destinations and account menu.
+      final container = buildTestContainer(
+        permissions: {Permission.bulkImport},
         overrides: [
           importControllerProvider.overrideWith(_FakeImportController.new),
-          authStateProvider.overrideWith((ref) => _signedInImporter()),
         ],
       );
-      addTearDown(container.dispose);
 
       await tester.pumpWidget(
         UncontrolledProviderScope(
@@ -142,13 +124,12 @@ void main() {
       FileSelectorPlatform.instance = _FakeFileSelectorPlatform(null);
 
       const campaignId = 'CAMP-2';
-      final container = ProviderContainer(
+      final container = buildTestContainer(
+        permissions: {Permission.bulkImport},
         overrides: [
           importControllerProvider.overrideWith(_FakeImportController.new),
-          authStateProvider.overrideWith((ref) => _signedInImporter()),
         ],
       );
-      addTearDown(container.dispose);
 
       await tester.pumpWidget(
         UncontrolledProviderScope(

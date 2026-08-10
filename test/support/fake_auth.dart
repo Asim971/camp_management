@@ -102,3 +102,46 @@ class FakeTokenStore implements TokenStore {
     value = null;
   }
 }
+
+/// [TokenStore] whose read fails, standing in for storage that is present but
+/// unusable — a Keystore whose cipher changed under an OS update, a backup
+/// restored onto different hardware. Writes are no-ops rather than throws,
+/// because it is the boot-path *read* this models; [WriteThrowingTokenStore]
+/// covers the other half.
+///
+/// Neither shape is reachable through the shipped stores — [MobileTokenStore]
+/// catches inside every method and [WebTokenStore] is all no-ops — so these
+/// model a future [TokenStore] implementation, which is the point: the store is
+/// an injected interface and `SessionManager` must survive a careless one.
+class ThrowingTokenStore implements TokenStore {
+  @override
+  Future<void> persist(String refreshToken) async {}
+
+  @override
+  Future<String?> read() async => throw StateError('storage unavailable');
+
+  @override
+  Future<void> clear() async {}
+}
+
+/// [TokenStore] that reads fine and fails on every *write*.
+///
+/// This is the asymmetric shape, and the interesting one: the read succeeding
+/// is what carries `restore()` past `_emit(AuthRestoring())` before the failure
+/// lands, so the exception alone is not enough to leave a usable app — state
+/// has to be repaired too, or the router holds on a splash forever.
+class WriteThrowingTokenStore implements TokenStore {
+  WriteThrowingTokenStore([this.value = 'stored-r']);
+
+  final String? value;
+
+  @override
+  Future<void> persist(String refreshToken) async =>
+      throw StateError('storage is read-only');
+
+  @override
+  Future<String?> read() async => value;
+
+  @override
+  Future<void> clear() async => throw StateError('storage is read-only');
+}

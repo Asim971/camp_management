@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/harness.dart';
+
 /// In-memory [LocaleStore] so the picker is driven by the REAL
 /// [LocaleController] (the thing under test is the wiring between the tiles and
 /// `select()`), with only persistence faked.
@@ -39,10 +41,9 @@ void main() {
     _FakeLocaleStore store, {
     bool load = false,
   }) async {
-    final container = ProviderContainer(
+    final container = buildTestContainer(
       overrides: [localeStoreProvider.overrideWithValue(store)],
     );
-    addTearDown(container.dispose);
     if (load) await container.read(localeControllerProvider.notifier).load();
 
     await tester.pumpWidget(

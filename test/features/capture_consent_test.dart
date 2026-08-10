@@ -20,6 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/harness.dart';
 import '../support/scripted_adapter.dart';
 
 const _bn = ConsentNotice(
@@ -206,7 +207,11 @@ void main() {
       db = AppDatabase(NativeDatabase.memory());
       sync = _RecordingSyncEngine();
       evidence = _InMemoryEvidenceStore();
-      final container = ProviderContainer(
+      addTearDown(db.close);
+      // The database is overridden on top of the harness default rather than
+      // taken from it, because the assertions below read rows back off `db`
+      // directly and need the same instance the controller wrote to.
+      return buildTestContainer(
         overrides: [
           noticeRepositoryProvider.overrideWithValue(repository),
           appDatabaseProvider.overrideWithValue(db),
@@ -216,12 +221,11 @@ void main() {
           faceQualityCheckerProvider.overrideWithValue(
             const PassthroughQualityChecker(),
           ),
+          // Signed OUT, not `permissions:`: capture must work before any
+          // permission check, and this pins that it does not read a session.
           authStateProvider.overrideWithValue(const AuthSignedOut()),
         ],
       );
-      addTearDown(container.dispose);
-      addTearDown(db.close);
-      return container;
     }
 
     CaptureController notifierOf(ProviderContainer c) =>
@@ -272,14 +276,13 @@ void main() {
       // unawaited, the throw escaped and left the notice step on a permanent
       // spinner instead of the block message. Still fail-closed either way; this
       // pins WHICH failure the user is shown.
-      final container = ProviderContainer(
+      final container = buildTestContainer(
         overrides: [
           noticeRepositoryProvider.overrideWith(
             (ref) => throw StateError('database unavailable'),
           ),
         ],
       );
-      addTearDown(container.dispose);
 
       final notifier = container.read(
         captureControllerProvider(_args).notifier,
@@ -436,15 +439,14 @@ void main() {
       db = AppDatabase(NativeDatabase.memory());
       final dio = Dio(BaseOptions(baseUrl: 'https://example.invalid'))
         ..httpClientAdapter = ScriptedAdapter(replies);
-      final container = ProviderContainer(
+      addTearDown(db.close);
+      // Again the caller's own `db`, because both tests read rows back off it.
+      return buildTestContainer(
         overrides: [
           appDatabaseProvider.overrideWithValue(db),
           dioProvider.overrideWithValue(dio),
         ],
       );
-      addTearDown(container.dispose);
-      addTearDown(db.close);
-      return container;
     }
 
     test('resolve reads the Drift cache, not just the bundled floor', () async {

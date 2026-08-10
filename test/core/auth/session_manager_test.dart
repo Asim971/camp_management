@@ -51,7 +51,10 @@ class _GatedTokenStore implements TokenStore {
 void main() {
   SessionManager build({
     ScriptedAuthService? service,
-    FakeTokenStore? tokens,
+    // TokenStore, not FakeTokenStore: the unreadable-store case below needs a
+    // store that throws, and callers that inspect `value`/`persistCalls` hold
+    // their own typed reference anyway.
+    TokenStore? tokens,
     DateTime? now,
   }) => SessionManager(
     service: service ?? ScriptedAuthService(),
@@ -171,6 +174,53 @@ void main() {
         await pumpEventQueue();
 
         expect(seen.map((s) => s.runtimeType), [AuthSignedOut]);
+        await sub.cancel();
+        manager.dispose();
+      },
+    );
+
+    test('an unreadable store throws before it touches state', () async {
+      // restore() deliberately does not swallow this - bootstrap() records it,
+      // and a guard that returned normally would hide it from that recorder
+      // (see restore()'s note). What restore() owes its caller here is that the
+      // failure lands before ANY _emit, so its repair catch has nothing to fix
+      // and emits nothing: `seen` being empty is the assertion that pins the
+      // read-ahead-of-_emit ordering. Move the read below
+      // _emit(AuthRestoring()) and this test fails.
+      final manager = build(tokens: ThrowingTokenStore());
+      final seen = <AuthState>[];
+      final sub = manager.changes.listen(seen.add);
+
+      await expectLater(manager.restore(), throwsStateError);
+      await pumpEventQueue();
+
+      expect(seen, isEmpty);
+      expect(manager.state, isA<AuthSignedOut>());
+      await sub.cancel();
+      manager.dispose();
+    });
+
+    test(
+      'an unwritable store lands signed out, never stuck restoring',
+      () async {
+        // The asymmetric store: the read SUCCEEDS, so restore() gets past
+        // _emit(AuthRestoring()) before _adopt -> _persistIfCurrent throws. The
+        // exception alone is not enough - bootstrap()'s step() can record it but
+        // structurally cannot undo an emitted state - so restore() must repair
+        // state itself. Without that repair the router holds on the splash
+        // forever, which reads to a user as a hang: worse than the blank screen
+        // P0.6 closes, not better.
+        final manager = build(tokens: WriteThrowingTokenStore());
+        final seen = <AuthState>[];
+        final sub = manager.changes.listen(seen.add);
+
+        // Still throws, so bootstrap() records the degradation. Repair and
+        // report are both required; neither substitutes for the other.
+        await expectLater(manager.restore(), throwsStateError);
+        await pumpEventQueue();
+
+        expect(manager.state, isA<AuthSignedOut>());
+        expect(seen.map((s) => s.runtimeType), [AuthRestoring, AuthSignedOut]);
         await sub.cancel();
         manager.dispose();
       },

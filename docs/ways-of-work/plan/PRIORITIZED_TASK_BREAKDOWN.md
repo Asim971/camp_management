@@ -482,6 +482,26 @@ Every feature task is done only when:
 - [ ] Measure app startup, local search, capture commit, queue drain, dashboard freshness, and evidence-view latency.
 - [ ] Document operational alerts, reconciliation runbook, rollback path, and known pilot limits.
 
+### P0.R5 Schema Migration Retry Safety
+
+**Defect:** `from2To3` (the schema-v3 step added by P0.5) uses `addColumn`, which is not idempotent. Drift does not wrap migration steps in a transaction, and `user_version` is bumped only after `onUpgrade` returns, so a device killed mid-migration re-runs the step, raises `duplicate column name`, and that throws out of `beforeOpen` — the database then fails to open on that launch and on every launch after, because the version never advances. Queued attendance evidence becomes unreachable with no in-app recovery path.  
+**Widened by P0.6:** a v2 device's `onUpgrade` used to be `from2To3` alone before its version bump; it is now `from2To3` and then `from3To4`'s three statements before a single bump. `from3To4`'s `INSERT OR REPLACE` cannot help such a device, because the retry dies inside `from2To3` before v4 is ever reached.  
+**Priority:** blocking before the first pilot device, not backlog. It is latent only because v2 existed solely between P0.3 and P0.5 and the app is pre-pilot.
+
+- [ ] Wrap `runMigrationSteps` in a transaction instead of adding another per-step idempotency idiom. Transactions are supported inside `beforeOpen` (`_BeforeOpeningExecutor.beginTransactionInContext` delegates to the base executor) and let SQLite roll DDL back cleanly, which removes the whole category rather than one instance of it.
+- [ ] Add a v2 -> v4 retry-safety test in the style of the v3 -> v4 one added in P0.6 (`test/core/storage/migration_test.dart`, "v3 to v4 survives being re-run after a half-applied migration").
+
+### P0.R6 Degradation Observability End to End
+
+P0.6 introduced `BootDiagnostics` so a degraded boot is recorded rather than silent. Three links in that chain are still open, and they are one piece of work: a degradation that is caught, reported and *visible* — not two of the three.
+
+**Defect (reported in review of PR #4):** `DriftLocaleStore.read()` catches every error and returns `null`, so `LocaleController.load`'s `onDegraded` callback can never fire for a storage fault. A locked or corrupt database, or a failed wasm startup on web, is indistinguishable from a first launch with no preference stored. The guard was added one layer above the place that swallows.  
+**Not fixed in P0.6 deliberately:** closing it changes `LocaleStore.read()`'s contract — the interface, `DriftLocaleStore`, `LocaleController`, and the tests that assert `null` means "no preference" — and `read()` returning `null` on failure is itself intentional from P0.5, because a display preference must not block startup. The fix separates *not throwing* from *not reporting*, which is a design decision rather than a patch.
+
+- [ ] Give `LocaleStore.read()` a way to report a fault without throwing, so a storage failure reaches `onDegraded` instead of impersonating "no preference set". Keep the non-blocking behaviour: degrade to the system locale, report, do not abort.
+- [ ] `LocaleController.select` swallows its write failure silently — the same shape on the write path, where the user has just made an explicit choice that will not survive a restart and is told nothing.
+- [ ] `BootDiagnostics` has no production reader, so even a correctly-reported degradation is visible only to CI and debug builds. A field user on a device whose database will not open sees a working app that silently loses queued evidence. Decide the surface (a settings diagnostics panel is the cheapest) and wire it.
+
 ## 12. External Decisions and Owners
 
 | Decision/contract | Required by | Suggested owner | Target priority |

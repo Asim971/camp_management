@@ -198,35 +198,81 @@ class SessionManager {
   }
 
   /// Exchanges any persisted refresh token for a session. Call once at boot.
+  ///
+  /// Deliberately does NOT swallow a failing [TokenStore]: `bootstrap` is what
+  /// turns a pre-frame failure into a *recorded* degradation on
+  /// `BootDiagnostics`, and a guard here that returned normally made the
+  /// failure invisible to that recorder - "guarded but silent", the exact
+  /// failure mode P0.6 exists to remove. So the error is rethrown.
+  ///
+  /// What is NOT delegated upwards is *state repair*. `bootstrap`'s `step()`
+  /// can only catch an exception; it structurally cannot undo an
+  /// [AuthRestoring] this method already emitted. So the `catch` below repairs
+  /// state at the layer that owns state and then rethrows - both, not either.
+  ///
+  /// Two failing-store shapes matter, and only the second needs the repair:
+  ///
+  /// - Throws on **read**: the read is the first `await`, ahead of every
+  ///   [_emit], and the guard at the top means state is already
+  ///   [AuthSignedOut] - so the caller is left with a usable app with nothing
+  ///   to fix. Keep the read there; moving it below the
+  ///   `_emit(AuthRestoring())` would drag this shape into the second case.
+  /// - Reads, then throws on **write**: `_exchange` -> `_adopt` ->
+  ///   [_persistIfCurrent], or `_exchange`'s own `_enqueue(_tokens.clear)`,
+  ///   throws *after* `_emit(const AuthRestoring())` below. Left unrepaired
+  ///   that is a permanent splash - recorded, but still unusable, and a hang
+  ///   reads worse to a user than a crash.
+  ///
+  /// Neither shape is reachable through today's implementations
+  /// ([MobileTokenStore] catches inside `persist`/`read`/`clear`,
+  /// [WebTokenStore] is all no-ops), so the write shape is a latent hazard held
+  /// closed rather than a live bug - but [TokenStore] is an injected interface
+  /// and the next implementation of it need not be as careful.
+  /// `session_manager_test.dart` pins both shapes.
   Future<void> restore() async {
     // A live session (signed in, or already restoring) must not be torn down
     // by a stray extra call - restore() is meant to run once at boot, and
     // without this guard a second call could race the first, or clobber an
     // already-established sign-in.
     if (_state is! AuthSignedOut) return;
-    // Captured before the storage read, like signIn/signOut capture theirs
-    // before their first await: a sign-out that completes entirely during a
-    // slow read must be able to invalidate this restore when it resumes.
-    final generation = _generation;
-    final stored = await _tokens.read();
-    if (!_isCurrent(generation)) {
-      // Superseded while the stored token was being read. Whatever ended
-      // this epoch already decided state and storage; do not touch either.
-      return;
+    try {
+      // Captured before the storage read, like signIn/signOut capture theirs
+      // before their first await: a sign-out that completes entirely during a
+      // slow read must be able to invalidate this restore when it resumes.
+      final generation = _generation;
+      final stored = await _tokens.read();
+      if (!_isCurrent(generation)) {
+        // Superseded while the stored token was being read. Whatever ended
+        // this epoch already decided state and storage; do not touch either.
+        return;
+      }
+      if (stored == null) {
+        // Web, or a first run. Never emit AuthRestoring: the router would hold
+        // on a splash for a state this platform can never leave.
+        _emit(const AuthSignedOut());
+        return;
+      }
+      _emit(const AuthRestoring());
+      // Bypasses the refresh() single-flight guard, but only restore() runs
+      // during AuthRestoring and refresh() no-ops while signed out/restoring,
+      // so no second concurrent exchange can start here today. It still shares
+      // the generation guard below, so a sign-out or sign-in racing boot cannot
+      // be undone by a stale restore landing late.
+      await _exchange(stored, generation);
+    } catch (_) {
+      // Conditioned on [AuthRestoring] rather than on the generation, because
+      // that is precisely "this call left state mid-flight": AuthRestoring is
+      // emitted nowhere else, and every other emitter (signIn, signOut,
+      // _adopt, _exchange) moves to a terminal state. So a sign-out or a
+      // completed sign-in that raced us has already published a terminal state
+      // that must NOT be clobbered with AuthSignedOut - and nor must an
+      // AuthSignedIn this restore itself just adopted before throwing on the
+      // way out. Repair only, never overwrite.
+      if (_state is AuthRestoring) _emit(const AuthSignedOut());
+      // Rethrow: repairing state is this layer's job, but REPORTING the
+      // degradation is bootstrap's, and it can only see a thrown error.
+      rethrow;
     }
-    if (stored == null) {
-      // Web, or a first run. Never emit AuthRestoring: the router would hold
-      // on a splash for a state this platform can never leave.
-      _emit(const AuthSignedOut());
-      return;
-    }
-    _emit(const AuthRestoring());
-    // Bypasses the refresh() single-flight guard, but only restore() runs
-    // during AuthRestoring and refresh() no-ops while signed out/restoring,
-    // so no second concurrent exchange can start here today. It still shares
-    // the generation guard below, so a sign-out or sign-in racing boot cannot
-    // be undone by a stale restore landing late.
-    await _exchange(stored, generation);
   }
 
   /// Renews the session. Concurrent callers SHARE one transport call, but

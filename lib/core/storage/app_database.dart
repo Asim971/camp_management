@@ -52,10 +52,36 @@ class AttendanceDrafts extends Table {
 /// Cached read-only reference lists (registered carpenters for a session) so
 /// field search works offline. Never an authoritative master — display
 /// freshness and direct corrections to Sales Eco (§8.6).
+///
+/// TIER: evictable cache. Every row here is server-derived and safe to delete
+/// at any time — losing one costs a network round trip, nothing more. That is
+/// what makes the cache sweeps P0.4.3 and P1.7 imply safe to write against this
+/// table without reading its callers. Anything NOT safe to delete does not
+/// belong here; see [Preferences] and docs/architecture/storage-tiers.md.
 class CachedReferences extends Table {
   TextColumn get key => text()(); // e.g. 'session:<id>:registrations'
   TextColumn get valueJson => text()();
   DateTimeColumn get fetchedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {key};
+}
+
+/// Device-scoped user preferences.
+///
+/// A SEPARATE table from `cached_references` on purpose. That table is an
+/// evictable cache of server-derived reads, and P0.4.3 (clear protected cached
+/// media per policy) and P1.7 (retention execution) both imply a sweep over it.
+/// P0.5 kept the locale preference there behind a `pref:` key prefix, which only
+/// a comment enforced - so the first sweep would have deleted the user's
+/// language. Preferences are NEVER evicted; see docs/architecture/storage-tiers.md.
+///
+/// [value] is an opaque string owned by whichever store reads the key. It is
+/// deliberately not JSON: a preference is one scalar, and the v3 rows that
+/// migrate in here carry a JSON blob only because that is how P0.5 wrote them.
+class Preferences extends Table {
+  TextColumn get key => text()(); // 'pref:locale'
+  TextColumn get value => text()();
 
   @override
   Set<Column> get primaryKey => {key};
@@ -147,6 +173,7 @@ class ConsentNotices extends Table {
     CachedReferences,
     AuditEvents,
     ConsentNotices,
+    Preferences,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -154,10 +181,41 @@ class AppDatabase extends _$AppDatabase {
 
   /// Opens the on-device database across native and web (wasm). Tests use the
   /// primary constructor with an in-memory `NativeDatabase.memory()` executor.
-  AppDatabase.open() : super(driftDatabase(name: 'acsl_campaign'));
+  ///
+  /// Both seams default to null, which is exactly today's production behaviour:
+  /// drift_flutter then resolves `getApplicationDocumentsDirectory()` and
+  /// `getTemporaryDirectory()` from `package:path_provider`. They exist so a
+  /// TEST can exercise this real code path — `open()` plus the whole migration
+  /// chain — against a temp directory, because neither path_provider call has a
+  /// plugin implementation under `flutter_test`.
+  ///
+  /// `tempDirectoryPath` is not optional-in-practice for tests: drift_flutter
+  /// defaults it to `getTemporaryDirectory()`, and that is the call that
+  /// actually throws MissingPluginException, so seaming only the database
+  /// directory would leave the test broken.
+  AppDatabase.open({
+    Future<Object> Function()? databaseDirectory,
+    Future<String?> Function()? tempDirectoryPath,
+  }) : super(
+         driftDatabase(
+           name: 'acsl_campaign',
+           native: DriftNativeOptions(
+             databaseDirectory: databaseDirectory,
+             tempDirectoryPath: tempDirectoryPath,
+           ),
+           web: DriftWebOptions(
+             // Relative URIs: both files are served from the web root because
+             // they live in `web/`. Without this parameter drift_flutter's web
+             // opener throws ArgumentError synchronously, which is why the web
+             // build could not start.
+             sqlite3Wasm: Uri.parse('sqlite3.wasm'),
+             driftWorker: Uri.parse('drift_worker.js'),
+           ),
+         ),
+       );
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -186,6 +244,58 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(
           schema.attendanceDrafts,
           schema.attendanceDrafts.consentContentHash,
+        );
+      },
+      // v4 splits preferences off the evictable cache. Nothing is dropped:
+      // the pref: rows are MOVED, and every cache row and every queued capture
+      // is untouched.
+      //
+      // EVERY STATEMENT HERE MUST BE IDEMPOTENT, because this step can run more
+      // than once against its own half-finished output. Drift does NOT wrap
+      // migration steps in a transaction - `VersionedSchema.stepByStepHelper`
+      // calls `runMigrationSteps` bare, and drift's doc comment there shows the
+      // transaction as something the caller adds - and `user_version` is bumped
+      // only after the whole `onUpgrade` returns. So each statement autocommits
+      // alone, and a process kill part-way through leaves the device durably at
+      // v3 with the work so far already committed. On the next launch the step
+      // starts over. (A mid-migration reload is likelier still on web-wasm.)
+      //
+      // The failure mode this avoids is worse than losing the preference: a
+      // plain `INSERT` re-run over an already-inserted row raises `UNIQUE
+      // constraint failed: preferences.key`, which throws out of `beforeOpen`,
+      // so the database fails to open on that launch and on every launch after,
+      // because the version never advances. The queued attendance evidence
+      // becomes UNREACHABLE rather than deleted, with no in-app recovery path.
+      // `test/core/storage/migration_test.dart` reproduces exactly that.
+      from3To4: (m, schema) async {
+        // Idempotent already: drift emits CREATE TABLE IF NOT EXISTS.
+        await m.createTable(schema.preferences);
+        // Carry existing preferences across. A v3 device in the field has a
+        // pref:locale row; losing it would silently reset the language. The
+        // value is copied VERBATIM - DriftLocaleStore reads P0.5's JSON form as
+        // well as the bare code it now writes, so the copy needs no knowledge
+        // of any particular preference's encoding. The table names are the
+        // real SQL ones (`cached_references`, plural) as dumped to
+        // drift_schemas/drift_schema_v4.json.
+        //
+        // OR REPLACE, not `ON CONFLICT(key) DO UPDATE`: both fix the retry, but
+        // OR REPLACE has no SQLite version floor (upsert needs 3.24+) and no
+        // INSERT-SELECT/ON-CONFLICT parse ambiguity, and this statement has to
+        // hold on Android, iOS and web-wasm alike. Its delete-then-insert
+        // semantics are harmless here - `preferences` has no triggers and
+        // nothing references it by foreign key. It also cannot clobber a newer
+        // user choice: a half-migrated database is stuck at v3 and never opens,
+        // so no write can reach `preferences` between the two attempts.
+        await m.database.customStatement(
+          'INSERT OR REPLACE INTO preferences (key, value) '
+          'SELECT key, value_json FROM cached_references '
+          "WHERE key LIKE 'pref:%'",
+        );
+        // Idempotent by construction: deleting an already-deleted row is a
+        // no-op, so a kill after the INSERT and before this line is recoverable
+        // in the other direction too.
+        await m.database.customStatement(
+          "DELETE FROM cached_references WHERE key LIKE 'pref:%'",
         );
       },
     ),
