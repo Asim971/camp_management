@@ -2,31 +2,17 @@
 /// across list pages, detail pages, notifications, mobile sync and analytics
 /// (UI/UX Guideline §1.1, §5.4, Appendix B). Status is NEVER a raw string.
 ///
-/// Each enum exposes a stable [wireValue] (API contract) and a localization
-/// key; the human label is resolved through l10n so bn/en stay in parity.
+/// [CampaignStatus] now lives in `package:campaign_contracts` so the server
+/// cannot disagree with the client about it (spec D5). It is re-exported here
+/// rather than moved-and-reimported because 28 files import this path and the
+/// enum name is unchanged: a shim keeps that diff at one file instead of 28.
+///
+/// The other enums below have NO wire value yet — their server contracts are
+/// blocked — so they stay here until the sub-project that defines them lands.
+/// Do not invent wire values for them to make this file look symmetrical.
 library;
 
-enum CampaignStatus {
-  draft,
-  pendingApproval,
-  returned,
-  approved,
-  active,
-  paused,
-  completed,
-  cancelled;
-
-  String get wireValue => switch (this) {
-    draft => 'DRAFT',
-    pendingApproval => 'PENDING_APPROVAL',
-    returned => 'RETURNED',
-    approved => 'APPROVED',
-    active => 'ACTIVE',
-    paused => 'PAUSED',
-    completed => 'COMPLETED',
-    cancelled => 'CANCELLED',
-  };
-}
+export 'package:campaign_contracts/campaign_contracts.dart' show CampaignStatus;
 
 enum RegistrationStatus {
   invited,

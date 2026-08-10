@@ -13,6 +13,9 @@ dependencies:
   flutter_localizations:
     sdk: flutter
 
+  campaign_contracts:
+    path: packages/campaign_contracts
+
   # State & DI
   flutter_riverpod: ^2.5.1
 
