@@ -72,7 +72,9 @@ Future<void> seedCampaign(
   CampaignStatus status = CampaignStatus.draft,
   String? objective,
   String? venue,
+  String? approverId,
   int targetAudience = 0,
+  int version = 1,
   List<String> territoryIds = const [],
   DateTime? startAt,
   DateTime? endAt,
@@ -80,9 +82,9 @@ Future<void> seedCampaign(
   await db.execute(
     'INSERT INTO campaigns '
     '(id, organization_id, name, type, objective, status, owner_id, '
-    ' venue, target_audience, start_at, end_at) '
+    ' approver_id, venue, target_audience, version, start_at, end_at) '
     'VALUES (@id, @org, @name, @type, @objective, @status, @owner, '
-    ' @venue, @target, @startAt, @endAt)',
+    ' @approver, @venue, @target, @version, @startAt, @endAt)',
     params: {
       'id': id,
       'org': organizationId,
@@ -91,8 +93,10 @@ Future<void> seedCampaign(
       'objective': objective,
       'status': status.wireValue,
       'owner': ownerId,
+      'approver': approverId,
       'venue': venue,
       'target': targetAudience,
+      'version': version,
       'startAt': startAt,
       'endAt': endAt,
     },
@@ -104,6 +108,78 @@ Future<void> seedCampaign(
       params: {'campaign': id, 'territory': territoryId},
     );
   }
+}
+
+/// Inserts one `campaign_sessions` row directly, bypassing every route and
+/// validator. [id] defaults to something unique enough for a handful of
+/// sessions per test; pass an explicit one if a test needs to name it.
+Future<void> seedCampaignSession(
+  Db db, {
+  required String id,
+  required String campaignId,
+  String? venue,
+  int? capacity,
+  DateTime? startAt,
+  DateTime? endAt,
+}) => db.execute(
+  'INSERT INTO campaign_sessions '
+  '(id, campaign_id, venue, capacity, start_at, end_at) '
+  'VALUES (@id, @campaign, @venue, @capacity, @startAt, @endAt)',
+  params: {
+    'id': id,
+    'campaign': campaignId,
+    'venue': venue,
+    'capacity': capacity,
+    'startAt': startAt,
+    'endAt': endAt,
+  },
+);
+
+/// A DRAFT campaign written straight into the database with two
+/// deliberately overlapping sessions — the shape a malicious or stale
+/// client could send if the wizard were the only thing enforcing session
+/// non-overlap. `submit`'s server-side [validateForSubmit] revalidation
+/// (D6) must catch it exactly as it would client-side, with the same
+/// field-keyed errors, even though this row never touched a validator on
+/// its way in.
+Future<String> seedInvalidDraft(
+  Db db, {
+  String id = 'invalid-draft',
+  String organizationId = 'org-1',
+  String ownerId = 'user-1',
+  String approverId = 'user-2',
+}) async {
+  await seedCampaign(
+    db,
+    id: id,
+    name: 'Bypassed The Wizard',
+    organizationId: organizationId,
+    ownerId: ownerId,
+    approverId: approverId,
+    targetAudience: 10,
+    territoryIds: const ['terr-1'],
+  );
+  await seedCampaignSession(
+    db,
+    id: '$id-session-0',
+    campaignId: id,
+    venue: 'Hall A',
+    capacity: 50,
+    startAt: DateTime.utc(2026, 9, 1, 9),
+    endAt: DateTime.utc(2026, 9, 1, 12),
+  );
+  await seedCampaignSession(
+    db,
+    id: '$id-session-1',
+    campaignId: id,
+    venue: 'Hall A',
+    capacity: 50,
+    // Starts before the first session ends: an overlap validateForSubmit
+    // must reject.
+    startAt: DateTime.utc(2026, 9, 1, 11),
+    endAt: DateTime.utc(2026, 9, 1, 14),
+  );
+  return id;
 }
 
 /// Inserts [count] campaigns (`seed-0` .. `seed-<count-1>`), all owned by
