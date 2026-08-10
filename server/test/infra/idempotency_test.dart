@@ -53,14 +53,14 @@ void main() {
   });
   tearDown(() async => db.close());
 
-  Handler wrapWithAuth(Handler inner, {String userId = 'user-1'}) =>
+  Handler wrapWithAuth(Handler inner, {String userId = 'user-1', Db? using}) =>
       const Pipeline()
           .addMiddleware(correlation())
           .addMiddleware(errorEnvelope())
           .addHandler(
             (request) => _stubAuth(userId)((req) {
               return const Pipeline()
-                  .addMiddleware(idempotency(db: db))
+                  .addMiddleware(idempotency(db: using ?? db))
                   .addHandler(inner)(req);
             })(request),
           );
@@ -174,5 +174,136 @@ void main() {
     await post(handler, key: 'k1', body: {'name': 'A'});
     await post(handler, key: 'k1', body: {'name': 'A'});
     expect(calls, 2, reason: 'only 2xx responses are replayable');
+  });
+
+  // C1: the client's RetryInterceptor resends an identical POST, key and all,
+  // on a send/receive timeout — precisely when the first attempt may still
+  // be running. A plain "SELECT, miss, run handler, INSERT ... ON CONFLICT DO
+  // NOTHING" shape lets both requests miss the SELECT and both run the
+  // handler, with DO NOTHING silently absorbing the collision. Two separate
+  // `Db.open` connections (not two futures sharing one connection) are used
+  // so the two POSTs are genuine, independent, concurrent sessions against
+  // Postgres — the same shape as two real HTTP requests racing each other —
+  // and the atomic claim (not application-level sequencing) is what must
+  // decide the winner.
+  test('two concurrent identical POSTs run the handler exactly once', () async {
+    final dbA = await Db.open(testDatabaseUrl);
+    final dbB = await Db.open(testDatabaseUrl);
+    addTearDown(dbA.close);
+    addTearDown(dbB.close);
+
+    var calls = 0;
+    Future<Response> slowHandler(Request req) async {
+      calls++;
+      // Holds the winner inside the handler long enough that the loser's
+      // claim attempt and follow-up SELECT are guaranteed to run while the
+      // winner's reservation is still unfulfilled (response_status IS
+      // NULL) — otherwise the two requests might not overlap at all and
+      // this test would prove nothing about the race.
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+      return Response(201, body: jsonEncode({'id': 'race-result'}));
+    }
+
+    final handlerA = wrapWithAuth(slowHandler, using: dbA);
+    final handlerB = wrapWithAuth(slowHandler, using: dbB);
+
+    final results = await Future.wait([
+      post(handlerA, key: 'race-key', body: {'name': 'A'}),
+      post(handlerB, key: 'race-key', body: {'name': 'A'}),
+    ]);
+
+    expect(
+      calls,
+      1,
+      reason:
+          'exactly one of the two concurrent requests may run the '
+          'handler',
+    );
+    final statuses = results.map((r) => r.statusCode).toList()..sort();
+    expect(
+      statuses,
+      anyOf(
+        equals([201, 201]), // the loser's SELECT ran after fulfilment.
+        equals([201, 409]), // the loser's SELECT ran while still in flight.
+      ),
+      reason:
+          'the loser must be a replay (201) or IN_FLIGHT (409), never a '
+          'second handler execution',
+    );
+  });
+
+  // I2: expiry was enforced on read, but the row's PK survived, so the
+  // follow-up INSERT ... ON CONFLICT DO NOTHING never stored again and the
+  // original response was fossilized forever. The atomic claim's
+  // `DO UPDATE ... WHERE expires_at <= now()` branch reclaims an expired row
+  // as a fresh reservation, so an old key becomes idempotent again rather
+  // than permanently replaying (or permanently failing to replay) a stale
+  // answer.
+  test(
+    'an expired key is reclaimed: the handler reruns once and refulfils',
+    () async {
+      var calls = 0;
+      final handler = wrapWithAuth((_) {
+        calls++;
+        return Response(201, body: jsonEncode({'id': 'result-$calls'}));
+      });
+
+      final first = await post(handler, key: 'stale-key', body: {'name': 'A'});
+      expect(first.statusCode, 201);
+      expect(calls, 1);
+
+      await db.execute(
+        "UPDATE idempotency_keys SET expires_at = now() - interval '1 hour' "
+        "WHERE user_id = 'user-1' AND key = 'stale-key'",
+      );
+
+      final second = await post(handler, key: 'stale-key', body: {'name': 'A'});
+      expect(
+        second.statusCode,
+        201,
+        reason: 'an expired key must be usable again, not fossilized',
+      );
+      expect(calls, 2, reason: 'the handler must rerun for the expired key');
+      final secondBody = await second.readAsString();
+      expect(
+        secondBody,
+        jsonEncode({'id': 'result-2'}),
+        reason: 'the fresh response, not the stale one, must be stored',
+      );
+
+      // The follow-up POST after the rerun must replay the NEW response,
+      // proving the row was refulfilled with the new answer and a fresh
+      // expiry, not left in some half-reclaimed state.
+      final third = await post(handler, key: 'stale-key', body: {'name': 'A'});
+      expect(calls, 2, reason: 'the third call must replay, not rerun');
+      expect(await third.readAsString(), secondBody);
+    },
+  );
+
+  // M6: the throw path through the atomic claim must behave exactly like
+  // the ordinary non-2xx path — the reservation is deleted, not left
+  // fossilized as an unfulfillable in-flight row, so a retry can rerun.
+  test('a thrown exception through idempotency is a 500 envelope, and a '
+      'retry reruns rather than replaying or hanging on IN_FLIGHT', () async {
+    var calls = 0;
+    final handler = wrapWithAuth((_) {
+      calls++;
+      throw StateError('handler exploded');
+    });
+
+    final first = await post(handler, key: 'boom-key', body: {'name': 'A'});
+    expect(first.statusCode, 500);
+    final error = (await decodeBody(first))['error']! as Map<String, Object?>;
+    expect(error['code'], 'INTERNAL');
+
+    final second = await post(handler, key: 'boom-key', body: {'name': 'A'});
+    expect(second.statusCode, 500);
+    expect(
+      calls,
+      2,
+      reason:
+          'a thrown exception must not leave a fossilized reservation — '
+          'the retry must rerun the handler, not hang on IN_FLIGHT',
+    );
   });
 }

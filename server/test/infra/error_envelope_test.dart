@@ -38,15 +38,26 @@ void main() {
       (_) => throw ApiException(code),
     )(Request('POST', Uri.parse('http://localhost/x')))).statusCode;
 
+    expect(await statusFor(ApiErrorCode.badRequest), 400);
     expect(await statusFor(ApiErrorCode.unauthorized), 401);
     expect(await statusFor(ApiErrorCode.forbidden), 403);
     expect(await statusFor(ApiErrorCode.notFound), 404);
     expect(await statusFor(ApiErrorCode.conflictStaleVersion), 409);
     expect(await statusFor(ApiErrorCode.campaignInvalidTransition), 409);
+    // The least obvious entry in the table: a segregation-of-duties
+    // violation is a permission problem (the same reviewer approving their
+    // own submission), not a conflict, so it maps like `forbidden`.
+    expect(await statusFor(ApiErrorCode.segregationOfDutiesViolation), 403);
     expect(await statusFor(ApiErrorCode.campaignValidationFailed), 422);
     expect(await statusFor(ApiErrorCode.decisionReasonRequired), 422);
     expect(await statusFor(ApiErrorCode.warningsUnacknowledged), 422);
+    expect(await statusFor(ApiErrorCode.idempotencyKeyRequired), 400);
     expect(await statusFor(ApiErrorCode.idempotencyKeyReused), 422);
+    // 409, not 422: this is "someone else's attempt for this key is still
+    // running", the same family as a stale-version conflict, not a
+    // validation failure of the request itself.
+    expect(await statusFor(ApiErrorCode.idempotencyKeyInFlight), 409);
+    expect(await statusFor(ApiErrorCode.internal), 500);
   });
 
   // An unexpected exception must not leak its message: a SQL error naming a
@@ -133,5 +144,75 @@ void main() {
       isFalse,
       reason: 'the original body must be untouched, not re-stamped',
     );
+  });
+
+  // The pass-through test is body SHAPE, not the content-type header: a
+  // route can write `{"error": {...}}` without ever setting content-type
+  // explicitly, and shelf then reports `mimeType == null` for it. A
+  // content-type-based check would have wrapped this, destroying the
+  // handler's real error code.
+  test('an envelope-shaped body passes through even without a '
+      'content-type header', () async {
+    final res = await wrap(
+      (_) => Response(
+        409,
+        body: jsonEncode({
+          'error': {'code': 'CONFLICT_STALE_VERSION', 'message': 'stale'},
+        }),
+      ),
+    )(Request('POST', Uri.parse('http://localhost/x')));
+
+    expect(res.statusCode, 409);
+    final error = await errorBody(res);
+    expect(error['code'], 'CONFLICT_STALE_VERSION');
+    expect(
+      error.containsKey('traceId'),
+      isFalse,
+      reason: 'shape alone is the test; this must not be re-wrapped',
+    );
+  });
+
+  // The other half of the shape test: a JSON body with an
+  // application/json content-type that is NOT shaped like the envelope
+  // (no Map `error` key) must still be wrapped — a content-type-based
+  // check would have passed this through untouched, producing exactly the
+  // second error format this rule exists to prevent. The original body is
+  // preserved, not discarded.
+  test('a JSON body that is not envelope-shaped is wrapped, '
+      'not passed through', () async {
+    final res = await wrap(
+      (_) => Response(
+        400,
+        body: jsonEncode({'unexpected': 'shape'}),
+        headers: {'content-type': 'application/json'},
+      ),
+    )(Request('POST', Uri.parse('http://localhost/x')));
+
+    expect(res.statusCode, 400);
+    final error = await errorBody(res);
+    expect(error['code'], 'BAD_REQUEST');
+    expect(error['traceId'], isA<String>());
+    expect(
+      (error['details']! as Map)['originalBody'],
+      contains('unexpected'),
+      reason: 'the original body is preserved, not discarded',
+    );
+  });
+
+  // shelf_router's own 404 sentinel (`Router.routeNotFound`) is plain text
+  // ("Route not found", content-type text/plain) — not JSON at all. The
+  // reviewer flagged this as the case the shape rule must still handle
+  // gracefully: it is neither bodyless nor envelope-shaped, and must still
+  // become a normal NOT_FOUND envelope.
+  test('a plain-text 404 (shelf_router\'s "Route not found") becomes '
+      'a NOT_FOUND envelope', () async {
+    final res = await wrap((_) => Response.notFound('Route not found'))(
+      Request('GET', Uri.parse('http://localhost/x')),
+    );
+
+    expect(res.statusCode, 404);
+    final error = await errorBody(res);
+    expect(error['code'], 'NOT_FOUND');
+    expect((error['details']! as Map)['originalBody'], 'Route not found');
   });
 }

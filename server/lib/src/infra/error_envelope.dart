@@ -34,6 +34,12 @@ class ApiException implements Exception {
     ApiErrorCode.warningsUnacknowledged => 422,
     ApiErrorCode.idempotencyKeyRequired => 400,
     ApiErrorCode.idempotencyKeyReused => 422,
+    // The IETF Idempotency-Key draft's answer for "this key's first request
+    // is still being processed": 409, the same family conflictStaleVersion
+    // and campaignInvalidTransition use, and the code the client's
+    // mapDioError maps to FailureKind.conflict — the right shape for "come
+    // back after the in-flight attempt resolves".
+    ApiErrorCode.idempotencyKeyInFlight => 409,
     ApiErrorCode.internal => 500,
   };
 
@@ -50,7 +56,8 @@ const String _genericServerErrorMessage = 'An unexpected error occurred.';
 
 /// Converts [ApiException] and any other exception escaping a handler into
 /// the documented `{"error": {...}}` envelope, and additionally wraps any
-/// *bodyless* response with status >= 400 in the same envelope.
+/// response with status >= 400 that is not *already* shaped like that
+/// envelope.
 ///
 /// That third rule exists because Task 5's `authenticate`/`requirePermission`
 /// answer with bare `Response.unauthorized(null)` / `Response.forbidden(null)`
@@ -60,9 +67,32 @@ const String _genericServerErrorMessage = 'An unexpected error occurred.';
 /// already wrote its own envelope (a body-carrying 4xx) is passed through
 /// untouched — wrapping it again would double-encode the body.
 ///
+/// The pass-through test is *shape*, not content-type: a route can write
+/// `{"error": {...}}` without ever setting `content-type` explicitly (shelf
+/// then reports `mimeType == null`), and conversely a JSON body that happens
+/// to have a `content-type: application/json` header but isn't shaped like
+/// the envelope (no `error` object) must still be wrapped, or that route
+/// becomes the second error format this rule exists to prevent. So the body
+/// is read, decoded, and checked for `{"error": {...}}` shape; a body that
+/// fails to decode as JSON, or doesn't have a Map `error` key, is wrapped,
+/// with its original text preserved in `details.originalBody` rather than
+/// discarded — shelf_router's 404 sentinel (`Route not found`, plain text)
+/// takes exactly this path and becomes a normal `NOT_FOUND` envelope. A
+/// shelf response body is a single-subscription stream, so once read it is
+/// re-attached via `response.change(body: bytes)` for the pass-through case
+/// — returning the original, now-drained response would leave shelf_io
+/// nothing to send.
+///
 /// Must run *inside* [correlation] (i.e. `correlation().addMiddleware
 /// (errorEnvelope())` composition-wise, added second) so [correlationOf] can
 /// already resolve an id when a handler throws.
+///
+/// Mount this at the *top level only* — never inside a sub-router that gets
+/// `Router.mount`ed into another. `shelf_router`'s nested-router fall-through
+/// depends on `Router.routeNotFound`'s sentinel *object identity*
+/// (`router.dart:185`: `if (response != routeNotFound)`); wrapping it here
+/// would replace that sentinel with an ordinary `Response` and silently
+/// break fall-through to the next mounted router.
 Middleware errorEnvelope() {
   return (Handler inner) {
     return (Request request) async {
@@ -71,20 +101,22 @@ Middleware errorEnvelope() {
         final response = await inner(request);
         if (response.statusCode < 400) return response;
 
-        // A route that already wrote its own JSON envelope is recognised by
-        // its content-type and passed through untouched — wrapping it again
-        // would double-encode an already-JSON body. Everything else (shelf's
-        // bare `Response.unauthorized(null)`/`forbidden(null)`, whose default
-        // body is a plain-text reason phrase like "Unauthorized", or a truly
-        // empty response) gets wrapped. The original body is never read: a
-        // shelf response body is a single-subscription stream, so reading it
-        // just to inspect it would leave nothing for shelf_io to send.
-        if (response.mimeType == 'application/json') return response;
+        final bodyBytes = <int>[];
+        await for (final chunk in response.read()) {
+          bodyBytes.addAll(chunk);
+        }
+
+        if (_isEnvelopeShaped(bodyBytes)) {
+          return response.change(body: bodyBytes);
+        }
 
         return _envelopeResponse(
           status: response.statusCode,
           code: _codeForStatus(response.statusCode),
           message: _messageForStatus(response.statusCode),
+          details: bodyBytes.isEmpty
+              ? null
+              : {'originalBody': _truncated(bodyBytes)},
           traceId: traceId,
         );
       } on ApiException catch (e) {
@@ -110,6 +142,33 @@ Middleware errorEnvelope() {
       }
     };
   };
+}
+
+/// True iff [bytes] decode as JSON shaped like this file's own envelope:
+/// a top-level object with a Map `error` key. Anything else — not JSON at
+/// all, JSON that isn't an object, an `error` key that isn't a Map, or no
+/// `error` key — is not "already an envelope" and must be wrapped.
+bool _isEnvelopeShaped(List<int> bytes) {
+  if (bytes.isEmpty) return false;
+  Object? decoded;
+  try {
+    decoded = jsonDecode(utf8.decode(bytes));
+  } on Object {
+    return false;
+  }
+  return decoded is Map && decoded['error'] is Map;
+}
+
+/// [bytes] decoded permissively and capped, for `details.originalBody`. A
+/// handler's non-envelope error body is not secret the way an unhandled
+/// exception's message is (see [_genericServerErrorMessage]) — it is that
+/// handler's own deliberate output — but it is still capped so a handler
+/// that (mis)behaves and returns something huge can't bloat every wrapped
+/// response.
+String _truncated(List<int> bytes) {
+  const maxLength = 500;
+  final text = utf8.decode(bytes, allowMalformed: true);
+  return text.length > maxLength ? '${text.substring(0, maxLength)}…' : text;
 }
 
 Response _envelopeResponse({

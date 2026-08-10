@@ -1,5 +1,8 @@
 /// Migrations, embedded as source. Keyed by id; applied in lexical order.
-const Map<String, String> embeddedMigrations = {'001_foundation': _foundation};
+const Map<String, String> embeddedMigrations = {
+  '001_foundation': _foundation,
+  '002_idempotency_reservations': _idempotencyReservations,
+};
 
 const String _foundation = r'''
 CREATE TABLE organizations (
@@ -159,4 +162,16 @@ CREATE TABLE app_config (
 -- Enforced by default: a missing or unreadable config row must not silently
 -- disable a governance control (spec section 6).
 INSERT INTO app_config (key, value) VALUES ('sod.enforced', 'true');
+''';
+
+// A NULL response_status/response_body marks a row as a *reservation*:
+// someone has claimed this (user_id, key) and is executing the request right
+// now, no response yet exists to replay. Without this, the middleware could
+// only tell "never seen this key" from "seen it, here's the answer" — with
+// no way to say "seen it, still running", which is exactly the state a
+// second concurrent request needs to distinguish (spec's idempotency
+// fix-round: two concurrent identical POSTs must not both run the handler).
+const String _idempotencyReservations = r'''
+ALTER TABLE idempotency_keys ALTER COLUMN response_status DROP NOT NULL;
+ALTER TABLE idempotency_keys ALTER COLUMN response_body DROP NOT NULL;
 ''';

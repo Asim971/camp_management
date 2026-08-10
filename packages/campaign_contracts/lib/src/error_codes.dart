@@ -11,6 +11,7 @@ enum ApiErrorCode {
   conflictStaleVersion,
   idempotencyKeyRequired,
   idempotencyKeyReused,
+  idempotencyKeyInFlight,
   // campaign lifecycle
   campaignInvalidTransition,
   campaignValidationFailed,
@@ -27,6 +28,7 @@ enum ApiErrorCode {
     conflictStaleVersion => 'CONFLICT_STALE_VERSION',
     idempotencyKeyRequired => 'IDEMPOTENCY_KEY_REQUIRED',
     idempotencyKeyReused => 'IDEMPOTENCY_KEY_REUSED',
+    idempotencyKeyInFlight => 'IDEMPOTENCY_KEY_IN_FLIGHT',
     campaignInvalidTransition => 'CAMPAIGN_INVALID_TRANSITION',
     campaignValidationFailed => 'CAMPAIGN_VALIDATION_FAILED',
     decisionReasonRequired => 'DECISION_REASON_REQUIRED',
