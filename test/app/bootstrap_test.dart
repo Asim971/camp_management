@@ -25,10 +25,18 @@ void main() {
   /// test/core/storage/database_seam_test.dart and
   /// test/app/di/composition_root_test.dart.
   ///
-  /// Connectivity has to be stubbed for the same reason and is NOT in the
-  /// harness, because only the boot path subscribes to it:
-  /// `AuditFlusher.start()` does, and `Connectivity().onConnectivityChanged` is
-  /// an EventChannel with no plugin under `flutter_test`.
+  /// Connectivity is stubbed for DETERMINISM, not necessity — and it is not in
+  /// the harness because only the boot path touches it (`AuditFlusher.start()`).
+  ///
+  /// An earlier version of this comment claimed the stub was required, on the
+  /// theory that `Connectivity().onConnectivityChanged` is an EventChannel with
+  /// no plugin under `flutter_test`. That is wrong, and measurably so: building
+  /// `connectivityStreamProvider` only calls `.map()` on the channel's stream,
+  /// which cannot throw, and subscribing produces neither a recorded failure nor
+  /// an unhandled async error — every test here passes with the override removed
+  /// entirely. Keep the seam anyway (one line, and it keeps these tests off a
+  /// real platform channel whose no-plugin behaviour is not ours to depend on),
+  /// but do not treat it as the thing making a test meaningful.
   Override connectivitySeam() =>
       connectivityStreamProvider.overrideWithValue(const Stream<bool>.empty());
 
@@ -52,6 +60,7 @@ void main() {
         appDatabaseProvider.overrideWith(
           (ref) => throw StateError('database unavailable'),
         ),
+        connectivitySeam(),
       ],
     );
 
@@ -61,9 +70,15 @@ void main() {
     // while hiding the failure, which is precisely today's audit behaviour.
     final diagnostics = container.read(bootDiagnosticsProvider);
     expect(diagnostics.isClean, isFalse);
+    // Assert on the recorded ERROR, not only the step. `BootFailure` carries
+    // both, so a step-only assertion says "something degraded auditFlusher.start"
+    // when what this test exists to prove is "the DATABASE fault degraded it" -
+    // any future error reaching the same step would satisfy the weaker form.
     expect(
-      diagnostics.failures.map((f) => f.step),
-      contains('auditFlusher.start'),
+      diagnostics.failures
+          .singleWhere((f) => f.step == 'auditFlusher.start')
+          .error,
+      contains('database unavailable'),
     );
   });
 
