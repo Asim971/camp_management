@@ -1,8 +1,21 @@
 import 'package:campaign_service/src/db/migrator.dart';
 import 'package:campaign_service/src/db/pool.dart';
+import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
 import '../support/test_db.dart';
+
+/// Distinguishable from any [Exception] Postgres itself might throw (a
+/// protocol error, a constraint violation, ...), so a test asserting on this
+/// specific type cannot be satisfied by the wrong failure landing at the
+/// wrong place for the wrong reason.
+class _SeamProbeFailure implements Exception {
+  const _SeamProbeFailure();
+
+  @override
+  String toString() =>
+      '_SeamProbeFailure: simulated crash between DDL and version insert';
+}
 
 void main() {
   late Db db;
@@ -49,7 +62,16 @@ void main() {
       },
     );
 
-    await expectLater(migrator.applyPending(), throwsA(isA<Exception>()));
+    // Asserts on the specific server-side error (undefined_function,
+    // SQLSTATE 42883) so this test cannot be satisfied by some unrelated
+    // Exception — e.g. a protocol-level error thrown before the broken
+    // statement was even reached, which would prove nothing about rollback.
+    await expectLater(
+      migrator.applyPending(),
+      throwsA(
+        isA<ServerException>().having((e) => e.code, 'SQLSTATE code', '42883'),
+      ),
+    );
 
     final tables = await db.execute(
       "SELECT tablename FROM pg_tables WHERE schemaname = 'public'",
@@ -85,12 +107,20 @@ void main() {
       },
       onBeforeVersionInsert: (id) async {
         if (id == '999_seam') {
-          throw Exception('simulated crash between DDL and version insert');
+          throw const _SeamProbeFailure();
         }
       },
     );
 
-    await expectLater(migrator.applyPending(), throwsA(isA<Exception>()));
+    // Asserts on the specific, test-only exception type rather than
+    // isA<Exception>() — otherwise this test would also be satisfied by an
+    // unrelated Postgres error (a protocol error, a constraint violation)
+    // striking at the wrong point for the wrong reason, which proves nothing
+    // about whether the DDL and the version insert share a transaction.
+    await expectLater(
+      migrator.applyPending(),
+      throwsA(isA<_SeamProbeFailure>()),
+    );
 
     final tables = await db.execute(
       "SELECT tablename FROM pg_tables WHERE schemaname = 'public'",

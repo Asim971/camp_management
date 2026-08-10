@@ -27,10 +27,23 @@ class Db {
     return Db(connection);
   }
 
-  Future<Result> execute(String sql, {Map<String, Object?>? params}) =>
-      params == null
-      ? _connection.execute(sql)
-      : _connection.execute(Sql.named(sql), parameters: params);
+  /// [queryMode] defaults to the driver's normal choice (extended/prepared).
+  /// Pass [QueryMode.simple] to run a multi-statement script as one Query
+  /// message — the extended protocol rejects a `Parse` containing more than
+  /// one command, but the simple protocol runs the whole string as a single
+  /// implicit transaction, which is exactly wrong when the caller wants that
+  /// script to NOT be coupled to whatever runs after it.
+  Future<Result> execute(
+    String sql, {
+    Map<String, Object?>? params,
+    QueryMode? queryMode,
+  }) => params == null
+      ? _connection.execute(sql, queryMode: queryMode)
+      : _connection.execute(
+          Sql.named(sql),
+          parameters: params,
+          queryMode: queryMode,
+        );
 
   /// Runs [fn] in a transaction.
   ///
