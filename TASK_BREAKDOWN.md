@@ -195,9 +195,42 @@
 > configuration. Closes T-0.5.1 and the client half of T-0.5.2.
 
 ### Epic P0.6 — Riverpod DI baseline ⭐
-| ID | Task | Est | Deps |
-|----|------|-----|------|
-| T-0.6.1 | Provider graph for core services (client, db, auth, storage, audit) + test overrides | M | 0.3.*, 0.4.1 |
+| ID | Task | Est | Deps | Notes |
+|----|------|-----|------|-------|
+| T-0.6.1 | Provider graph for core services (client, db, auth, storage, audit) + test overrides | M | 0.3.*, 0.4.1 | ✅ The graph's 25 providers already existed; what landed is proof they work, plus the storage plan drawn against all 32 PRDs rather than the 5 tables that existed. `AppDatabase.open` gained two directory seams, schema went to v4 (preferences split off the evictable cache), `bootstrap()` records degradations instead of throwing, and `buildTestContainer` replaced 15 hand-rolled containers. |
+
+> **P0.6 complete** (2026-08-09, PR #4). The epic was scoped as "add providers" and
+> the providers were already there — so the finding that justified it was that
+> **replacing `appDatabaseProvider` with a `throw` left all 368 tests passing.** The
+> composition root was exercised by nothing. Worse, `web/` shipped neither Drift
+> asset and `open()` passed no `web:` argument, so the web build could not start at
+> all, while CI's `flutter build web` stayed green throughout — compiling is not
+> running, and web is the primary surface for P1 admin and P3 CRM.
+>
+> Two defects were caught only by review, both of the same shape — a migration that
+> bricks the database permanently rather than failing loudly. `from3To4` was not
+> retry-safe: Drift does not wrap migration steps in a transaction and bumps
+> `user_version` only after `onUpgrade` returns, so a kill between the `INSERT` and
+> the `DELETE` left a device at v3 with the row in both tables, and the retry's
+> `UNIQUE constraint failed` threw out of `beforeOpen` — the database never opened
+> again, on any later launch, making queued attendance evidence unreachable rather
+> than deleted. Separately the migration would have silently reset every upgrading
+> device's language, because the plan copied `value_json` verbatim while specifying
+> that the store write bare codes; the plan's own assertion would have passed over it.
+>
+> **What is verified is the database leg only.** `open()` and the v1→v4 chain
+> genuinely run and are queried, and a `throw` in `appDatabaseProvider` now fails the
+> suite. The other 23 providers are still only proven *constructible* — that test
+> passes even with the schema deliberately broken, and says so in its own comment.
+> **No browser has loaded the app.** The strongest evidence is static: the `web-build`
+> artifact ships both assets byte-identical and `main.dart.js` wires
+> `DriftWebOptions` with both Uris. First browser load is an open risk for P1.
+>
+> Follow-ups filed as tracked items, not prose: **P0.R5** (`from2To3` has the
+> identical non-idempotency defect, and P0.6 *widened* its window — blocking before
+> the first pilot device) and **P0.R6** (degradation observability end to end —
+> `DriftLocaleStore.read` swallows so `onDegraded` cannot fire, `select` swallows
+> writes, and `BootDiagnostics` has no production reader). Closes T-0.6.1.
 
 ---
 
