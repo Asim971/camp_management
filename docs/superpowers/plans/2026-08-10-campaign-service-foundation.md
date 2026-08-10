@@ -1153,6 +1153,19 @@ INSERT INTO app_config (key, value) VALUES ('sod.enforced', 'true');
 > with broken DDL text…"), not for the guarantee it does not reach. A production seam that
 > exists for testability has precedent here: `AppDatabase.open`'s `databaseDirectory` and
 > `tempDirectoryPath` from P0.6, added because the failure was otherwise unreachable.
+>
+> **3. Assert the cause, not just the outcome — `throwsA(isA<Exception>())` is not enough.**
+> Found by mutation after correction 2 landed: with the DDL moved outside the transaction,
+> `001_foundation` threw a *protocol* error before the probe migration ever ran, the probe
+> table was never created, the absence assertions held, and the loose matcher accepted the
+> wrong exception — green test, defect present. The seam must throw a private test-only
+> exception type and the test must assert exactly that type; the broken-DDL test must assert
+> the Postgres error it is about (`ServerException` with SQLSTATE `42883`). `Db.execute` also
+> gains an optional `QueryMode? queryMode` (default unchanged) so a falsifying mutation is
+> even expressible. Landed as `b8b139a`; the corrected mutation — DDL outside the transaction
+> *with simple mode preserved* — makes the tightened test fail with `half_applied` surviving,
+> and moving the version insert out alone can never falsify the seam test, because the seam
+> throws before a moved insert is reached.
 
 - [ ] **Step 7: Run the migrator tests — must pass**
 
@@ -1218,6 +1231,7 @@ the transaction and watching it fail."
   - `class PasswordHasher { const PasswordHasher({Argon2Params params}); Future<String> hash(String password); Future<bool> verify(String password, String encoded); }`
   - `class Argon2Params { const Argon2Params({required int memory, required int iterations, required int parallelism}); static const production = …; static const fastForTests = …; }`
   - `class TokenService { TokenService({required Db db, required ServerConfig config, Uuid uuid}); Future<IssuedTokens> issueFor(String userId); Future<IssuedTokens> rotate(String presentedRefreshToken); Future<void> revokeFamilyOf(String presentedRefreshToken); String? userIdFromAccessToken(String jwt); }`
+  - Typed rotation failures, so tests and callers can discriminate cause: `class InvalidRefreshTokenException implements Exception` (unknown, expired, or revoked token — including descendants of a revoked family) and `class RefreshReuseException implements Exception` (an already-used token was presented; the family has just been revoked). Never collapse these into a bare `Exception`.
   - `class IssuedTokens { final String accessToken; final String refreshToken; final int expiresInSeconds; final Map<String, Object?> claims; }`
   - `Router authRouter({required Db db, required TokenService tokens, required PasswordHasher hasher})`
 - Later tasks rely on: `TokenService.userIdFromAccessToken` (Task 5's authenticate step) and `seedOrganizationWithUser` from `seed_fixtures.dart` (Tasks 5–9 tests).
@@ -1340,9 +1354,11 @@ class PasswordHasher {
   Future<String> hash(String password) async {
     final salt = _randomBytes(_saltLength);
     final digest = await _derive(password, salt, params);
-    return r'$argon2id$v=19'
-        r'$m=${params.memory},t=${params.iterations},p=${params.parallelism}'
-        r'$${base64.encode(salt)}$${base64.encode(digest)}';
+    // Escaped dollars, NOT raw strings: r'…' does not interpolate, so a raw
+    // version of this line would emit the literal text ${params.memory}.
+    return '\$argon2id\$v=19'
+        '\$m=${params.memory},t=${params.iterations},p=${params.parallelism}'
+        '\$${base64.encode(salt)}\$${base64.encode(digest)}';
   }
 
   /// Verifies against the parameters recorded in [encoded], NOT [params].
@@ -1417,7 +1433,10 @@ class PasswordHasher {
 }
 ```
 
-Note the string in `hash`: raw strings (`r'…'`) do not interpolate, so build the encoded value with a normal interpolated string and escape the literal dollars — e.g. `'\$argon2id\$v=19\$m=${params.memory},…'`. Verify with the "records the algorithm" test rather than by eye.
+Two integration notes, both verified against the installed packages:
+
+- The parameters above (19 MiB, t=2, p=1) are OWASP's current recommended Argon2id minimum, and `DartArgon2id` was verified by execution: 32 bytes in ~155 ms at those parameters, pure Dart, no FFI.
+- **`dart_jsonwebtoken` and `cryptography` both export a class named `SecretKey`.** They never collide here only because `password.dart` imports `cryptography` and `tokens.dart` imports `dart_jsonwebtoken` — keep it that way, or use an import prefix. A file importing both gets an ambiguous-name error.
 
 - [ ] **Step 4: Run password tests — must pass**
 
@@ -1553,18 +1572,33 @@ void main() {
 
   // Reuse means a copy leaked. Revoking only the presented token would leave
   // the attacker's newer token valid, so the whole family goes.
+  //
+  // Assert the SPECIFIC exception, never `throwsA(anything)`: Task 3's audit
+  // showed a loose matcher lets an unrelated failure (a protocol error, a bad
+  // cast) satisfy the test while the guarantee it names is broken.
   test('presenting a rotated token twice revokes the entire family', () async {
     final first = await tokens.issueFor('user-1');
     final second = await tokens.rotate(first.refreshToken);
 
-    await expectLater(tokens.rotate(first.refreshToken), throwsA(anything));
+    await expectLater(
+      tokens.rotate(first.refreshToken),
+      throwsA(isA<RefreshReuseException>()),
+    );
 
     // The legitimate holder's newer token is dead too — that is the point.
-    await expectLater(tokens.rotate(second.refreshToken), throwsA(anything));
+    // Family revocation surfaces as an INVALID token, not as reuse: only the
+    // twice-presented token was "reused"; its descendants are merely revoked.
+    await expectLater(
+      tokens.rotate(second.refreshToken),
+      throwsA(isA<InvalidRefreshTokenException>()),
+    );
   });
 
   test('an unknown refresh token is rejected', () async {
-    await expectLater(tokens.rotate('never-issued'), throwsA(anything));
+    await expectLater(
+      tokens.rotate('never-issued'),
+      throwsA(isA<InvalidRefreshTokenException>()),
+    );
   });
 
   test('the stored token is hashed, not the token itself', () async {
@@ -1960,7 +1994,7 @@ Middleware requirePermission(String permission) {
 Response _unauthorized() => Response.unauthorized(null);
 ```
 
-Note: the 401/403 bodies are filled in by Task 6's envelope middleware, which sits *outside* these. Returning bare responses here keeps this file free of the envelope's concerns.
+Note: these middlewares return **bare, bodyless** 401/403 responses, and that is fine — but be precise about why (an earlier draft of this plan got it wrong): Task 6's envelope middleware converts *exceptions*; it does not touch a response a handler returns, so nothing "fills in" these bodies via the exception path. Instead, Task 6's `errorEnvelope()` also wraps any **bodyless response with status ≥ 400** in the standard envelope (401→`UNAUTHORIZED`, 403→`FORBIDDEN`, 404→`NOT_FOUND`), so error bodies stay uniform without this file importing the envelope's concerns. The client's `mapDioError` keys off status codes either way, so nothing breaks if wrapping arrives one task later.
 
 - [ ] **Step 4: Run middleware tests — must pass**
 
@@ -2129,7 +2163,13 @@ int get status => switch (code) {
 };
 ```
 
-`errorEnvelope()` catches `ApiException` → its status and code; catches everything else → `500` with `ApiErrorCode.internal`, a fixed message (`'An unexpected error occurred.'`) and the trace id, while logging the real error server-side. `correlation()` must run *outside* `errorEnvelope()` so the id exists even when the handler throws.
+`errorEnvelope()` does three things:
+
+1. catches `ApiException` → its status and code;
+2. catches everything else → `500` with `ApiErrorCode.internal`, a fixed message (`'An unexpected error occurred.'`) and the trace id, while logging the real error server-side;
+3. **wraps any bodyless response with status ≥ 400** in the same envelope, mapping status → code (`401`→`UNAUTHORIZED`, `403`→`FORBIDDEN`, `404`→`NOT_FOUND`, else `BAD_REQUEST`/`INTERNAL` by range). Task 5's `authenticate`/`requirePermission` return bare `Response.unauthorized(null)`/`forbidden(null)` — they are *responses*, not exceptions, so the exception path never touches them, and without this rule the API would have two error formats. Add a test: a handler returning `Response.unauthorized(null)` yields the envelope with `code: 'UNAUTHORIZED'`; a handler returning a *body-carrying* 4xx is passed through untouched (a route that already wrote an envelope must not be double-wrapped).
+
+`correlation()` must run *outside* `errorEnvelope()` so the id exists even when the handler throws.
 
 - [ ] **Step 3: Run envelope tests — must pass**
 
@@ -2682,7 +2722,7 @@ Expected: FAIL. Then implement the model, repo and routes. Repo rules:
 - **Every query carries `AND organization_id = @org`.** Not a post-fetch check — see Task 5.
 - `total` comes from a `COUNT(*)` over the same predicate, not from the page length.
 - `pageSize` clamped to `1..100`; `page` clamped to `>= 1`.
-- `q` matches `lower(name) LIKE lower('%' || @q || '%')`, which uses the `campaigns_name_idx` on `lower(name)` for prefix matches.
+- `q` matches `lower(name) LIKE lower('%' || @q || '%')`. Be honest about the index: a leading-wildcard LIKE **cannot** use the btree `campaigns_name_idx` — that index serves equality and prefix lookups only, and the contains-search will sequential-scan. At pilot scale (hundreds of campaigns) that is fine and not worth a trigram extension; noted so nobody later "discovers" the index is unused and deletes it.
 - Unknown `status` value → `ApiException(ApiErrorCode.badRequest)` naming the offending value. Silently dropping it would return a superset of what was asked for.
 - `territoryIds` aggregated from `campaign_territories`.
 
@@ -2842,7 +2882,11 @@ test('a decision records reviewer, reason, acknowledgements, version and trace',
   expect(d['decision'], 'APPROVE');
   expect(d['version_at_decision'], 2);
   expect(d['correlation_id'], 'trace-abc');
-  expect(jsonDecode(d['acknowledged_warnings']! as String), ['w1']);
+  // jsonb comes back from `postgres` 3.x ALREADY DECODED (the codec runs
+  // jsonDecode for you — verified in binary_codec.dart). Casting to String
+  // and re-decoding throws. Audit finding, same class as the multi-statement
+  // Parse issue: API behaviour only visible by running it.
+  expect(d['acknowledged_warnings'], ['w1']);
 });
 
 test('submit stores an immutable snapshot for the changed-field diff', () async {
@@ -2855,8 +2899,10 @@ test('submit stores an immutable snapshot for the changed-field diff', () async 
     'WHERE campaign_id = @id',
     params: {'id': id},
   );
-  final snap = jsonDecode(row(res.single)['snapshot']! as String)
-      as Map<String, Object?>;
+  // jsonb is already decoded by the driver — see the note in the decision
+  // test above. Cast the object, do not jsonDecode a String.
+  final snap =
+      (row(res.single)['snapshot']! as Map).cast<String, Object?>();
   expect(snap['name'], 'Original');
 });
 
@@ -3105,7 +3151,7 @@ DateTime? _utcOrNull(Object? value) =>
     value is String ? DateTime.parse(value).toUtc() : null;
 ```
 
-`Campaign` gains a `version` field so screens can send it back. `CampaignDecision` maps to `CampaignDecisionInput.wireValue`.
+`Campaign` gains a `version` field so screens can send it back — and `Campaign` is a **freezed** class (`lib/domain/campaign/campaign.dart`), so this means adding the field to the `@freezed` factory and re-running `dart run build_runner build --delete-conflicting-outputs`. Codegen is banned in `server/` and `packages/`, not in the app, which already depends on it. `CampaignDecision` maps to `CampaignDecisionInput.wireValue`.
 
 - [ ] **Step 4: Pass idempotency keys and versions from the repository**
 
@@ -3297,7 +3343,9 @@ In `.github/workflows/ci.yml`, a `server` job with a Postgres 16 service contain
 
 - [ ] **Step 5: Cut the e2e job over to the real service**
 
-In `tool/scripts/run_maestro_flows.sh`, replace the mock-server launch with: start Postgres, run the service with `ENABLE_TEST_SEEDING=true`, wait for `/health`, then `POST /__test__/reset` before each flow. The loop stays in the script — the emulator action runs `script:` **line by line**, each in its own `sh -c`, which is why this file exists at all.
+In `tool/scripts/run_maestro_flows.sh`, replace the mock-server launch with: run the service with `ENABLE_TEST_SEEDING=true`, wait for `/health`, then `POST /__test__/reset` before each flow. The loop stays in the script — the emulator action runs `script:` **line by line**, each in its own `sh -c`, which is why this file exists at all.
+
+**The e2e matrix job has no Postgres today — audit finding, do not forget it.** The mock server was in-memory; the real service is not. Give the `e2e` job the same `services: postgres:` block as the `server` job (Step 4) and export `DATABASE_URL`, `JWT_SECRET` and `ENABLE_TEST_SEEDING=true` to the script. The emulator's `API_BASE_URL` needs no change: the APK already reaches the host via `10.0.2.2`, and only the process behind that port is being swapped.
 
 Keep the mock available behind a flag so a red e2e can be bisected against it. That is the cut-over rule from spec §9: **do not delete the harness optimistically.**
 
