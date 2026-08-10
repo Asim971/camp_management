@@ -1,12 +1,18 @@
 import 'dart:io';
 
 import 'package:campaign_service/src/config.dart';
+import 'package:campaign_service/src/db/migrator.dart';
+import 'package:campaign_service/src/db/pool.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
 import 'package:shelf_router/shelf_router.dart';
 
 Future<void> main(List<String> args) async {
   final config = ServerConfig.fromEnvironment(Platform.environment);
+
+  final db = await Db.open(config.databaseUrl);
+  final applied = await Migrator(db).applyPending();
+  stdout.writeln('applied migrations: $applied');
 
   final router = Router()
     ..get(
