@@ -1,0 +1,25 @@
+# The two Drift web assets are vendored build artifacts, not source.
+#
+# The committed drift_worker.js already contains CRLF line endings (355,547
+# bytes, 13,363 of them), so a Windows checkout with core.autocrlf on does not
+# convert LF to CRLF - it converts each existing CRLF to CRCRLF, inflating the
+# working-tree copy to 368,910 bytes. The blob and the Linux CI build are
+# untouched, so the app is unaffected; what breaks is the ability to verify a
+# vendored binary, and nothing in the repo notices:
+#
+#   - test/app/web_assets_test.dart bounds sizes with greaterThan, by design, so
+#     a version bump does not trip it - a 13KB inflation passes.
+#   - web/DRIFT_ASSETS.md records versions and source URLs, not hashes.
+#   - a byte or hash comparison against upstream, or against CI's web-build
+#     artifact, therefore fails on Windows and succeeds on Linux for the same
+#     commit. That comparison is how P0.6's web fix was confirmed (PR #4), and
+#     it would have reported a false mismatch had it run after a fresh checkout
+#     rather than before one.
+#
+# -text pins both files to their committed bytes on every platform, so the
+# hashes in DRIFT_ASSETS.md verify anywhere and a real mismatch means a real
+# problem. It does not rewrite what is committed: the blob keeps its CRLF, which
+# differs from upstream's LF but is the exact byte sequence CI built and shipped
+# green, and is not worth re-verifying to normalise.
+web/drift_worker.js -text
+web/sqlite3.wasm -text binary
