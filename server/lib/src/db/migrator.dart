@@ -1,3 +1,4 @@
+import 'package:meta/meta.dart';
 import 'package:postgres/postgres.dart';
 
 import 'migrations/embedded.dart';
@@ -14,11 +15,26 @@ import 'pool.dart';
 ///
 /// No down-migrations: a failed deploy rolls forward.
 class Migrator {
-  Migrator(this._db, {Map<String, String> extra = const {}})
-    : _migrations = {...embeddedMigrations, ...extra};
+  Migrator(
+    this._db, {
+    Map<String, String> extra = const {},
+    @visibleForTesting this.onBeforeVersionInsert,
+  }) : _migrations = {...embeddedMigrations, ...extra};
 
   final Db _db;
   final Map<String, String> _migrations;
+
+  /// Test-only seam: invoked after a migration's DDL has run and before its
+  /// `schema_migrations` row is inserted, both still inside the same
+  /// [Db.tx] call. A test that throws here simulates a crash landing exactly
+  /// in the P0.R5 window — DDL committed, version row not yet written — and
+  /// can assert that the DDL rolls back with it. There is no way to reach
+  /// that window from outside the class otherwise: Postgres's simple query
+  /// protocol already makes a single multi-statement DDL string atomic on
+  /// its own, so a failure injected inside the DDL text can never tell one
+  /// arrangement of `applyPending` from the other.
+  @visibleForTesting
+  final Future<void> Function(String id)? onBeforeVersionInsert;
 
   Future<List<String>> applyPending() async {
     await _db.execute(
@@ -45,6 +61,10 @@ class Migrator {
         // default rejects a Parse containing more than one command with
         // "cannot insert multiple commands into a prepared statement".
         await tx.execute(_migrations[id]!, queryMode: QueryMode.simple);
+        final seam = onBeforeVersionInsert;
+        if (seam != null) {
+          await seam(id);
+        }
         await tx.execute(
           Sql.named('INSERT INTO schema_migrations (id) VALUES (@id)'),
           parameters: {'id': id},

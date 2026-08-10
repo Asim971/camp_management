@@ -28,6 +28,7 @@ Every task's requirements implicitly include this section.
 - **Timestamps:** UTC ISO-8601 on the wire, `timestamptz` in Postgres.
 - **The claim vocabulary is fixed by the client and must be emitted exactly.** `lib/core/auth/scope_claims.dart` is a trust boundary that *rejects* sign-in on any unrecognised role or permission. Roles: `campaign_creator`, `marketing_approver`, `crm_verifier`, `crm_supervisor`, `field_user`, `admin`, `reporting_viewer`. Permissions: `campaign_create`, `campaign_approve`, `campaign_cancel`, `bulk_import`, `attendance_capture`, `verification_decide`, `verification_override`, `sensitive_media_view`, `nid_reveal`, `config_manage`, `export`. Inventing one name breaks login entirely.
 - **The login response shape is fixed by the client**, which never decodes the JWT: `{"accessToken": …, "refreshToken": …, "expiresInSeconds": <num>, "claims": {"userId", "displayName", "organizationId", "territoryIds": [], "roles": [], "permissions": []}}`. Read `lib/core/auth/auth_service.dart:70-94`.
+- **Any Postgres 16+ on `localhost:5432` satisfies this plan; Docker is one way to get it, not the only one.** Every task from 3 onward runs its tests against `DATABASE_URL=postgres://campaign:campaign@localhost:5432/campaign`. During execution Docker Desktop would not start on the dev machine, so a **native PostgreSQL 18** was used instead, with a `campaign` role and database created to match that exact string — no task text needed changing. Keep CI on `postgres:16`: local-newer/CI-older is the safe direction of skew, because CI then catches any accidental use of a feature newer than the floor.
 - **`tool/mock_server` is not deleted in this plan.** It is the harness the last two epics depended on. It changes only where the wire contract changes, and is removed in a later plan once the real service has been green for a while.
 
 ---
@@ -1119,20 +1120,56 @@ INSERT INTO app_config (key, value) VALUES ('sod.enforced', 'true');
 ''';
 ```
 
+> **Two corrections found during execution (2026-08-10), both by running the code rather
+> than reasoning about it. Apply them from the start if re-running this plan.**
+>
+> **1. The migrator above does not run against `postgres` ^3.5.12 as written.** A migration
+> script holds many statements, and the extended query protocol rejects a multi-statement
+> `Parse`. Scope simple mode to that one call — and only that one, so named-parameter queries
+> keep their parameter binding:
+>
+> ```dart
+> await tx.execute(_migrations[id]!, queryMode: QueryMode.simple);
+> ```
+>
+> **2. The Step 8 probe below cannot detect the defect it exists to detect.** Postgres's
+> simple query protocol already treats one multi-statement `Query` as implicitly atomic, so a
+> failure bundled *inside* the migration script rolls back either way — the test passes
+> whether or not the version-row insert shares the transaction. The real P0.R5 window is
+> **between** the DDL and the insert, which the script cannot reach.
+>
+> Add a test-only seam and a test that fires in that gap:
+>
+> ```dart
+> Migrator(this._db, {
+>   Map<String, String> extra = const {},
+>   @visibleForTesting Future<void> Function(String id)? onBeforeVersionInsert,
+> })
+> ```
+>
+> The test passes `onBeforeVersionInsert` a callback that throws, then asserts the migration's
+> table is **absent** and no version row exists — which can only hold if the DDL rolled back
+> with the failure. Keep the broken-DDL test too, but name it for what it proves ("a migration
+> with broken DDL text…"), not for the guarantee it does not reach. A production seam that
+> exists for testability has precedent here: `AppDatabase.open`'s `databaseDirectory` and
+> `tempDirectoryPath` from P0.6, added because the failure was otherwise unreachable.
+
 - [ ] **Step 7: Run the migrator tests — must pass**
 
 ```bash
-cd server && dart test test/db/migrator_test.dart
+cd server && DATABASE_URL='postgres://campaign:campaign@localhost:5432/campaign' dart test test/db/migrator_test.dart
 ```
 
-Expected: 5 tests pass, including the rollback test.
+Expected: 6 tests pass — the two rollback tests, ordering, idempotency, the table inventory
+and the SoD default.
 
-- [ ] **Step 8: Prove the rollback test is not vacuous**
+- [ ] **Step 8: Prove the *seam* test is not vacuous**
 
-Temporarily move the `INSERT INTO schema_migrations` statement *outside* the `_db.tx` block — reintroducing the P0.R5 shape — and re-run just that test.
+Temporarily move the `INSERT INTO schema_migrations` statement *outside* the `_db.tx` block —
+reintroducing the P0.R5 shape — and re-run the seam test.
 
 ```bash
-cd server && dart test test/db/migrator_test.dart -n 'leaves no partial schema'
+cd server && dart test test/db/migrator_test.dart -n 'between the DDL and the version insert'
 ```
 
 Expected: **FAIL** — `half_applied` survives and/or the version row was written. Revert and confirm it passes again. A rollback test that passes either way tests nothing; this repo has shipped several such tests and caught them only by probing.
