@@ -61,10 +61,13 @@ const Map<String, List<String>> permissionsByRole = {
   'reporting_viewer': ['export'],
 };
 
-/// An access/refresh token pair plus the claims embedded in the access token,
-/// in exactly the shape the Flutter client parses
-/// (`lib/core/auth/auth_service.dart:70-94`): the client never decodes the
-/// JWT itself, so these claims are the only place it learns who the user is.
+/// An access/refresh token pair plus the claims that ride alongside them in
+/// the response body, in exactly the shape the Flutter client parses
+/// (`lib/core/auth/auth_service.dart:70-94`). [claims] are NOT embedded in
+/// the access token's JWT payload — `_signAccessToken` signs no payload
+/// beyond the standard `sub`/`iat`/`exp` claims. The client never decodes the
+/// JWT itself, so the response body's `claims` map is the only place it
+/// learns who the user is.
 class IssuedTokens {
   const IssuedTokens({
     required this.accessToken,
@@ -112,24 +115,46 @@ class TokenService {
   }
 
   /// Rotates a refresh token inside one transaction: look the presented
-  /// token up by its hash, reject it outright if it is unknown, expired, or
-  /// already revoked, and — the reuse-detection branch — if it was already
-  /// used once before, revoke every row sharing its `family_id` and throw
-  /// [RefreshReuseException] rather than issuing new tokens.
+  /// token up by its hash (joined to `staff_users` for `is_active`), reject
+  /// it outright if it is unknown, belongs to a deactivated user, is
+  /// expired, or is already revoked, and — the reuse-detection branch — if
+  /// claiming it as "used" loses the race (see below), revoke every row
+  /// sharing its `family_id` and throw [RefreshReuseException] rather than
+  /// issuing new tokens.
   ///
-  /// The reuse branch's `UPDATE` MUST commit even though the caller ends up
-  /// seeing an exception: throwing from inside [Db.tx]'s callback rolls the
-  /// whole transaction — including that very `UPDATE` — back, which would
-  /// silently undo the family revocation this method exists to guarantee.
-  /// So the callback returns a marker instead of throwing, and [rotate]
-  /// throws only after the transaction (and its revocation) has committed.
+  /// **Race safety.** The naive "SELECT used_at, branch on it, then UPDATE"
+  /// shape is unsafe: under READ COMMITTED, two concurrent rotations of the
+  /// same token both read `used_at IS NULL` from their own SELECT snapshot,
+  /// both take the "not yet used" branch, and both mint a successor —
+  /// reuse detection never fires, which is exactly the theft window this
+  /// method exists to close. Instead, the "not yet used" branch is a single
+  /// conditional `UPDATE ... WHERE id = @id AND used_at IS NULL`. Postgres
+  /// row-locks the target row for that UPDATE; a second, concurrent UPDATE
+  /// against the same row blocks until the first commits, then — under
+  /// READ COMMITTED semantics — re-evaluates its own `WHERE` clause against
+  /// the now-current row, sees `used_at` is no longer null, and updates zero
+  /// rows. Zero affected rows is therefore authoritative: it means this
+  /// exact claim was already taken, whether that happened moments ago
+  /// (sequential reuse) or was racing us right now (concurrent reuse), and
+  /// either way the response is identical — revoke the family.
+  ///
+  /// The reuse branch's revocation `UPDATE` MUST commit even though the
+  /// caller ends up seeing an exception: throwing from inside [Db.tx]'s
+  /// callback rolls the whole transaction — including that very `UPDATE` —
+  /// back, which would silently undo the family revocation this method
+  /// exists to guarantee. So the callback returns a marker instead of
+  /// throwing, and [rotate] throws only after the transaction (and its
+  /// revocation) has committed.
   Future<IssuedTokens> rotate(String presentedRefreshToken) async {
     final presentedHash = _hash(presentedRefreshToken);
     final outcome = await db.tx((tx) async {
       final res = await tx.execute(
         Sql.named(
-          'SELECT id, user_id, family_id, expires_at, used_at, revoked_at '
-          'FROM refresh_tokens WHERE token_hash = @hash',
+          'SELECT rt.id, rt.user_id, rt.family_id, rt.expires_at, '
+          '       rt.revoked_at, su.is_active '
+          'FROM refresh_tokens rt '
+          'JOIN staff_users su ON su.id = rt.user_id '
+          'WHERE rt.token_hash = @hash',
         ),
         parameters: {'hash': presentedHash},
       );
@@ -138,20 +163,35 @@ class TokenService {
       }
       final found = row(res.first);
       final expiresAt = found['expires_at']! as DateTime;
-      final usedAt = found['used_at'] as DateTime?;
       final revokedAt = found['revoked_at'] as DateTime?;
+      final isActive = found['is_active']! as bool;
       final familyId = found['family_id']! as String;
       final userId = found['user_id']! as String;
 
-      if (revokedAt != null || expiresAt.isBefore(DateTime.now().toUtc())) {
+      if (!isActive ||
+          revokedAt != null ||
+          expiresAt.isBefore(DateTime.now().toUtc())) {
         throw const InvalidRefreshTokenException();
       }
 
-      if (usedAt != null) {
-        // Reuse: a copy of this token leaked. Revoking only the presented
-        // row would leave any newer, legitimately-rotated descendant valid
-        // in an attacker's hands, so the whole family is killed. This
-        // UPDATE must survive the transaction — see the doc comment above.
+      // Atomically claim this row as "used". See the race-safety note
+      // above: zero affected rows means someone — sequentially or
+      // concurrently — already claimed it.
+      final claim = await tx.execute(
+        Sql.named(
+          'UPDATE refresh_tokens SET used_at = now() '
+          'WHERE id = @id AND used_at IS NULL',
+        ),
+        parameters: {'id': found['id']! as String},
+      );
+
+      if (claim.affectedRows == 0) {
+        // Reuse: a copy of this token leaked (or a concurrent racer beat us
+        // to it — the same defence applies either way). Revoking only the
+        // presented row would leave any newer, legitimately-rotated
+        // descendant valid in an attacker's hands, so the whole family is
+        // killed. This UPDATE must survive the transaction — see the doc
+        // comment above.
         await tx.execute(
           Sql.named(
             'UPDATE refresh_tokens SET revoked_at = now() '
@@ -161,11 +201,6 @@ class TokenService {
         );
         return (reused: true, tokens: null as IssuedTokens?);
       }
-
-      await tx.execute(
-        Sql.named('UPDATE refresh_tokens SET used_at = now() WHERE id = @id'),
-        parameters: {'id': found['id']! as String},
-      );
 
       final claims = await _loadClaimsTx(tx, userId);
       final accessToken = _signAccessToken(userId);
@@ -209,17 +244,53 @@ class TokenService {
     );
   }
 
-  /// Verifies [jwt] and returns the subject (user id), or `null` on any
-  /// [JWTException] — unknown signature, expiry, malformed token, whatever
-  /// the cause. Task 5's authenticate middleware relies on this single
-  /// code path for "not authenticated": it never needs to discriminate why.
+  /// Verifies [jwt] and returns the subject (user id), or `null` on
+  /// anything invalid — unknown signature, expiry, malformed token,
+  /// whatever the cause. Task 5's authenticate middleware relies on this
+  /// single code path for "not authenticated": it never needs to
+  /// discriminate why, and this method must never throw.
+  ///
+  /// `dart_jsonwebtoken` picks the verification algorithm from the token's
+  /// own header — attacker-controlled input — and its RSA/ECDSA/EdDSA
+  /// verify paths perform an unchecked cast of the (HMAC) [SecretKey] to
+  /// the key type that algorithm expects, which raises a raw [TypeError]/
+  /// assertion `Error`, not a [JWTException]. Every access token this
+  /// service issues is HS256 (see [_signAccessToken]), so any other `alg` —
+  /// or a missing one — is rejected outright before `JWT.verify` ever
+  /// runs, closing that path entirely. The broad `on Object` below is
+  /// defence in depth for this method's "never throws" contract, not the
+  /// primary defence.
   String? userIdFromAccessToken(String jwt) {
+    if (!_hasHs256Header(jwt)) return null;
     try {
       final verified = JWT.verify(jwt, SecretKey(config.jwtSecret));
       return verified.subject;
-    } on JWTException {
+    } on Object {
       return null;
     }
+  }
+
+  /// Decodes (without verifying) a compact JWT's header segment and checks
+  /// `alg == 'HS256'`. Returns `false` on anything malformed — not a JWT
+  /// shape, invalid base64url, not JSON, not an object, no `alg` key, or a
+  /// non-HS256 `alg` — so the caller can reject before ever handing the
+  /// token to `JWT.verify`.
+  static bool _hasHs256Header(String jwt) {
+    final parts = jwt.split('.');
+    if (parts.length != 3) return false;
+    try {
+      final decoded = jsonDecode(
+        utf8.decode(base64Url.decode(_base64UrlPadded(parts[0]))),
+      );
+      return decoded is Map && decoded['alg'] == 'HS256';
+    } on Object {
+      return false;
+    }
+  }
+
+  static String _base64UrlPadded(String segment) {
+    final remainder = segment.length % 4;
+    return remainder == 0 ? segment : segment + ('=' * (4 - remainder));
   }
 
   String _signAccessToken(String userId) {

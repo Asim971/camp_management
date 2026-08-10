@@ -28,6 +28,23 @@ Future<shelf.Response> _post(
   return handler(request);
 }
 
+/// I4: records every encoded hash `/auth/login` actually verifies against,
+/// so a test can prove the "no such user" path still executes an Argon2id
+/// verify (against the fixed dummy hash) rather than skipping straight to
+/// 401 — the behaviour that made response *timing* an enumeration oracle
+/// even though the status code and body never differed.
+class _RecordingHasher extends PasswordHasher {
+  _RecordingHasher(Argon2Params params) : super(params: params);
+
+  final List<String> verifiedAgainst = [];
+
+  @override
+  Future<bool> verify(String password, String encoded) async {
+    verifiedAgainst.add(encoded);
+    return super.verify(password, encoded);
+  }
+}
+
 void main() {
   late Db db;
   late TokenService tokens;
@@ -103,6 +120,35 @@ void main() {
       res.statusCode,
       401,
       reason: '404 would confirm which usernames exist',
+    );
+  });
+
+  // I4: assert BEHAVIOUR, not timing — a strict timing assertion would be
+  // flaky under CI load. What must be true is that the no-such-user path
+  // executes exactly one Argon2id verify, against the fixed dummy hash, so
+  // it costs the same as a real user's wrong-password path. A version of
+  // this route that returns 401 without ever hashing would still pass every
+  // other test in this file but would leak valid usernames through response
+  // timing alone.
+  test('an unknown username still pays one Argon2id verify, against the '
+      'fixed dummy hash (constant-time defence)', () async {
+    final recording = _RecordingHasher(Argon2Params.fastForTests);
+    final recordingRouter = authRouter(
+      db: db,
+      tokens: tokens,
+      hasher: recording,
+    );
+    final res = await _post(recordingRouter.call, '/auth/login', {
+      'username': 'nobody',
+      'password': 'pw',
+    });
+    expect(res.statusCode, 401);
+    expect(
+      recording.verifiedAgainst,
+      [dummyPasswordHash],
+      reason:
+          'the no-such-user path must verify against the dummy hash — '
+          'not skip verification, and not verify against a real row',
     );
   });
 

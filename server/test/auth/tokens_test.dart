@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:campaign_service/src/auth/tokens.dart';
 import 'package:campaign_service/src/config.dart';
 import 'package:campaign_service/src/db/migrator.dart';
@@ -6,6 +8,17 @@ import 'package:test/test.dart';
 
 import '../support/seed_fixtures.dart';
 import '../support/test_db.dart';
+
+/// Builds an unsigned JWT with an attacker-chosen header, so tests can prove
+/// [TokenService.userIdFromAccessToken] never throws no matter what `alg` (or
+/// absence of one) a caller puts in front of it. The signature segment is
+/// garbage on purpose: a forged header must be rejected before signature
+/// verification is ever reached.
+String _forgedToken(Map<String, Object?> header, Map<String, Object?> payload) {
+  String segment(Object value) =>
+      base64Url.encode(utf8.encode(jsonEncode(value))).replaceAll('=', '');
+  return '${segment(header)}.${segment(payload)}.not-a-real-signature';
+}
 
 void main() {
   late Db db;
@@ -99,4 +112,134 @@ void main() {
       reason: 'a database dump must not yield usable refresh tokens',
     );
   });
+
+  // C1: two concurrent rotations of the same refresh token, from two
+  // separate connections, must not both succeed. Under READ COMMITTED, a
+  // plain "SELECT then UPDATE" gives both transactions the same
+  // used_at-is-null snapshot, so both proceed and reuse detection never
+  // fires — exactly the theft window family revocation exists to close.
+  test('two concurrent rotations of the same token: exactly one succeeds, '
+      'and reuse revokes the family', () async {
+    final dbA = await Db.open(testDatabaseUrl);
+    final dbB = await Db.open(testDatabaseUrl);
+    addTearDown(() async {
+      await dbA.close();
+      await dbB.close();
+    });
+    final tokensA = TokenService(db: dbA, config: config);
+    final tokensB = TokenService(db: dbB, config: config);
+
+    final first = await tokens.issueFor('user-1');
+
+    Future<Object> attempt(TokenService svc) async {
+      try {
+        return await svc.rotate(first.refreshToken);
+      } on Object catch (e) {
+        return e;
+      }
+    }
+
+    final results = await Future.wait([attempt(tokensA), attempt(tokensB)]);
+
+    final successes = results.whereType<IssuedTokens>().toList();
+    final reuseFailures = results.whereType<RefreshReuseException>().toList();
+
+    expect(
+      successes,
+      hasLength(1),
+      reason: 'exactly one racer must win the rotation',
+    );
+    expect(
+      reuseFailures,
+      hasLength(1),
+      reason: 'the loser must see reuse, not a silent second success',
+    );
+
+    // Reuse detection is only meaningful if it actually revoked the
+    // family: the winner's own newly-minted token must be dead too.
+    await expectLater(
+      tokens.rotate(successes.single.refreshToken),
+      throwsA(isA<InvalidRefreshTokenException>()),
+    );
+  });
+
+  // C2: dart_jsonwebtoken picks the verification algorithm from the token's
+  // own (attacker-controlled) header, and its RSA/ECDSA/EdDSA verify paths
+  // perform an unchecked cast that throws a raw TypeError — not a
+  // JWTException — when the key doesn't match. userIdFromAccessToken's
+  // contract is "null on anything invalid, never throws"; these tests forge
+  // exactly the headers that broke that contract.
+  group('userIdFromAccessToken never throws on a forged header', () {
+    test('alg: RS256', () {
+      final forged = _forgedToken(
+        {'alg': 'RS256', 'typ': 'JWT'},
+        {'sub': 'user-1'},
+      );
+      expect(tokens.userIdFromAccessToken(forged), isNull);
+    });
+
+    test('alg: ES256', () {
+      final forged = _forgedToken(
+        {'alg': 'ES256', 'typ': 'JWT'},
+        {'sub': 'user-1'},
+      );
+      expect(tokens.userIdFromAccessToken(forged), isNull);
+    });
+
+    test('alg: EdDSA', () {
+      final forged = _forgedToken(
+        {'alg': 'EdDSA', 'typ': 'JWT'},
+        {'sub': 'user-1'},
+      );
+      expect(tokens.userIdFromAccessToken(forged), isNull);
+    });
+
+    test('missing alg', () {
+      final forged = _forgedToken({'typ': 'JWT'}, {'sub': 'user-1'});
+      expect(tokens.userIdFromAccessToken(forged), isNull);
+    });
+  });
+
+  // C3: login checks is_active, but rotation did not — a deactivated user
+  // could keep refreshing for up to the full 30-day refresh-token lifetime.
+  test('a deactivated user cannot rotate their refresh token', () async {
+    final issued = await tokens.issueFor('user-1');
+    await db.execute(
+      "UPDATE staff_users SET is_active = FALSE WHERE id = 'user-1'",
+    );
+    await expectLater(
+      tokens.rotate(issued.refreshToken),
+      throwsA(isA<InvalidRefreshTokenException>()),
+    );
+  });
+
+  // I5: the two reject branches below had no direct test — only the reuse
+  // and unknown-token paths did.
+  test('an expired refresh token is rejected', () async {
+    final issued = await tokens.issueFor('user-1');
+    await db.execute(
+      "UPDATE refresh_tokens SET expires_at = now() - INTERVAL '1 second' "
+      'WHERE user_id = @u',
+      params: {'u': 'user-1'},
+    );
+    await expectLater(
+      tokens.rotate(issued.refreshToken),
+      throwsA(isA<InvalidRefreshTokenException>()),
+    );
+  });
+
+  test(
+    'a revoked-but-never-used refresh token is rejected as invalid, not reuse',
+    () async {
+      final issued = await tokens.issueFor('user-1');
+      await db.execute(
+        'UPDATE refresh_tokens SET revoked_at = now() WHERE user_id = @u',
+        params: {'u': 'user-1'},
+      );
+      await expectLater(
+        tokens.rotate(issued.refreshToken),
+        throwsA(isA<InvalidRefreshTokenException>()),
+      );
+    },
+  );
 }

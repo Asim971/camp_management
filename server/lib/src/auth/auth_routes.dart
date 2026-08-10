@@ -1,12 +1,32 @@
 import 'dart:convert';
 
 import 'package:campaign_contracts/campaign_contracts.dart';
+import 'package:meta/meta.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
 import '../db/pool.dart';
 import 'password.dart';
 import 'tokens.dart';
+
+/// A fixed Argon2id hash of a constant, never-used password, computed once
+/// offline at production parameters (`dart run` against [PasswordHasher] with
+/// `Argon2Params.production` on the string
+/// `'no-such-user-timing-defence-constant-do-not-reuse'`).
+///
+/// `/auth/login` verifies against this whenever the submitted username has
+/// no matching row, so that path pays the same ~155ms Argon2id cost as
+/// verifying a real user's wrong password. Without it, "no such user" would
+/// return in ~1ms against a real user's ~155ms — status code and response
+/// body would be identical, but the response *time* would let a caller
+/// enumerate valid usernames one probe at a time.
+///
+/// Exposed (not private) only so tests can assert this path actually
+/// executes a verify, not just that it returns 401.
+@visibleForTesting
+const dummyPasswordHash =
+    r'$argon2id$v=19$m=19456,t=2,p=1$u2fcW3XbK3y/FF1XXGQ4hA==$'
+    r'ZQc7eHsiL3aIap0gufp8+AwCkDuk+dQ7G806Tu2Puck=';
 
 /// `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`.
 ///
@@ -39,11 +59,23 @@ Router authRouter({
     // identically: 401 with no distinguishing detail. A 404 for "no such
     // user" or a message naming the failed field would let a caller enumerate
     // valid usernames or confirm a guessed password was "close".
-    if (res.isEmpty) return _unauthorized();
-    final user = row(res.first);
-    if (user['is_active']! as bool != true) return _unauthorized();
-    final passwordHash = user['password_hash']! as String;
-    if (!await hasher.verify(password, passwordHash)) {
+    final user = res.isEmpty ? null : row(res.first);
+
+    // Every login attempt pays exactly one Argon2id verify, whether or not
+    // the username exists: a real stored hash when the row was found,
+    // `dummyPasswordHash` otherwise. This is the timing half of the
+    // constant-response invariant above — skipping the hash check on "no
+    // such user" would make that path return in ~1ms against a real user's
+    // ~155ms, letting a caller enumerate valid usernames from response
+    // *timing* even though the status code and body never differ. The
+    // check runs before the is_active check too, so a deactivated account
+    // doesn't create a second, faster-401 timing class of its own.
+    final passwordOk = await hasher.verify(
+      password,
+      user == null ? dummyPasswordHash : user['password_hash']! as String,
+    );
+
+    if (user == null || user['is_active']! as bool != true || !passwordOk) {
       return _unauthorized();
     }
 
