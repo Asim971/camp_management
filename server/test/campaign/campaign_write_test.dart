@@ -85,8 +85,9 @@ void main() {
     Handler handler,
     String pathAndQuery,
     Map<String, Object?> body,
-    String bearer,
-  ) async => handler(
+    String bearer, {
+    String? correlationId,
+  }) async => handler(
     Request(
       'PUT',
       Uri.parse('http://localhost$pathAndQuery'),
@@ -94,6 +95,7 @@ void main() {
       headers: {
         'authorization': 'Bearer $bearer',
         'content-type': 'application/json',
+        if (correlationId != null) 'X-Correlation-Id': correlationId,
       },
     ),
   );
@@ -473,4 +475,314 @@ void main() {
       expect((fields.first as Map)['field'], isA<String>());
     },
   );
+
+  // --- I1: malformed field types are 400, never a 500 --------------------
+  //
+  // `_draftInputFromBody`'s typed `_*Field` helpers (campaign_routes.dart)
+  // are what turn each of these into a clean, field-named 400 instead of an
+  // unhandled TypeError/FormatException reaching the envelope's catch-all.
+
+  test('a wrong-typed target is 400 BAD_REQUEST, not a 500', () async {
+    final res = await post(
+      handler,
+      '/campaigns',
+      {...draftBody(), 'target': '50'},
+      token,
+      key: nextKey('bad-target'),
+    );
+    expect(res.statusCode, 400);
+    expect(await errorCodeOf(res), 'BAD_REQUEST');
+  });
+
+  test('a non-array sessions is 400 BAD_REQUEST, not a 500', () async {
+    final res = await post(
+      handler,
+      '/campaigns',
+      {...draftBody(), 'sessions': <String, Object?>{}},
+      token,
+      key: nextKey('bad-sessions'),
+    );
+    expect(res.statusCode, 400);
+    expect(await errorCodeOf(res), 'BAD_REQUEST');
+  });
+
+  test(
+    'an unparseable session startAt is 400 BAD_REQUEST, not a 500',
+    () async {
+      final res = await post(
+        handler,
+        '/campaigns',
+        {
+          ...draftBody(),
+          'sessions': [
+            {
+              'venue': 'Hall A',
+              'capacity': 100,
+              'startAt': 'nope',
+              'endAt': '2026-09-01T12:00:00.000Z',
+            },
+          ],
+        },
+        token,
+        key: nextKey('bad-startAt'),
+      );
+      expect(res.statusCode, 400);
+      expect(await errorCodeOf(res), 'BAD_REQUEST');
+    },
+  );
+
+  test(
+    'a non-string element in territoryIds is 400 BAD_REQUEST, not a 500',
+    () async {
+      final res = await post(
+        handler,
+        '/campaigns',
+        {
+          ...draftBody(),
+          'territoryIds': [1],
+        },
+        token,
+        key: nextKey('bad-territoryIds'),
+      );
+      expect(res.statusCode, 400);
+      expect(await errorCodeOf(res), 'BAD_REQUEST');
+    },
+  );
+
+  // --- I2: territoryIds/approverId are org-scoped, not just FK-checked ---
+
+  group('cross-org and nonexistent references on write', () {
+    setUp(() async {
+      // A second organization with its own territory and a staff user who
+      // never appears in this file's default org — exactly what a
+      // campaign_create holder in org-1 should not be able to name.
+      await seedOrganizationWithUser(
+        db,
+        orgId: 'org-2',
+        territoryId: 'terr-2',
+        userId: 'user-foreign',
+        username: 'foreign',
+        roles: const [],
+      );
+    });
+
+    test('a foreign-organization territory is 422, not a 500', () async {
+      final res = await post(
+        handler,
+        '/campaigns',
+        {
+          ...draftBody(),
+          'territoryIds': ['terr-2'],
+        },
+        token,
+        key: nextKey('foreign-territory'),
+      );
+      expect(res.statusCode, 422);
+      final error = (await decodeBody(res))['error']! as Map<String, Object?>;
+      expect(error['code'], 'CAMPAIGN_VALIDATION_FAILED');
+      final fields = (error['details']! as Map)['fields']! as List;
+      expect(
+        fields.map((f) => (f as Map<String, Object?>)['field']),
+        contains('territoryIds'),
+      );
+    });
+
+    test('a foreign-organization approver is 422, not a 500', () async {
+      final res = await post(
+        handler,
+        '/campaigns',
+        {...draftBody(), 'approverId': 'user-foreign'},
+        token,
+        key: nextKey('foreign-approver'),
+      );
+      expect(res.statusCode, 422);
+      final error = (await decodeBody(res))['error']! as Map<String, Object?>;
+      expect(error['code'], 'CAMPAIGN_VALIDATION_FAILED');
+      final fields = (error['details']! as Map)['fields']! as List;
+      expect(
+        fields.map((f) => (f as Map<String, Object?>)['field']),
+        contains('approverId'),
+      );
+    });
+
+    test('a nonexistent territory id is 422, not a raw FK 500', () async {
+      final res = await post(
+        handler,
+        '/campaigns',
+        {
+          ...draftBody(),
+          'territoryIds': ['no-such-territory'],
+        },
+        token,
+        key: nextKey('nonexistent-territory'),
+      );
+      expect(res.statusCode, 422);
+      expect(await errorCodeOf(res), 'CAMPAIGN_VALIDATION_FAILED');
+    });
+
+    test('a nonexistent approver id is 422, not a raw FK 500', () async {
+      final res = await post(
+        handler,
+        '/campaigns',
+        {...draftBody(), 'approverId': 'no-such-user'},
+        token,
+        key: nextKey('nonexistent-approver'),
+      );
+      expect(res.statusCode, 422);
+      expect(await errorCodeOf(res), 'CAMPAIGN_VALIDATION_FAILED');
+    });
+  });
+
+  // --- I3: the positive warning-acknowledgement path, and the wire string
+  // it depends on, are both pinned -----------------------------------------
+
+  test('approve with the exact acknowledged warning succeeds', () async {
+    final id = await pendingCampaignWithWarnings(db, handler);
+    final res = await post(
+      handler,
+      '/campaigns/$id/decision',
+      {
+        'decision': 'APPROVE',
+        'version': 2,
+        'acknowledgedWarnings': ['TARGET_EXCEEDS_SESSION_CAPACITY'],
+      },
+      approverToken,
+      key: nextKey('ack-warning'),
+    );
+    expect(res.statusCode, 200);
+    expect((await decodeBody(res))['status'], 'APPROVED');
+  });
+
+  test(
+    'the unacknowledged-warnings error pins the exact wire identifier',
+    () async {
+      final id = await pendingCampaignWithWarnings(db, handler);
+      final res = await post(
+        handler,
+        '/campaigns/$id/decision',
+        {
+          'decision': 'APPROVE',
+          'version': 2,
+          'acknowledgedWarnings': <String>[],
+        },
+        approverToken,
+        key: nextKey('unpinned-warning'),
+      );
+      final error = (await decodeBody(res))['error']! as Map<String, Object?>;
+      final warnings = (error['details']! as Map)['warnings']! as List;
+      expect(
+        warnings,
+        ['TARGET_EXCEEDS_SESSION_CAPACITY'],
+        reason:
+            'a rename of this identifier must fail this test, not pass '
+            'silently while making every warned campaign unapprovable',
+      );
+    },
+  );
+
+  // --- I4: updateDraft's own governance rules, previously only exercised
+  // via the happy-path setup edit in the stale-version test --------------
+
+  test(
+    'PUT on a non-editable (PENDING_APPROVAL) campaign is 409 INVALID_TRANSITION',
+    () async {
+      final id = await pendingCampaign(db, handler);
+      final res = await put(handler, '/campaigns/$id', {
+        ...draftBody(),
+        'version': 2,
+      }, token);
+      expect(res.statusCode, 409);
+      final error = (await decodeBody(res))['error']! as Map<String, Object?>;
+      expect(error['code'], 'CAMPAIGN_INVALID_TRANSITION');
+      expect((error['details']! as Map)['currentStatus'], 'PENDING_APPROVAL');
+    },
+  );
+
+  test('PUT with a stale version is 409 CONFLICT_STALE_VERSION', () async {
+    final id = await createDraft(handler, token);
+    final firstEdit = await put(handler, '/campaigns/$id', {
+      ...draftBody(name: 'First edit'),
+      'version': 1,
+    }, token);
+    expect(firstEdit.statusCode, 200, reason: 'the first edit must succeed');
+
+    // Still using the now-stale version 1.
+    final res = await put(handler, '/campaigns/$id', {
+      ...draftBody(name: 'Second, stale edit'),
+      'version': 1,
+    }, token);
+    expect(res.statusCode, 409);
+    expect(await errorCodeOf(res), 'CONFLICT_STALE_VERSION');
+  });
+
+  // --- I5: correlation is stamped on every write's audit row, not just
+  // decide's -----------------------------------------------------------
+
+  Future<String?> auditCorrelationFor(String action, String resourceId) async {
+    final res = await db.execute(
+      'SELECT correlation_id FROM audit_events '
+      'WHERE action = @action AND resource_id = @id',
+      params: {'action': action, 'id': resourceId},
+    );
+    return row(res.single)['correlation_id'] as String?;
+  }
+
+  test('create stamps its audit row with the request correlation id', () async {
+    final res = await post(
+      handler,
+      '/campaigns',
+      draftBody(),
+      token,
+      key: nextKey('corr-create'),
+      correlationId: 'trace-create',
+    );
+    final id = (await decodeBody(res))['id']! as String;
+    expect(await auditCorrelationFor('campaign.created', id), 'trace-create');
+  });
+
+  test('update stamps its audit row with the request correlation id', () async {
+    final id = await createDraft(handler, token);
+    await put(
+      handler,
+      '/campaigns/$id',
+      {...draftBody(), 'version': 1},
+      token,
+      correlationId: 'trace-update',
+    );
+    expect(await auditCorrelationFor('campaign.updated', id), 'trace-update');
+  });
+
+  test('submit stamps its audit row with the request correlation id', () async {
+    final id = await createDraft(handler, token);
+    await post(
+      handler,
+      '/campaigns/$id/submit',
+      {'version': 1},
+      token,
+      key: nextKey('corr-submit'),
+      correlationId: 'trace-submit',
+    );
+    expect(await auditCorrelationFor('campaign.submitted', id), 'trace-submit');
+  });
+
+  test('every write audit row gets a non-null correlation id even when the '
+      'caller supplies none — correlation() always mints one', () async {
+    final id = await createDraft(handler, token);
+    expect(await auditCorrelationFor('campaign.created', id), isNotNull);
+  });
+
+  // --- M11-part rider: an unknown decision wire value is a client error --
+
+  test('an unknown decision value is 400 BAD_REQUEST', () async {
+    final id = await pendingCampaign(db, handler);
+    final res = await post(
+      handler,
+      '/campaigns/$id/decision',
+      {'decision': 'MAYBE_APPROVE', 'version': 2},
+      approverToken,
+      key: nextKey('bad-decision'),
+    );
+    expect(res.statusCode, 400);
+    expect(await errorCodeOf(res), 'BAD_REQUEST');
+  });
 }

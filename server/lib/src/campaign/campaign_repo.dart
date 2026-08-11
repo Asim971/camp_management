@@ -151,7 +151,11 @@ class CampaignRepo {
     CampaignDraftInput input, {
     required String organizationId,
     required String ownerId,
+    String? correlationId,
   }) async {
+    _throwIfFieldErrors(
+      await _crossOrgErrors(input, organizationId: organizationId),
+    );
     final id = _uuid.v4();
     await _db.tx((tx) async {
       await tx.execute(
@@ -185,6 +189,7 @@ class CampaignRepo {
         resourceType: 'campaign',
         resourceId: id,
         actorId: ownerId,
+        correlationId: correlationId,
       );
     });
 
@@ -203,6 +208,7 @@ class CampaignRepo {
     CampaignDraftInput input, {
     required String organizationId,
     required int expectedVersion,
+    String? correlationId,
   }) async {
     final current = await findById(id, organizationId: organizationId);
     if (current == null) {
@@ -214,6 +220,9 @@ class CampaignRepo {
         details: {'currentStatus': current.status.wireValue},
       );
     }
+    _throwIfFieldErrors(
+      await _crossOrgErrors(input, organizationId: organizationId),
+    );
 
     await _db.tx((tx) async {
       final updated = await tx.execute(
@@ -254,6 +263,7 @@ class CampaignRepo {
         resourceType: 'campaign',
         resourceId: id,
         actorId: input.ownerId,
+        correlationId: correlationId,
       );
     });
 
@@ -277,6 +287,7 @@ class CampaignRepo {
     required String organizationId,
     required String submittedBy,
     required int expectedVersion,
+    String? correlationId,
   }) async {
     final current = await findById(id, organizationId: organizationId);
     if (current == null) {
@@ -291,17 +302,7 @@ class CampaignRepo {
     }
 
     final draftInput = await _draftInputFor(current);
-    final errors = validateForSubmit(draftInput);
-    if (errors.isNotEmpty) {
-      throw ApiException(
-        ApiErrorCode.campaignValidationFailed,
-        details: {
-          'fields': [
-            for (final e in errors) {'field': e.field, 'message': e.message},
-          ],
-        },
-      );
-    }
+    _throwIfFieldErrors(validateForSubmit(draftInput));
 
     final snapshot = _snapshotOf(draftInput);
 
@@ -351,6 +352,7 @@ class CampaignRepo {
         resourceType: 'campaign',
         resourceId: id,
         actorId: submittedBy,
+        correlationId: correlationId,
       );
     });
 
@@ -492,6 +494,95 @@ class CampaignRepo {
   static bool _isEditableDraft(CampaignStatus status) =>
       status == CampaignStatus.draft || status == CampaignStatus.returned;
 
+  /// [errors] as one [ApiErrorCode.campaignValidationFailed], or nothing if
+  /// [errors] is empty. Shared by every write path that reports field-keyed
+  /// validation failures ([create]/[updateDraft]'s cross-org check, and
+  /// [submit]'s [validateForSubmit] revalidation) so the wire shape
+  /// (`details: {'fields': [{field, message}, ...]}`) can't drift between
+  /// them.
+  void _throwIfFieldErrors(List<FieldError> errors) {
+    if (errors.isEmpty) return;
+    throw ApiException(
+      ApiErrorCode.campaignValidationFailed,
+      details: {
+        'fields': [
+          for (final e in errors) {'field': e.field, 'message': e.message},
+        ],
+      },
+    );
+  }
+
+  /// Verifies [input]'s org-scoped references — every `territoryIds` entry
+  /// and a non-null `approverId` — actually belong to [organizationId] (D7).
+  ///
+  /// [CampaignDraftInput] carries only ids; `territories`/`staff_users` FKs
+  /// on the `campaigns`/`campaign_territories` columns already reject an id
+  /// that doesn't exist *anywhere*, but a `campaign_create` holder in one
+  /// organization can otherwise name a territory or approver that exists in
+  /// a DIFFERENT organization — the FK is satisfied, the row is written, and
+  /// the scope boundary this whole class enforces on every read is silently
+  /// absent on write. A nonexistent id and a foreign id are reported
+  /// identically here (both "not found in this organization"), which also
+  /// closes the second half of the bug this method exists for: without this
+  /// check, a nonexistent id doesn't even reach a clean validation error —
+  /// it reaches the `INSERT`/`UPDATE` and fails there as a raw FK
+  /// `PgException`, surfacing as 500.
+  Future<List<FieldError>> _crossOrgErrors(
+    CampaignDraftInput input, {
+    required String organizationId,
+  }) async {
+    final errors = <FieldError>[];
+
+    if (input.territoryIds.isNotEmpty) {
+      final params = <String, Object?>{'org': organizationId};
+      final placeholders = <String>[];
+      for (var i = 0; i < input.territoryIds.length; i++) {
+        final key = 'terr$i';
+        placeholders.add('@$key');
+        params[key] = input.territoryIds[i];
+      }
+      final res = await _db.execute(
+        'SELECT id FROM territories '
+        'WHERE organization_id = @org AND id IN (${placeholders.join(', ')})',
+        params: params,
+      );
+      final found = {for (final r in res) row(r)['id']! as String};
+      final missing = [
+        for (final t in input.territoryIds)
+          if (!found.contains(t)) t,
+      ];
+      if (missing.isNotEmpty) {
+        errors.add(
+          FieldError(
+            'territoryIds',
+            'Unknown territory id(s), or not in this organization: '
+                '${missing.join(', ')}.',
+          ),
+        );
+      }
+    }
+
+    final approverId = input.approverId;
+    if (approverId != null && approverId.trim().isNotEmpty) {
+      final res = await _db.execute(
+        'SELECT id FROM staff_users '
+        'WHERE id = @id AND organization_id = @org AND is_active',
+        params: {'id': approverId, 'org': organizationId},
+      );
+      if (res.isEmpty) {
+        errors.add(
+          FieldError(
+            'approverId',
+            'Unknown approver, or approver is not an active user in this '
+                'organization.',
+          ),
+        );
+      }
+    }
+
+    return errors;
+  }
+
   /// Re-reads [id] after a committed write. `null` here would mean the row
   /// this method's own transaction just wrote to has vanished before the
   /// transaction's own connection could read it back — not a business
@@ -591,10 +682,20 @@ class CampaignRepo {
   /// [CampaignRow]), and [validateForSubmit] never inspects geofencing —
   /// only the snapshot needs the real value, so only the snapshot path pays
   /// for reading it.
-  Future<bool> _loadGeofenceEnabled(String id) async {
+  ///
+  /// Scoped by [organizationId] like every other query in this class (D7) —
+  /// [id] alone is enough to find the right row (it's a primary key), but
+  /// this class's own invariant is that scope is enforced in every `WHERE`
+  /// clause, not left to the fact that the caller happens to already hold a
+  /// same-org id.
+  Future<bool> _loadGeofenceEnabled(
+    String id, {
+    required String organizationId,
+  }) async {
     final res = await _db.execute(
-      'SELECT geofence_enabled FROM campaigns WHERE id = @id',
-      params: {'id': id},
+      'SELECT geofence_enabled FROM campaigns '
+      'WHERE id = @id AND organization_id = @org',
+      params: {'id': id, 'org': organizationId},
     );
     if (res.isEmpty) return false;
     return row(res.single)['geofence_enabled']! as bool;
@@ -615,7 +716,10 @@ class CampaignRepo {
   /// this (not a client-supplied payload) is what gets revalidated.
   Future<CampaignDraftInput> _draftInputFor(CampaignRow current) async {
     final sessions = await _loadSessions(current.id);
-    final geofenceEnabled = await _loadGeofenceEnabled(current.id);
+    final geofenceEnabled = await _loadGeofenceEnabled(
+      current.id,
+      organizationId: current.organizationId,
+    );
     return CampaignDraftInput(
       name: current.name,
       type: current.type,
@@ -631,11 +735,18 @@ class CampaignRepo {
   }
 
   /// The immutable, diffable shape stored in `campaign_submissions.snapshot`.
-  /// A `Map`/`List` value, not a JSON string: the `postgres` driver encodes a
-  /// jsonb parameter itself (`binary_codec.dart`'s `TypeOid.jsonb` case calls
-  /// its own `jsonEncode` internally) and decodes it back to a `Map` on read
-  /// — see `AuditWriter`'s `payload` column, which already relies on the
+  /// A `Map` value, not a JSON string: with no explicit parameter type, the
+  /// driver's default text-encoding fallback
+  /// (`type_registry.dart:343`'s `_defaultTextEncoder`, delegating to
+  /// `text_codec.dart`'s `PostgresTextEncoder.tryConvert`) special-cases a
+  /// `Map` value at line 42 (`_encodeJSON`) and encodes it as JSON text —
+  /// exactly what a jsonb column expects — and decodes it back to a `Map` on
+  /// read. See `AuditWriter`'s `payload` column, which already relies on the
   /// same behaviour. Encoding it again here first would double-encode it.
+  /// Contrast `decide`'s `acknowledged_warnings` insert below: the SAME
+  /// fallback's `List` case (`text_codec.dart:54`, `_encodeList`) produces a
+  /// Postgres ARRAY literal, not JSON — a `List` parameter needs the
+  /// `jsonEncode` + `::jsonb` workaround a `Map` parameter does not.
   Map<String, Object?> _snapshotOf(CampaignDraftInput input) => {
     'name': input.name,
     'type': input.type,

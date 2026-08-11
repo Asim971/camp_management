@@ -109,6 +109,7 @@ Router campaignRouter({required Db db, required CampaignRepo repo}) {
             input,
             organizationId: auth.organizationId,
             ownerId: auth.userId,
+            correlationId: correlationOf(request),
           );
           return _jsonResponse(created.toWireJson());
         }),
@@ -128,6 +129,7 @@ Router campaignRouter({required Db db, required CampaignRepo repo}) {
             input,
             organizationId: auth.organizationId,
             expectedVersion: _requireVersion(body),
+            correlationId: correlationOf(request),
           );
           return _jsonResponse(updated.toWireJson());
         }),
@@ -147,6 +149,7 @@ Router campaignRouter({required Db db, required CampaignRepo repo}) {
             organizationId: auth.organizationId,
             submittedBy: auth.userId,
             expectedVersion: _requireVersion(body),
+            correlationId: correlationOf(request),
           );
           return _jsonResponse(submitted.toWireJson());
         }),
@@ -167,7 +170,10 @@ Router campaignRouter({required Db db, required CampaignRepo repo}) {
             reviewerId: auth.userId,
             decision: _requireDecision(body),
             reason: body['reason'] as String?,
-            acknowledgedWarnings: _stringListOf(body['acknowledgedWarnings']),
+            acknowledgedWarnings: _stringListField(
+              body,
+              'acknowledgedWarnings',
+            ),
             expectedVersion: _requireVersion(body),
             correlationId: correlationOf(request),
           );
@@ -209,40 +215,137 @@ Future<Map<String, Object?>> _readJsonBody(Request request) async {
 /// [CampaignDraftInput] needs, with [ownerId] coming from the caller's own
 /// `AuthContext` — never from the body, so a client cannot create or edit a
 /// campaign "as" someone else by naming a different owner.
+///
+/// Every field below is read through one of the typed `_*Field` helpers,
+/// which throw [ApiErrorCode.badRequest] naming the offending field on a
+/// type mismatch, rather than an unguarded `as` cast: `{"target": "50"}`,
+/// `{"sessions": {}}`, `{"territoryIds": [1]}` and a session's
+/// `{"startAt": "nope"}` were all reaching the error envelope's catch-all as
+/// an unhandled `TypeError`/`FormatException` — a 500, reporting a client's
+/// malformed request as a server fault — before this existed. This mirrors
+/// `_requireVersion`/`_requireDecision` below, which already did this for
+/// their one field each.
 CampaignDraftInput _draftInputFromBody(
   Map<String, Object?> body, {
   required String ownerId,
 }) {
-  final sessionsJson = body['sessions'] as List? ?? const [];
+  final sessionsJson = _listField(body, 'sessions');
   return CampaignDraftInput(
-    name: body['name'] as String? ?? '',
-    type: body['type'] as String? ?? '',
-    objective: body['objective'] as String?,
-    territoryIds: _stringListOf(body['territoryIds']),
-    target: body['target'] as int? ?? 0,
-    budgetReference: body['budgetReference'] as String?,
-    approverId: body['approverId'] as String?,
+    name: _stringField(body, 'name') ?? '',
+    type: _stringField(body, 'type') ?? '',
+    objective: _stringField(body, 'objective'),
+    territoryIds: _stringListField(body, 'territoryIds'),
+    target: _intField(body, 'target') ?? 0,
+    budgetReference: _stringField(body, 'budgetReference'),
+    approverId: _stringField(body, 'approverId'),
     ownerId: ownerId,
-    geofenceEnabled: body['geofenceEnabled'] as bool? ?? false,
+    geofenceEnabled: _boolField(body, 'geofenceEnabled') ?? false,
     sessions: [
-      for (final raw in sessionsJson)
-        _sessionInputFromJson(raw as Map<String, Object?>),
+      for (var i = 0; i < sessionsJson.length; i++)
+        _sessionInputFromJson(sessionsJson[i], index: i),
     ],
   );
 }
 
-SessionInput _sessionInputFromJson(Map<String, Object?> json) => SessionInput(
-  venue: json['venue'] as String?,
-  capacity: json['capacity'] as int?,
-  startAt: _parseDateTime(json['startAt']),
-  endAt: _parseDateTime(json['endAt']),
+// `reportAs` names the field in the error, `field` is the actual JSON key to
+// read — a session object's own keys are still plain `venue`/`startAt`/etc
+// (it has no idea it's element 0 of the array), so looking it up BY its
+// prefixed report name (`sessions[0].startAt`) would silently miss every
+// real value: every session field would read back as "absent" and the
+// wrong error (missing) would fire instead of the right one (wrong type),
+// or worse, a well-formed session would lose its own data. Caught by the
+// existing suite: 8 pre-existing tests broke when this file's first draft
+// conflated the two.
+SessionInput _sessionInputFromJson(Object? raw, {required int index}) {
+  if (raw is! Map<String, Object?>) {
+    _badField('sessions[$index]', 'must be an object');
+  }
+  final prefix = 'sessions[$index]';
+  return SessionInput(
+    venue: _stringField(raw, 'venue', reportAs: '$prefix.venue'),
+    capacity: _intField(raw, 'capacity', reportAs: '$prefix.capacity'),
+    startAt: _dateTimeField(raw, 'startAt', reportAs: '$prefix.startAt'),
+    endAt: _dateTimeField(raw, 'endAt', reportAs: '$prefix.endAt'),
+  );
+}
+
+/// Every `_*Field` helper below shares the same contract: `null`/absent is
+/// a valid "not provided" (the caller decides the fallback), but a value
+/// that IS present and the wrong JSON type is a [badRequest] naming [field]
+/// (or [reportAs], for a nested field whose own JSON key isn't the name a
+/// caller wants surfaced) — never a silent coercion and never an uncaught
+/// cast exception.
+Never _badField(String field, String problem) => throw ApiException(
+  ApiErrorCode.badRequest,
+  message: '"$field" $problem.',
+  details: {'field': field},
 );
 
-DateTime? _parseDateTime(Object? value) =>
-    value is String ? DateTime.parse(value) : null;
+String? _stringField(
+  Map<String, Object?> body,
+  String field, {
+  String? reportAs,
+}) {
+  final value = body[field];
+  if (value == null) return null;
+  if (value is! String) _badField(reportAs ?? field, 'must be a string');
+  return value;
+}
 
-List<String> _stringListOf(Object? value) =>
-    (value as List? ?? const []).cast<String>();
+int? _intField(Map<String, Object?> body, String field, {String? reportAs}) {
+  final value = body[field];
+  if (value == null) return null;
+  if (value is! int) _badField(reportAs ?? field, 'must be an integer');
+  return value;
+}
+
+bool? _boolField(Map<String, Object?> body, String field) {
+  final value = body[field];
+  if (value == null) return null;
+  if (value is! bool) _badField(field, 'must be a boolean');
+  return value;
+}
+
+/// `[]` when [field] is absent — every caller here treats "not provided"
+/// the same as "provided empty" — but a [field] that IS present and not a
+/// JSON array (e.g. `{}`) is a [badRequest], not a value silently coerced
+/// into an empty list.
+List<Object?> _listField(Map<String, Object?> body, String field) {
+  final value = body[field];
+  if (value == null) return const [];
+  if (value is! List) _badField(field, 'must be an array');
+  return value;
+}
+
+/// [_listField] plus an element-type check — `{"territoryIds": [1]}` names
+/// the specific offending index (`territoryIds[0]`) rather than failing
+/// lazily, mid-iteration, wherever the list is later consumed (`cast`'s
+/// laziness is exactly how this one reached the envelope as a 500 before
+/// this check existed).
+List<String> _stringListField(Map<String, Object?> body, String field) {
+  final list = _listField(body, field);
+  for (var i = 0; i < list.length; i++) {
+    if (list[i] is! String) _badField('$field[$i]', 'must be a string');
+  }
+  return list.cast<String>();
+}
+
+DateTime? _dateTimeField(
+  Map<String, Object?> body,
+  String field, {
+  String? reportAs,
+}) {
+  final value = body[field];
+  if (value == null) return null;
+  if (value is! String) {
+    _badField(reportAs ?? field, 'must be an ISO-8601 string');
+  }
+  try {
+    return DateTime.parse(value);
+  } on FormatException {
+    _badField(reportAs ?? field, 'must be a valid ISO-8601 date/time');
+  }
+}
 
 /// `version` is required on every version-checked write (update, submit,
 /// decide) — a missing or non-integer value is a client bug, not something

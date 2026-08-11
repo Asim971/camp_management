@@ -171,6 +171,22 @@ void main() {
     );
   });
 
+  // M11-part rider: only the literal string 'false' disables SoD — a
+  // garbled/unexpected value (a typo, a bad migration, anything that isn't
+  // the one recognised opt-out) must fail closed, the same as a missing row.
+  test('a garbage sod.enforced value still enforces', () async {
+    await db.execute(
+      "UPDATE app_config SET value = 'maybe' WHERE key = 'sod.enforced'",
+    );
+    expect(
+      await sodEnforced(db),
+      isTrue,
+      reason:
+          'only the literal value "false" may disable a governance '
+          'control — anything unrecognised must fail closed',
+    );
+  });
+
   test('SoD can be disabled by configuration', () async {
     await db.execute(
       "UPDATE app_config SET value = 'false' WHERE key = 'sod.enforced'",
