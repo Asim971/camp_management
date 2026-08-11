@@ -1,0 +1,86 @@
+# W-06 registration workspace against the REAL campaign service (2a-I).
+# Fixtures: POST /__test__/reset leaves campaign seed-camp-1 ("ACSL Pilot
+# Carpenter Drive", APPROVED) and carpenters "Md. Karim" (••4821, id
+# CARP_E2E) / "Karim Uddin" (••7734) -- see
+# server/lib/src/seed/seed_routes.dart.
+#
+# Requires the `realAuth` matrix APK (--dart-define=E2E_REAL_AUTH=true,
+# alongside the always-on --dart-define=E2E=true) -- see this flow's own
+# `registration` matrix config in ci.yml and real_auth_campaign_journey.yaml's
+# header comment for why real auth is needed at all.
+appId: ${APP_ID}
+tags:
+  - registration
+  - critical
+  - android
+---
+- clearState
+- launchApp
+
+# Unauthenticated after the auto-sign-in's real 401 (see
+# real_auth_campaign_journey.yaml's header comment for why): RouteGuards
+# redirected `/dev` to `/login?from=%2Fdev`.
+- assertVisible:
+    id: "login_username"
+- tapOn:
+    id: "login_username"
+- inputText: "campaign_creator"
+- tapOn:
+    id: "login_password"
+- inputText: "Test1234!"
+- hideKeyboard
+- tapOn:
+    id: "login_submit"
+
+# A real JWT was issued and verified by `authenticate()` -- landed back on
+# the dev launcher.
+- assertVisible:
+    id: "dev_launcher"
+- tapOn:
+    id: "dev_open_campaigns"
+
+# One of `POST /__test__/reset`'s three seeded rows -- the seeded APPROVED
+# campaign whose owner is campaign_creator, so its "Add registrations"
+# button (Permission.campaignCreate) renders.
+- assertVisible: ".*ACSL Pilot Carpenter Drive.*"
+- tapOn: ".*ACSL Pilot Carpenter Drive.*"
+- assertVisible: ".*ACSL Pilot Carpenter Drive.*"
+- tapOn: "Add registrations"
+- assertVisible: "Search carpenter master"
+
+# Master search + basket (all ids are the Semantics identifiers Task 9
+# adds to registration_workspace_screen.dart; CARP_E2E is the seeded
+# fixture id for "Md. Karim"):
+- tapOn:
+    id: "registration_search"
+- inputText: "Karim"
+- assertVisible: "Md. Karim"
+- assertVisible: ".*CARP-••4821.*"
+- tapOn:
+    id: "registration_add_CARP_E2E"
+- assertVisible: "Registration basket (1)"
+
+# Register:
+- tapOn:
+    id: "registration_submit"
+- assertVisible: "Registered 1 participant(s)"
+
+# Same-visit profile request lands in the basket: a search with no match
+# surfaces the empty-state's "Request new profile" affordance.
+- tapOn:
+    id: "registration_search"
+- inputText: "Nobody Matches This"
+- assertVisible: "No matching carpenter in the master."
+- tapOn:
+    id: "registration_request_profile"
+- tapOn:
+    id: "profile_name"
+- inputText: "Flow Person"
+- tapOn:
+    id: "profile_phone"
+- inputText: "+8801799990001"
+- hideKeyboard
+- tapOn:
+    id: "profile_submit"
+- assertVisible: "Registration basket (1)"
+- assertVisible: "Flow Person"

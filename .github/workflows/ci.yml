@@ -271,6 +271,14 @@ jobs:
             defines: '--dart-define=E2E_REAL_AUTH=true'
             useMock: '0'
             flows: .maestro/flows/real_auth_campaign_journey.yaml
+          # 2a-I: real-auth login, master search/basket, register, and the
+          # same-visit profile-request -> basket path -- the acceptance proof
+          # for sub-project 2a (identity & registrations). See
+          # registration_workspace.yaml's own header comment.
+          - key: registration
+            defines: '--dart-define=E2E_REAL_AUTH=true'
+            useMock: '0'
+            flows: .maestro/flows/registration_workspace.yaml
     steps:
       - uses: actions/checkout@v4
 
