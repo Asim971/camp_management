@@ -1,9 +1,12 @@
-# D3 / Task 11 step 6: the one flow that signs in through the REAL identity
-# provider instead of FakeAuthService, proving the campaign service this
-# slice ships can actually issue and honour a token end-to-end. Every other
-# flow in this suite swaps in FakeAuthService whenever `config.e2e` is true
-# and has never logged into the identity provider we now own
-# (lib/app/di/providers.dart's authServiceProvider doc).
+# D3 / Task 11 step 6: this flow signs in through the REAL identity provider
+# instead of FakeAuthService, proving the campaign service this slice ships
+# can actually issue and honour a token end-to-end. Every OTHER flow in this
+# suite swaps in FakeAuthService whenever `config.e2e` is true and has never
+# logged into the identity provider we now own
+# (lib/app/di/providers.dart's authServiceProvider doc) -- except
+# locale_bengali.yaml, added to the fix round for an unrelated reason (its
+# own /campaigns read needs a real JWT once the backend is real), whose login
+# steps are modelled on this flow's.
 #
 # Requires the `realAuth` matrix APK (--dart-define=E2E_REAL_AUTH=true,
 # alongside the always-on --dart-define=E2E=true), which keeps DioAuthService

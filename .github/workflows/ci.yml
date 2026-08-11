@@ -127,6 +127,15 @@ jobs:
         working-directory: server
       - run: dart analyze --fatal-infos
         working-directory: server
+
+      # test/contract/parity_test.dart launches tool/mock_server as a
+      # subprocess via a bare `dart run`, which resolves dependencies
+      # implicitly on first run if they aren't already -- on a cold runner
+      # that resolution can eat into the test's own 30x1s health-poll budget
+      # and flake. Resolving here, once, up front removes that risk.
+      - run: dart pub get
+        working-directory: tool/mock_server
+
       - run: dart test
         working-directory: server
 
@@ -180,29 +189,53 @@ jobs:
       # /__test__/* only exists because of this -- see server/lib/src/app.dart
       # and server/lib/src/seed/seed_routes.dart. Never set this outside CI.
       ENABLE_TEST_SEEDING: 'true'
-      # Set the repo/environment variable E2E_USE_MOCK to '1' (Settings ->
-      # Secrets and variables -> Actions -> Variables) to bisect a red e2e run
-      # against tool/mock_server instead of the real service, without editing
-      # this file. Kept as a flag rather than deleted the moment the cut-over
-      # landed -- spec §9's cut-over rule, and the mock is still the harness
-      # two epics of E2E coverage were built against.
-      USE_MOCK: ${{ vars.E2E_USE_MOCK || '0' }}
+      # Staged cut-over (spec §9, amended): each config runs against the real
+      # service UNLESS its own `matrix.config.useMock` says otherwise -- see
+      # the matrix below for which configs need the mock and why. The repo/
+      # environment variable E2E_USE_MOCK (Settings -> Secrets and variables
+      # -> Actions -> Variables), when set, overrides EVERY config at once,
+      # for bisecting a red run without editing this file. Kept as a flag
+      # rather than deleted the moment the cut-over landed -- the mock is
+      # still the harness two epics of E2E coverage were built against, and
+      # `crm`/`field` depend on it for real in this staged plan, not just as
+      # a fallback.
+      USE_MOCK: ${{ vars.E2E_USE_MOCK || matrix.config.useMock }}
     strategy:
       # One red configuration must not mask the state of the other four.
       fail-fast: false
       matrix:
         config:
+          # Staged cut-over (spec §9, amended after Task 11's fix-round review):
+          # each config's `useMock` reflects whether ITS OWN flows depend on
+          # endpoints this slice's real service actually implements
+          # (/health, /auth/*, /campaigns only) -- traced flow by flow, not
+          # guessed. `recapture` and `queue` pass against the real service
+          # (their assertions don't need a successful upload: `queue` even
+          # asserts the retry FAILS, and a 404 presign produces exactly
+          # that). `locale` needs E2E_REAL_AUTH now: its second half reads
+          # /campaigns, and FakeAuthService's non-JWT token is correctly
+          # 401'd by the real authenticate() -- see
+          # .maestro/flows/locale_bengali.yaml's updated header comment.
+          #
           # Defaults (ROLE=field_user, QUALITY=pass, no SEED). field_offline_capture
           # belongs HERE and not under `queue`: SEED=queue seeds a pending task and
           # this flow asserts an exact pending count of one (e2e_seeder.dart:51).
           - key: field
             defines: ''
+            useMock: '1' # field_offline_capture asserts a successful upload
+            # completing (Match processing), which needs /media/presign,
+            # /media/upload/<id> and /attendance/<id>/confirm -- endpoints
+            # that belong to sub-project 4/5's slice and don't exist yet.
+            # Move this config off USE_MOCK when they land.
             flows: >-
               .maestro/flows/carpenter_search_confirm.yaml
               .maestro/flows/field_online_capture.yaml
               .maestro/flows/field_offline_capture.yaml
           - key: crm
             defines: '--dart-define=ROLE=crm_verifier'
+            useMock: '1' # both flows read/decide /verification/cases/* --
+            # endpoints belong to sub-project 4/5; move off USE_MOCK when
+            # they land.
             flows: >-
               .maestro/flows/crm_case_decision.yaml
               .maestro/flows/crm_case_conflict.yaml
@@ -210,22 +243,31 @@ jobs:
           # that expects its first capture to pass.
           - key: recapture
             defines: '--dart-define=QUALITY=fail'
+            useMock: '0'
             flows: .maestro/flows/field_capture_recapture.yaml
           - key: queue
             defines: '--dart-define=SEED=queue'
+            useMock: '0'
             flows: .maestro/flows/offline_queue_retry.yaml
           # Its own APK because every other flow falls back to English
           # visible-text selectors and would break against a Bengali build.
+          # E2E_REAL_AUTH=true added in the fix round: the flow's second half
+          # reads /campaigns, which the real authenticate() 401s for
+          # FakeAuthService's non-JWT token -- see the flow's own header
+          # comment for the seeded field_user login this now performs first.
           - key: locale
-            defines: '--dart-define=LOCALE=bn'
+            defines: '--dart-define=LOCALE=bn --dart-define=E2E_REAL_AUTH=true'
+            useMock: '0'
             flows: .maestro/flows/locale_bengali.yaml
-          # D3 / Task 11 step 6: the one config that signs in through the
-          # REAL identity provider (DioAuthService) instead of
-          # FakeAuthService -- see providers.dart's authServiceProvider and
-          # real_auth_campaign_journey.yaml's own header comment for why no
-          # other config proves this.
+          # D3 / Task 11 step 6: signs in through the REAL identity provider
+          # (DioAuthService) instead of FakeAuthService -- see
+          # providers.dart's authServiceProvider and
+          # real_auth_campaign_journey.yaml's own header comment. `locale`
+          # above does too now (added in the fix round), for its own
+          # unrelated reason.
           - key: realAuth
             defines: '--dart-define=E2E_REAL_AUTH=true'
+            useMock: '0'
             flows: .maestro/flows/real_auth_campaign_journey.yaml
     steps:
       - uses: actions/checkout@v4

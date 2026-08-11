@@ -140,19 +140,54 @@ void main() {
       },
     );
 
-    test(
-      '$targetName: pageSize is clamped to 100, never served unbounded',
-      () async {
-        final targets = await buildTargets(campaignCount: 3);
-        final target = targetName == 'real' ? targets.real : targets.mock;
-
-        final body = await target.getJson('/campaigns?pageSize=10000');
+    // Review finding (F3, Task 11 fix round): a shared `campaignCount: 3`
+    // made this assertion vacuous on BOTH targets -- `<= 100` can never fail
+    // when only 3 rows exist, whichever backend answers it. The two targets
+    // now get genuinely different, falsifiable setups: the real target is
+    // seeded past 100 rows so the clamp has something to actually clamp;
+    // the mock has no seeding endpoint of its own (`tool/mock_server` is a
+    // fixed 3-row fixture, `CAMP-1..3`, for the lifetime of this file's one
+    // subprocess -- see `setUpAll`), so it gets a paging assertion sized to
+    // what it actually holds instead. Every assertion here must be able to
+    // fail; neither branch is `lessThanOrEqualTo`.
+    if (targetName == 'real') {
+      test(
+        'real: pageSize is clamped to 100 even with 105 seeded rows',
+        () async {
+          final targets = await buildTargets(campaignCount: 105);
+          final body = await targets.real.getJson('/campaigns?pageSize=10000');
+          expect(
+            (body['items']! as List<Object?>).length,
+            100,
+            reason:
+                '105 seeded rows must clamp to exactly 100, not be served '
+                'unbounded and not be silently truncated below the clamp',
+          );
+        },
+      );
+    } else {
+      test('mock: paginates its 3 fixed rows exactly (falsifiable stand-in for '
+          'the >100 clamp, which 3 fixed rows can never exercise)', () async {
+        final targets = await buildTargets(campaignCount: 0);
+        final firstPage = await targets.mock.getJson('/campaigns?pageSize=2');
         expect(
-          (body['items']! as List<Object?>).length,
-          lessThanOrEqualTo(100),
+          (firstPage['items']! as List<Object?>).length,
+          2,
+          reason: 'the mock always seeds exactly 3 fixture campaigns',
         );
-      },
-    );
+        final secondPage = await targets.mock.getJson(
+          '/campaigns?pageSize=2&page=2',
+        );
+        expect(
+          (secondPage['items']! as List<Object?>).length,
+          1,
+          reason:
+              'page 2 of size 2 over 3 rows must be the single remaining '
+              'row -- 0 would mean a broken offset, 2 would mean page was '
+              'silently ignored',
+        );
+      });
+    }
   }
 }
 

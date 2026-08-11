@@ -119,8 +119,22 @@ Middleware _authenticateOnlyUnderCampaigns({
   return (Handler inner) {
     final gated = authenticated(inner);
     return (Request request) {
-      final path = request.requestedUri.path;
-      if (path == '/campaigns' || path.startsWith('/campaigns/')) {
+      // `request.url` (not `request.requestedUri`) is relative to wherever
+      // this handler is mounted -- shelf's own doc: "[url]'s path is always
+      // relative... to requestedUri.path without the initial '/'". Today
+      // this handler sits at the top level, so the two agree modulo the
+      // leading slash (`campaigns` vs `/campaigns`), which is why the
+      // literals below have none. The point of reading `url` instead of
+      // `requestedUri` is that THIS predicate keeps matching correctly if
+      // `campaignHandler` is ever mounted under a prefix (e.g.
+      // `Router().mount('/api', ...)`) -- `url.path` stays `campaigns`
+      // relative to that mount, while `requestedUri.path` would still be the
+      // full, unstripped `/api/campaigns` and would stop matching, silently
+      // routing real campaign requests past `authenticate` unauthenticated.
+      // Reading `url` is what keeps a future mount failing CLOSED (still
+      // authenticated) instead of open.
+      final path = request.url.path;
+      if (path == 'campaigns' || path.startsWith('campaigns/')) {
         return gated(request);
       }
       return inner(request);
