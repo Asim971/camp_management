@@ -2739,9 +2739,37 @@ In `lib/features/registration/application/registration_controller.dart`:
   }
 ```
 
-- [ ] **Step 6: Screen — fix the pre-D1 sheet copy**
+- [ ] **Step 6: Screen — fix the pre-D1 sheet copy and add the e2e semantics id**
 
-In `lib/features/registration/presentation/registration_workspace_screen.dart`, in `_showRequestProfileSheet`: title `'Request new Sales Eco profile'` → `'Request new carpenter profile'`, and the explanatory `Text` → 
+In `lib/features/registration/presentation/registration_workspace_screen.dart`:
+
+1. Every Maestro-driven control needs a semantics id — the repo's flows drive
+   controls by `id:`, never by text (see `carpenter_search_confirm.yaml`:
+   `search_field`, `search_result`, `confirm_continue`), and none of W-06's
+   controls have one yet. Add `Semantics(identifier: ...)` wrappers, the same
+   pattern as `dev_launcher_screen.dart:48`, to: the search field
+   (`registration_search`), the request-profile button
+   (`registration_request_profile`), the side-sheet name/phone fields and
+   submit (`profile_name`, `profile_phone`, `profile_submit`), the register
+   button (`registration_submit`), and — per result row — the add button:
+
+```dart
+                            : Semantics(
+                                identifier: 'registration_add_${person.id}',
+                                child: IconButton(
+                                  icon: Icon(
+                                    inBasket
+                                        ? Icons.check
+                                        : Icons.add_circle_outline,
+                                  ),
+                                  onPressed: inBasket
+                                      ? null
+                                      : () => c.addToBasket(person),
+                                ),
+                              ),
+```
+
+2. In `_showRequestProfileSheet`: title `'Request new Sales Eco profile'` → `'Request new carpenter profile'`, and the explanatory `Text` → 
 
 ```dart
         const Text(
@@ -2810,28 +2838,36 @@ appId: ${APP_ID}
 - tapOn: "ACSL Pilot Carpenter Drive"
 - tapOn: "Add registrations"
 - assertVisible: "Search carpenter master"
-# 3) Master search + basket:
-- tapOn: "Search carpenter master"
+# 3) Master search + basket (all ids are the Semantics identifiers Task 9
+#    adds; CARP_E2E is the seeded fixture id):
+- tapOn:
+    id: "registration_search"
 - inputText: "Karim"
 - assertVisible: "Md. Karim"
-- assertVisible: "CARP-••4821.*"
+- assertVisible: ".*CARP-••4821.*"
 - tapOn:
-    below: "Md. Karim"        # adjust to the add-button locator the
-                               # search result row actually exposes
+    id: "registration_add_CARP_E2E"
 - assertVisible: "Registration basket (1)"
 # 4) Register:
-- tapOn: "Register 1 participant(s)"
+- tapOn:
+    id: "registration_submit"
 - assertVisible: "Registered 1 participant(s)"
 # 5) Same-visit profile request lands in the basket:
-- tapOn: "Search carpenter master"
+- tapOn:
+    id: "registration_search"
 - inputText: "Nobody Matches This"
 - assertVisible: "No matching carpenter in the master."
-- tapOn: "Request new profile"
-- tapOn: "Full name"
+- tapOn:
+    id: "registration_request_profile"
+- tapOn:
+    id: "profile_name"
 - inputText: "Flow Person"
-- tapOn: "Phone"
+- tapOn:
+    id: "profile_phone"
 - inputText: "+8801799990001"
-- tapOn: "Submit request"
+- hideKeyboard
+- tapOn:
+    id: "profile_submit"
 - assertVisible: "Registration basket (1)"
 - assertVisible: "Flow Person"
 ```
