@@ -470,6 +470,16 @@ Replace the body of the `for (final id in pending)` loop:
     }
 ```
 
+> **Correction found by Task 2's execution (2026-08-11, TDD, deterministic 5/5): the
+> Step 3 snippet alone does NOT close the race.** The bootstrap
+> `CREATE TABLE IF NOT EXISTS schema_migrations` at the top of `applyPending` runs
+> outside any lock, and Postgres's existence-check-then-create is not atomic under
+> concurrent DDL — two cold-boot migrators fail with SQLSTATE 23505 on `pg_type` before
+> the per-migration lock is ever reached. Wrap that bootstrap statement in its own
+> lock-guarded transaction using the same `_migrationLockKey`. The loser-skips guarantee
+> still holds across the bootstrap/loop lock gap because the in-tx recheck (not the lock
+> alone) is what makes the loser skip.
+
 - [ ] **Step 4: Add migration `003_role_check`**
 
 In `server/lib/src/db/migrations/embedded.dart`, add to the map and define:
