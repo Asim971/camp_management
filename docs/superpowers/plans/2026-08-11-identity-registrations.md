@@ -1529,6 +1529,13 @@ class ParticipantRepo {
       );
     }
 
+    // Corrections from Task 5's review (2026-08-11), reflected below: (1) the
+    // write's SELECT carries its own org predicate — D7 requires scoping
+    // INSIDE the SQL, never only in a pre-check outside the transaction;
+    // (2) ids are deduplicated at entry — ANY() matches carpenter ROWS, not
+    // list entries, so ['c-1','c-1'] miscounted alreadyRegistered and the
+    // audit payload without it.
+    final ids = carpenterIds.toSet().toList();
     late int inserted;
     await _db.tx((tx) async {
       final result = await tx.execute(
@@ -1541,11 +1548,13 @@ class ParticipantRepo {
           "       ELSE '${RegistrationStatus.registered.wireValue}' END, "
           '  @by '
           'FROM carpenters c WHERE c.id = ANY(@ids) '
+          '  AND c.organization_id = @org '
           'ON CONFLICT (campaign_id, carpenter_id) DO NOTHING',
         ),
         parameters: {
           'campaign': campaignId,
-          'ids': carpenterIds,
+          'ids': ids,
+          'org': organizationId,
           'by': registeredBy,
         },
       );
