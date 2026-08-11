@@ -203,3 +203,58 @@ Future<void> seedCampaigns(
     );
   }
 }
+
+/// Inserts one carpenter. Defaults line up with [seedOrganizationWithUser]
+/// (`org-1`/`terr-1`), so an uncustomised test's token can see the row.
+Future<void> seedCarpenter(
+  Db db, {
+  required String id,
+  String name = 'Md. Karim',
+  String phone = '+8801700004821',
+  String displayCode = 'CARP-00004821',
+  String organizationId = 'org-1',
+  String? territoryId = 'terr-1',
+  String? nid,
+  String? dealerContext,
+  String source = 'SEED',
+  String syncStatus = 'LOCAL_ONLY',
+  bool eligible = true,
+}) => db.execute(
+  'INSERT INTO carpenters '
+  '(id, organization_id, full_name, phone, nid, territory_id, '
+  ' dealer_context, display_code, source, sync_status, eligible) '
+  'VALUES (@id, @org, @name, @phone, @nid, @territory, @dealer, @code, '
+  '        @source, @sync, @eligible)',
+  params: {
+    'id': id,
+    'org': organizationId,
+    'name': name,
+    'phone': phone,
+    'nid': nid,
+    'territory': territoryId,
+    'dealer': dealerContext,
+    'code': displayCode,
+    'source': source,
+    'sync': syncStatus,
+    'eligible': eligible,
+  },
+);
+
+/// Inserts one registration row directly, bypassing the route.
+Future<void> seedRegistration(
+  Db db, {
+  required String campaignId,
+  required String carpenterId,
+  String status = 'REGISTERED',
+  String registeredBy = 'user-1',
+}) => db.execute(
+  'INSERT INTO registrations '
+  '(campaign_id, carpenter_id, status, registered_by) '
+  'VALUES (@campaign, @carpenter, @status, @by)',
+  params: {
+    'campaign': campaignId,
+    'carpenter': carpenterId,
+    'status': status,
+    'by': registeredBy,
+  },
+);

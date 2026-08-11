@@ -161,6 +161,9 @@ void main() {
         'audit_events',
         'app_config',
         'schema_migrations',
+        'carpenters',
+        'registrations',
+        'profile_requests',
       ]),
     );
   });

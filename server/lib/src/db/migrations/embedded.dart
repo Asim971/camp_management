@@ -3,6 +3,7 @@ const Map<String, String> embeddedMigrations = {
   '001_foundation': _foundation,
   '002_idempotency_reservations': _idempotencyReservations,
   '003_role_check': _roleCheck,
+  '004_identity': _identity,
 };
 
 const String _foundation = r'''
@@ -187,4 +188,56 @@ ALTER TABLE staff_user_roles
   CHECK (role IN ('campaign_creator', 'marketing_approver', 'crm_verifier',
                   'crm_supervisor', 'field_user', 'admin',
                   'reporting_viewer'));
+''';
+
+const String _identity = r'''
+CREATE TABLE carpenters (
+  id               TEXT PRIMARY KEY,
+  organization_id  TEXT NOT NULL REFERENCES organizations(id),
+  full_name        TEXT NOT NULL,
+  -- Raw phone and nullable nid never leave the server unmasked (spec 2a.D2);
+  -- they exist as sub-project 8's reconciliation join keys (D1).
+  phone            TEXT NOT NULL,
+  nid              TEXT,
+  territory_id     TEXT REFERENCES territories(id),
+  dealer_context   TEXT,
+  thumbnail_url    TEXT,
+  eligible         BOOLEAN NOT NULL DEFAULT TRUE,
+  display_code     TEXT NOT NULL UNIQUE,
+  source           TEXT NOT NULL,
+  sync_status      TEXT NOT NULL DEFAULT 'LOCAL_ONLY',
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX carpenters_org_name_idx
+  ON carpenters(organization_id, lower(full_name));
+CREATE INDEX carpenters_phone_idx ON carpenters(phone);
+CREATE INDEX carpenters_nid_idx ON carpenters(nid);
+-- Deliberately NO unique constraint on phone/nid: D1 matching is
+-- confidence-scored with human adjudication (sub-project 8), and the schema
+-- must tolerate what the matcher is designed to resolve (spec 2a.D3).
+
+CREATE SEQUENCE carpenter_display_serial START 10000;
+
+CREATE TABLE registrations (
+  campaign_id    TEXT NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+  carpenter_id   TEXT NOT NULL REFERENCES carpenters(id),
+  status         TEXT NOT NULL,
+  registered_by  TEXT NOT NULL REFERENCES staff_users(id),
+  registered_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (campaign_id, carpenter_id)
+);
+CREATE INDEX registrations_carpenter_idx ON registrations(carpenter_id);
+
+CREATE TABLE profile_requests (
+  id            TEXT PRIMARY KEY,
+  campaign_id   TEXT NOT NULL REFERENCES campaigns(id),
+  carpenter_id  TEXT NOT NULL REFERENCES carpenters(id),
+  requested_by  TEXT NOT NULL REFERENCES staff_users(id),
+  name          TEXT NOT NULL,
+  phone         TEXT NOT NULL,
+  status        TEXT NOT NULL DEFAULT 'PENDING',
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX profile_requests_campaign_idx ON profile_requests(campaign_id);
 ''';
