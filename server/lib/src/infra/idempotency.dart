@@ -14,6 +14,16 @@ import 'error_envelope.dart';
 const String _headerName = 'Idempotency-Key';
 const Duration _ttl = Duration(hours: 24);
 
+/// How long a reservation (a claimed key whose handler has not yet fulfilled
+/// it) blocks retries with 409 before it is presumed dead and reclaimable.
+/// Longer than any handler's runtime, far shorter than a user's patience —
+/// a crashed owner previously held the key for the full 24h [_ttl].
+const Duration _reservationTtl = Duration(minutes: 5);
+
+/// Upper bound on rows the opportunistic reaper deletes per claim, so no
+/// single request pays for unbounded cleanup after a long quiet period.
+const int _reapLimit = 100;
+
 /// Bounded retries for the rare race where a concurrent loser's row
 /// disappears (the owner's handler failed and deleted its reservation)
 /// between our failed claim attempt and our follow-up SELECT — see the loop
@@ -63,20 +73,28 @@ const int _maxClaimAttempts = 5;
 ///   request_hash = EXCLUDED.request_hash,
 ///   response_status = NULL,
 ///   response_body = NULL,
+///   created_at = now(),
 ///   expires_at = EXCLUDED.expires_at
 /// WHERE idempotency_keys.expires_at <= now()
+///    OR (idempotency_keys.response_status IS NULL
+///        AND idempotency_keys.created_at <= now() - interval '5 minutes')
 /// RETURNING key
 /// ```
 ///
-/// A row comes back in exactly two cases: a fresh key (plain INSERT), or an
-/// *expired* key being reclaimed as a brand-new reservation (the `DO UPDATE
-/// ... WHERE` branch) — the same statement fixes the fossil-record problem
-/// where a stale fulfilled row's PK blocked ever storing a fresh response
-/// for that key again. Postgres's row lock on the conflicting row makes this
-/// atomic the same way `tokens.dart`'s `UPDATE ... WHERE used_at IS NULL`
-/// claim is atomic: a second, concurrent attempt against the same row blocks
-/// until the first commits, then re-evaluates its own `WHERE` and gets
-/// nothing back.
+/// A row comes back in exactly three cases: a fresh key (plain INSERT), an
+/// *expired* key being reclaimed as a brand-new reservation, or a
+/// *reservation* ([_reservationTtl] old, with no response yet) presumed to
+/// belong to a crashed owner (the `DO UPDATE ... WHERE` branch covers the
+/// latter two) — the same statement fixes the fossil-record problem where a
+/// stale fulfilled row's PK blocked ever storing a fresh response for that
+/// key again. The `created_at = now()` reset matters for the reclaimed-
+/// reservation case specifically: without it, the row we just reclaimed
+/// would itself immediately look stale, and a third concurrent request could
+/// steal it back out from under the handler now running. Postgres's row lock
+/// on the conflicting row makes this atomic the same way `tokens.dart`'s
+/// `UPDATE ... WHERE used_at IS NULL` claim is atomic: a second, concurrent
+/// attempt against the same row blocks until the first commits, then
+/// re-evaluates its own `WHERE` and gets nothing back.
 ///
 /// - **A row came back → we own it.** Run the handler.
 ///   - `2xx` → `UPDATE` the reservation with the real status/body (the
@@ -125,6 +143,16 @@ Middleware idempotency({required Db db}) {
       final requestHash = _hash(bodyBytes);
       final userId = authOf(rehydrated).userId;
 
+      // Opportunistic reaper: every claim first clears a bounded batch of
+      // expired rows. Postgres has no DELETE ... LIMIT, hence the ctid
+      // subquery. Bounded so a request never pays for unbounded cleanup;
+      // eventually-complete because every subsequent claim sweeps again.
+      await db.execute(
+        'DELETE FROM idempotency_keys WHERE ctid IN ('
+        '  SELECT ctid FROM idempotency_keys '
+        '  WHERE expires_at <= now() LIMIT $_reapLimit)',
+      );
+
       for (var attempt = 0; attempt < _maxClaimAttempts; attempt++) {
         final claim = await db.execute(
           'INSERT INTO idempotency_keys '
@@ -134,8 +162,12 @@ Middleware idempotency({required Db db}) {
           '  request_hash = EXCLUDED.request_hash, '
           '  response_status = NULL, '
           '  response_body = NULL, '
+          '  created_at = now(), '
           '  expires_at = EXCLUDED.expires_at '
           'WHERE idempotency_keys.expires_at <= now() '
+          '   OR (idempotency_keys.response_status IS NULL '
+          "       AND idempotency_keys.created_at <= now() - interval "
+          "'${_reservationTtl.inMinutes} minutes') "
           'RETURNING key',
           params: {
             'user': userId,
