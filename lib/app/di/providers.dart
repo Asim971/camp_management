@@ -62,9 +62,13 @@ final appConfigProvider = Provider<AppConfig>(
 /// the (lazy, safe) runtime one.
 final Provider<AuthService> authServiceProvider = Provider<AuthService>((ref) {
   final config = ref.watch(appConfigProvider);
-  // E2E signs in through a fake transport rather than skipping the lifecycle,
-  // so Maestro exercises the same SessionManager path production does.
-  if (config.e2e) return FakeAuthService(config.e2eRole);
+  // E2E normally signs in through a fake transport rather than skipping the
+  // lifecycle, so Maestro exercises the same SessionManager path production
+  // does. E2E_REAL_AUTH keeps the real one so at least one flow proves the
+  // service we now own can actually issue a token — shipping an identity
+  // provider no end-to-end test has logged into would repeat P0.6's central
+  // mistake (spec D3).
+  if (config.e2e && !config.e2eRealAuth) return FakeAuthService(config.e2eRole);
   return DioAuthService(ref.watch(dioProvider));
 });
 

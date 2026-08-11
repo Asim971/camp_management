@@ -31,6 +31,7 @@ class AppConfig {
     required this.apiBaseUrl,
     required this.mediaHost,
     this.e2e = false,
+    this.e2eRealAuth = false,
     this.e2eRole = 'field_user',
     this.e2eQuality = 'pass',
     this.e2eSeed = '',
@@ -45,6 +46,15 @@ class AppConfig {
   /// launcher, a fake camera source and data seeding so Maestro can drive the
   /// app without live backends. See TESTING_MAESTRO.md §3.
   final bool e2e;
+
+  /// `--dart-define=E2E_REAL_AUTH=true`. Keeps [e2e]'s other behaviour (dev
+  /// launcher, fake camera, seeded local data) but leaves `authServiceProvider`
+  /// on the real `DioAuthService` instead of swapping in `FakeAuthService` —
+  /// see `lib/app/di/providers.dart`. Every other E2E config has always used
+  /// the fake transport, so no flow had ever logged into the identity
+  /// provider the campaign service now owns (spec D3) until this existed.
+  /// No effect unless [e2e] is also true.
+  final bool e2eRealAuth;
   final String e2eRole; // ROLE: field_user | crm_verifier | campaign_creator
   final String e2eQuality; // QUALITY: pass | fail (fail → recapture path)
   final String e2eSeed; // SEED: extra fixtures to seed, e.g. "queue"
@@ -80,6 +90,7 @@ class AppConfig {
         defaultValue: 'https://dev.media.example',
       ),
       e2e: const bool.fromEnvironment('E2E'),
+      e2eRealAuth: const bool.fromEnvironment('E2E_REAL_AUTH'),
       e2eRole: const String.fromEnvironment('ROLE', defaultValue: 'field_user'),
       e2eQuality: const String.fromEnvironment('QUALITY', defaultValue: 'pass'),
       e2eSeed: const String.fromEnvironment('SEED'),

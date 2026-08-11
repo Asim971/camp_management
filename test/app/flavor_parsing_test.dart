@@ -25,6 +25,7 @@ void main() {
       expect(config.isProd, isFalse);
       expect(config.apiBaseUrl, 'https://dev.api.example/campaign');
       expect(config.e2e, isFalse);
+      expect(config.e2eRealAuth, isFalse);
       expect(config.e2eRole, 'field_user');
     });
   });
