@@ -99,10 +99,21 @@ Router _buildRouter(_Store store) {
     }
 
     final total = items.length;
-    final page = int.tryParse(req.url.queryParameters['page'] ?? '') ?? 0;
-    final pageSize =
-        int.tryParse(req.url.queryParameters['pageSize'] ?? '') ?? total;
-    final start = (page * pageSize).clamp(0, items.length);
+    // Mirrors the real server exactly (campaign_routes.dart:65-66 for the
+    // defaults, campaign_repo.dart:70-73 for the clamp): page is 1-based and
+    // clamped to >= 1, pageSize clamped to 1..100. A 0-based `page * pageSize`
+    // offset (this file's previous version) agreed with the real server only
+    // when page was absent — anything else silently returned the wrong
+    // slice, which is exactly the kind of contradiction this mock exists to
+    // not have.
+    final rawPage = int.tryParse(req.url.queryParameters['page'] ?? '') ?? 1;
+    final rawPageSize =
+        int.tryParse(req.url.queryParameters['pageSize'] ?? '') ?? 20;
+    final page = rawPage < 1 ? 1 : rawPage;
+    final pageSize = rawPageSize < 1
+        ? 1
+        : (rawPageSize > 100 ? 100 : rawPageSize);
+    final start = ((page - 1) * pageSize).clamp(0, items.length);
     final end = (start + pageSize).clamp(start, items.length);
     return _json({'items': items.sublist(start, end), 'total': total});
   });

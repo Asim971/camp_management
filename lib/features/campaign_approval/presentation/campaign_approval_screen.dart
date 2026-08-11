@@ -140,23 +140,24 @@ class _DecisionPanelState extends ConsumerState<_DecisionPanel> {
 
   Future<void> _submit() async {
     setState(() => _busy = true);
-    final result = await ref
-        .read(approvalControllerProvider(widget.campaignId).notifier)
-        .decide(
-          decision: _decision!,
-          reason: _reason.text.trim().isEmpty ? null : _reason.text.trim(),
-          // The server derives its own critical-warning list per campaign
-          // (currently the one rule in `deriveCriticalWarnings`:
-          // TARGET_EXCEEDS_SESSION_CAPACITY) and 422s an APPROVE that omits
-          // any of them. This screen surfaces one combined checkbox rather
-          // than the itemised list — enumerating the *current* warning set
-          // dynamically is follow-up work — so a checked box acknowledges
-          // every warning code this app version knows about.
-          acknowledgedWarnings:
-              _decision == CampaignDecision.approve && _acknowledged
-              ? const ['TARGET_EXCEEDS_SESSION_CAPACITY']
-              : const [],
-        );
+    final controller = ref.read(
+      approvalControllerProvider(widget.campaignId).notifier,
+    );
+    final result = await controller.decide(
+      decision: _decision!,
+      reason: _reason.text.trim().isEmpty ? null : _reason.text.trim(),
+      // The server derives its own critical-warning list per campaign
+      // (currently the one rule in `deriveCriticalWarnings`:
+      // TARGET_EXCEEDS_SESSION_CAPACITY) and 422s an APPROVE that omits any
+      // of them. This screen surfaces one combined checkbox rather than the
+      // itemised list — enumerating the *current* warning set dynamically is
+      // follow-up work — so a checked box acknowledges every warning code
+      // this app version knows about.
+      acknowledgedWarnings:
+          _decision == CampaignDecision.approve && _acknowledged
+          ? const ['TARGET_EXCEEDS_SESSION_CAPACITY']
+          : const [],
+    );
     if (!mounted) return;
     setState(() => _busy = false);
     final messenger = ScaffoldMessenger.of(context);
@@ -170,6 +171,18 @@ class _DecisionPanelState extends ConsumerState<_DecisionPanel> {
         messenger.showSnackBar(
           const SnackBar(
             content: Text('Campaign changed since you opened it. Reloaded.'),
+          ),
+        );
+      case ApprovalResult.validation:
+        // Distinct from `.error` on purpose (F3): the server named a
+        // specific, correctable reason (missing reason, unacknowledged
+        // warnings) — show THAT, not a generic dead end.
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              controller.lastFailureMessage ??
+                  "Couldn't record the decision. Try again.",
+            ),
           ),
         );
       case ApprovalResult.error:

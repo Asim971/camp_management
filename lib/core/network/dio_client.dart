@@ -87,10 +87,29 @@ Failure mapDioError(Object error) {
     };
     return Failure(
       kind,
-      message: error.message,
+      message: _envelopeMessage(error) ?? error.message,
       code: code?.toString(),
       correlationId: correlationId,
     );
   }
   return Failure(FailureKind.unknown, message: error.toString());
+}
+
+/// Prefers the server's own `error.message` from the `{"error": {"code",
+/// "message", ...}}` envelope over Dio's generic transport-level message
+/// (e.g. "Http status error [422]"). The envelope's message exists
+/// specifically to say WHY a 4xx was rejected — "A reason is required to
+/// return or reject a campaign.", not just that it was — so a UI surfacing
+/// [Failure.message] verbatim (as the approval screen now does for
+/// [FailureKind.validation]) needs the real one, not Dio's placeholder.
+/// Returns `null` (falling back to `error.message`) when the response
+/// wasn't decoded as JSON, isn't shaped like the envelope, or its `message`
+/// isn't a non-empty string.
+String? _envelopeMessage(DioException error) {
+  final data = error.response?.data;
+  if (data is Map && data['error'] is Map) {
+    final message = (data['error'] as Map)['message'];
+    if (message is String && message.isNotEmpty) return message;
+  }
+  return null;
 }

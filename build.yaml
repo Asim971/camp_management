@@ -1,0 +1,14 @@
+targets:
+  $default:
+    sources:
+      exclude:
+        # tool/mock_server is a separate Dart package with its own
+        # pubspec.yaml and its own dependencies (shelf, shelf_router) that
+        # the root Flutter app does not declare. Without this exclude,
+        # build_runner's default source glob ("every .dart file under this
+        # package except .dart_tool") sweeps its files into the root
+        # package's build graph, and re-analyzing tool/mock_server/bin/
+        # server.dart after any edit to it fails with
+        # `PackageNotFoundException: shelf_router` — a builder trying to
+        # resolve a dependency only tool/mock_server's own pubspec declares.
+        - tool/**

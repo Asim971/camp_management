@@ -36,5 +36,56 @@ void main() {
 
       expect(failure.kind, FailureKind.timeout);
     });
+
+    // Task 10 fix-round (F3): the server's error envelope
+    // (`{"error": {"code","message",...}}`) carries a specific explanation
+    // — "why was this rejected" — that a generic Dio message never does.
+    // Without this, the approval screen's validation branch would have
+    // nothing meaningful to show.
+    test('a 422 envelope message is surfaced verbatim, not Dio\'s generic '
+        'status message', () {
+      final failure = mapDioError(
+        DioException(
+          requestOptions: RequestOptions(path: '/x'),
+          response: Response<Map<String, dynamic>>(
+            requestOptions: RequestOptions(path: '/x'),
+            statusCode: 422,
+            data: {
+              'error': {
+                'code': 'DECISION_REASON_REQUIRED',
+                'message':
+                    'A reason is required to return or reject a '
+                    'campaign.',
+                'traceId': 'trace-1',
+              },
+            },
+          ),
+        ),
+      );
+
+      expect(failure.kind, FailureKind.validation);
+      expect(
+        failure.message,
+        'A reason is required to return or reject a campaign.',
+      );
+    });
+
+    test('a non-envelope-shaped body falls back to the transport message, not '
+        'a crash', () {
+      final failure = mapDioError(
+        DioException(
+          requestOptions: RequestOptions(path: '/x'),
+          response: Response<String>(
+            requestOptions: RequestOptions(path: '/x'),
+            statusCode: 500,
+            data: 'plain text failure',
+          ),
+          message: 'Http status error [500]',
+        ),
+      );
+
+      expect(failure.kind, FailureKind.server);
+      expect(failure.message, 'Http status error [500]');
+    });
   });
 }
