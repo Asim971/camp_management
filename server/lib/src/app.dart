@@ -11,6 +11,7 @@ import 'config.dart';
 import 'db/pool.dart';
 import 'infra/correlation.dart';
 import 'infra/error_envelope.dart';
+import 'infra/request_log.dart';
 import 'seed/seed_routes.dart';
 
 /// Assembles the full request-handling pipeline: `/health`, `/auth/*`,
@@ -84,6 +85,9 @@ Handler buildApp({required Db db, required ServerConfig config}) {
 
   return const Pipeline()
       .addMiddleware(correlation())
+      // Inside correlation (so the trace id resolves), outside errorEnvelope
+      // (so a thrown handler still logs the 500 the client actually saw).
+      .addMiddleware(requestLog())
       .addMiddleware(errorEnvelope())
       .addHandler(cascade.handler);
 }

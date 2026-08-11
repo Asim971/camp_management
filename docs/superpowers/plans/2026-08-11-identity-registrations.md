@@ -536,6 +536,12 @@ and broke sign-in at the client's trust boundary (deferred finding M10)."
 
 ### Task 3: Structured request logging with trace id
 
+> **LANDED EARLY on PR #6 (2026-08-11)** as the diagnostic for the failing
+> real-auth e2e configs — the backend log was empty at exactly the moment it
+> was needed. Implemented as specified below (`request_log.dart`, its two
+> tests, the `buildApp` composition). Executors: verify it is present and its
+> tests pass, do not re-implement.
+
 **Files:**
 - Create: `server/lib/src/infra/request_log.dart`
 - Create: `server/test/infra/request_log_test.dart`
