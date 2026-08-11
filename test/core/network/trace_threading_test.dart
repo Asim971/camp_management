@@ -26,7 +26,11 @@ void main() {
   }
 
   test('submitForApproval forwards the caller trace id', () async {
-    await repo.submitForApproval('CMP-1', trace: const TraceId.of('action-1'));
+    await repo.submitForApproval(
+      'CMP-1',
+      version: 1,
+      trace: const TraceId.of('action-1'),
+    );
 
     expect(sentCorrelationId(), 'action-1');
   });
@@ -35,6 +39,8 @@ void main() {
     await repo.decide(
       'CMP-1',
       decision: CampaignDecision.approve,
+      version: 1,
+      acknowledgedWarnings: const [],
       trace: const TraceId.of('action-2'),
     );
 

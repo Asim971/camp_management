@@ -145,6 +145,17 @@ class _DecisionPanelState extends ConsumerState<_DecisionPanel> {
         .decide(
           decision: _decision!,
           reason: _reason.text.trim().isEmpty ? null : _reason.text.trim(),
+          // The server derives its own critical-warning list per campaign
+          // (currently the one rule in `deriveCriticalWarnings`:
+          // TARGET_EXCEEDS_SESSION_CAPACITY) and 422s an APPROVE that omits
+          // any of them. This screen surfaces one combined checkbox rather
+          // than the itemised list — enumerating the *current* warning set
+          // dynamically is follow-up work — so a checked box acknowledges
+          // every warning code this app version knows about.
+          acknowledgedWarnings:
+              _decision == CampaignDecision.approve && _acknowledged
+              ? const ['TARGET_EXCEEDS_SESSION_CAPACITY']
+              : const [],
         );
     if (!mounted) return;
     setState(() => _busy = false);

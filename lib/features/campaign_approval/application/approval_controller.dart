@@ -35,6 +35,7 @@ class ApprovalController
   Future<ApprovalResult> decide({
     required CampaignDecision decision,
     String? reason,
+    required List<String> acknowledgedWarnings,
   }) async {
     final campaign = state.valueOrNull;
     if (campaign == null) return ApprovalResult.error;
@@ -48,6 +49,8 @@ class ApprovalController
           campaign.id,
           decision: decision,
           reason: reason,
+          version: campaign.version,
+          acknowledgedWarnings: acknowledgedWarnings,
           trace: TraceId.generate(),
         );
     return result.fold((_) => ApprovalResult.done, (failure) {
