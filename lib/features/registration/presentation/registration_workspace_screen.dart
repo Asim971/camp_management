@@ -110,6 +110,7 @@ class _SearchPanel extends ConsumerWidget {
                               )
                             : Semantics(
                                 identifier: 'registration_add_${person.id}',
+                                enabled: !inBasket,
                                 child: IconButton(
                                   icon: Icon(
                                     inBasket
@@ -187,7 +188,7 @@ Future<void> _showRequestProfileSheet(
         const SizedBox(height: BmdSpace.s3),
         const Text(
           'Creates a local profile pending ratification and adds the '
-          'participant to your basket as "Pending profile sync".',
+          'participant to your basket.',
         ),
       ],
     ),
