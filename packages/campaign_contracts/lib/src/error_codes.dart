@@ -17,7 +17,9 @@ enum ApiErrorCode {
   campaignValidationFailed,
   decisionReasonRequired,
   warningsUnacknowledged,
-  segregationOfDutiesViolation;
+  segregationOfDutiesViolation,
+  // participants (sub-project 2a)
+  unknownCarpenter;
 
   String get wireValue => switch (this) {
     badRequest => 'BAD_REQUEST',
@@ -34,6 +36,7 @@ enum ApiErrorCode {
     decisionReasonRequired => 'DECISION_REASON_REQUIRED',
     warningsUnacknowledged => 'WARNINGS_UNACKNOWLEDGED',
     segregationOfDutiesViolation => 'SEGREGATION_OF_DUTIES_VIOLATION',
+    unknownCarpenter => 'UNKNOWN_CARPENTER',
   };
 
   static ApiErrorCode? tryParseWire(String wire) {

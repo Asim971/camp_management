@@ -40,6 +40,7 @@ class ApiException implements Exception {
     // mapDioError maps to FailureKind.conflict — the right shape for "come
     // back after the in-flight attempt resolves".
     ApiErrorCode.idempotencyKeyInFlight => 409,
+    ApiErrorCode.unknownCarpenter => 422,
     ApiErrorCode.internal => 500,
   };
 
