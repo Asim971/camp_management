@@ -198,6 +198,35 @@ void main() {
       );
       expect(row(audit.single)['correlation_id'], 'trace-123');
     });
+
+    test(
+      'duplicate ids in one call are deduplicated, not double-counted',
+      () async {
+        final result = await repo.register(
+          campaignId: 'camp-1',
+          organizationId: 'org-1',
+          carpenterIds: ['c-1', 'c-1'],
+          registeredBy: 'user-1',
+        );
+        // Before the fix: the INSERT ... SELECT produced one row per matching
+        // carpenter ROW (one row for 'c-1', since the FROM clause has no
+        // duplicate rows to match a duplicate id against), so `inserted` was 1
+        // but `carpenterIds.length` was 2 — reporting c-1 as simultaneously
+        // freshly-registered AND already-registered.
+        expect(result, (registered: 1, alreadyRegistered: 0));
+
+        final audit = await db.execute(
+          "SELECT payload FROM audit_events WHERE action = 'registration.create'",
+        );
+        expect(
+          row(audit.single)['payload'],
+          {'carpenterCount': 1, 'registered': 1},
+          reason:
+              'the audit payload must record the deduped count, not the '
+              "caller's raw (possibly repeated) list length",
+        );
+      },
+    );
   });
 
   group('createProfileRequest', () {

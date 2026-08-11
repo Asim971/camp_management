@@ -148,15 +148,21 @@ class ParticipantRepo {
     );
     if (campaign.isEmpty) return null;
 
+    // Deduplicated once, up front: the INSERT's SELECT below produces one
+    // row per matching carpenter ROW, not per id in the caller's list, so a
+    // repeated id would otherwise inflate `alreadyRegistered` for carpenters
+    // that were never actually already on the roster.
+    final ids = carpenterIds.toSet().toList();
+
     // List<String> binds as a Postgres text[] — exactly what ANY() wants
     // (the jsonb trap from slice-1 Task 9 is the OTHER direction).
     final known = await _db.execute(
       'SELECT id FROM carpenters '
       'WHERE organization_id = @org AND id = ANY(@ids)',
-      params: {'org': organizationId, 'ids': carpenterIds},
+      params: {'org': organizationId, 'ids': ids},
     );
     final knownIds = known.map((r) => row(r)['id']! as String).toSet();
-    final unknown = carpenterIds.where((id) => !knownIds.contains(id)).toList();
+    final unknown = ids.where((id) => !knownIds.contains(id)).toList();
     if (unknown.isNotEmpty) {
       throw ApiException(
         ApiErrorCode.unknownCarpenter,
@@ -176,12 +182,17 @@ class ParticipantRepo {
           "       THEN '${RegistrationStatus.pendingProfileSync.wireValue}' "
           "       ELSE '${RegistrationStatus.registered.wireValue}' END, "
           '  @by '
-          'FROM carpenters c WHERE c.id = ANY(@ids) '
+          'FROM carpenters c '
+          // The org predicate is belt-and-braces with the pre-check above:
+          // D7 requires org-scoping to live inside the SQL itself, so this
+          // write does not depend on a guard elsewhere for its safety.
+          'WHERE c.id = ANY(@ids) AND c.organization_id = @org '
           'ON CONFLICT (campaign_id, carpenter_id) DO NOTHING',
         ),
         parameters: {
           'campaign': campaignId,
-          'ids': carpenterIds,
+          'ids': ids,
+          'org': organizationId,
           'by': registeredBy,
         },
       );
@@ -193,16 +204,10 @@ class ParticipantRepo {
         resourceId: campaignId,
         actorId: registeredBy,
         correlationId: correlationId,
-        payload: {
-          'carpenterCount': carpenterIds.length,
-          'registered': inserted,
-        },
+        payload: {'carpenterCount': ids.length, 'registered': inserted},
       );
     });
-    return (
-      registered: inserted,
-      alreadyRegistered: carpenterIds.length - inserted,
-    );
+    return (registered: inserted, alreadyRegistered: ids.length - inserted);
   }
 
   /// Creates the provisional carpenter AND the profile request in one
