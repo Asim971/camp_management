@@ -195,13 +195,38 @@ Router _buildRouter(_Store store) {
   });
 
   r.post('/campaigns/<id>/registrations', (Request req, String id) async {
-    await _body(req);
-    return _json({'ok': true});
+    final b = await _body(req);
+    final ids = (b['carpenterIds'] as List?)?.cast<String>() ?? const [];
+    if (ids.isEmpty) {
+      return _json({
+        'error': {'code': 'BAD_REQUEST', 'message': 'carpenterIds required'},
+      }, status: 400);
+    }
+    return _json({'registered': ids.length, 'alreadyRegistered': 0});
   });
 
   r.post('/campaigns/<id>/profile-requests', (Request req, String id) async {
-    await _body(req);
-    return _json({'status': 'pendingProfileSync'});
+    final b = await _body(req);
+    // A zero-padded 4-digit serial so displayId/phoneSuffix satisfy the
+    // parity regexes ^CARP-••\d{4}$ and ^\d{4}$ exactly like the real
+    // server's masks do.
+    final serial = store.nextId().toString().padLeft(4, '0');
+    final carpenter = {
+      'id': 'CARP_REQ_$serial',
+      'name': b['name'] ?? '',
+      'displayId': 'CARP-••$serial',
+      'phoneSuffix': serial,
+      'territory': '',
+      'dealerContext': null,
+      'thumbnailUrl': null,
+      'eligible': true,
+      'syncStatus': 'PENDING_PROFILE_SYNC',
+    };
+    store.carpenters.add(carpenter);
+    return _json({
+      'requestId': 'REQ-$serial',
+      'carpenter': carpenter,
+    }, status: 201);
   });
 
   // ---- Verification -------------------------------------------------------
@@ -404,27 +429,31 @@ class _Store {
   final Map<String, Map<String, dynamic>> campaigns = {};
   var _seq = 100;
 
+  int nextId() => ++_seq;
+
   final List<Map<String, dynamic>> carpenters = [
     {
       'id': 'CARP_E2E',
       'name': 'Md. Karim',
       'displayId': 'CARP-••4821',
-      'phoneSuffix': '821',
+      'phoneSuffix': '4821',
       'territory': 'Dhaka North',
       'dealerContext': 'Rahman Traders',
       'thumbnailUrl': null,
       'eligible': true,
+      'syncStatus': 'LOCAL_ONLY',
       'attendanceState': 'notCaptured',
     },
     {
       'id': 'CARP_E2E_2',
       'name': 'Karim Uddin',
       'displayId': 'CARP-••7734',
-      'phoneSuffix': '734',
+      'phoneSuffix': '7734',
       'territory': 'Dhaka South',
       'dealerContext': null,
       'thumbnailUrl': null,
       'eligible': true,
+      'syncStatus': 'LOCAL_ONLY',
       'attendanceState': 'notCaptured',
     },
   ];
