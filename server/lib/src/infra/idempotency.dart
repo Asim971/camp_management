@@ -147,11 +147,33 @@ Middleware idempotency({required Db db}) {
       // expired rows. Postgres has no DELETE ... LIMIT, hence the ctid
       // subquery. Bounded so a request never pays for unbounded cleanup;
       // eventually-complete because every subsequent claim sweeps again.
-      await db.execute(
-        'DELETE FROM idempotency_keys WHERE ctid IN ('
-        '  SELECT ctid FROM idempotency_keys '
-        '  WHERE expires_at <= now() LIMIT $_reapLimit)',
-      );
+      //
+      // ORDER BY expires_at (oldest-first) makes the victim set
+      // deterministic instead of whatever order a sequential scan happens
+      // to visit rows in — with synchronize_seqscans on (Postgres's
+      // default), two concurrent backends' scans can start at different
+      // block offsets and so would otherwise lock overlapping ctid sets in
+      // divergent orders. FOR UPDATE SKIP LOCKED then lets those two
+      // backends each claim a disjoint batch instead of blocking on, or
+      // deadlocking over, rows the other already has locked.
+      //
+      // This is pure housekeeping, not the reservation the request actually
+      // needs: a failure here (including a deadlock SKIP LOCKED did not
+      // fully avoid) must not fail the request. It is swallowed rather than
+      // retried because the next claim's sweep will pick up the same rows.
+      try {
+        await db.execute(
+          'DELETE FROM idempotency_keys WHERE ctid IN ('
+          '  SELECT ctid FROM idempotency_keys '
+          '  WHERE expires_at <= now() '
+          '  ORDER BY expires_at '
+          '  LIMIT $_reapLimit '
+          '  FOR UPDATE SKIP LOCKED)',
+        );
+      } on Object {
+        // Best-effort cleanup: see comment above. Swallow and proceed to
+        // the claim below unaffected.
+      }
 
       for (var attempt = 0; attempt < _maxClaimAttempts; attempt++) {
         final claim = await db.execute(
