@@ -120,6 +120,8 @@ jobs:
         working-directory: packages/campaign_contracts
       - run: dart test
         working-directory: packages/campaign_contracts
+      - run: dart analyze --fatal-infos
+        working-directory: packages/campaign_contracts
 
       - run: dart pub get
         working-directory: server

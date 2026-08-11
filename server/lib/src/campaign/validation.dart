@@ -83,9 +83,16 @@ List<FieldError> validateForSubmit(CampaignDraftInput input) {
     errors.add(const FieldError('target', 'Target must be greater than zero.'));
   }
 
-  // SoD is checked here as DATA only — this reports that owner == approver.
-  // Whether that fact is ENFORCED (blocking the transition) is a config
-  // lookup made by the caller in Task 9, not a decision made in this file.
+  // approver != owner is enforced HERE, unconditionally, at submit time --
+  // campaign_repo.dart's submit() calls validateForSubmit with no config
+  // gate in front of it. That is deliberately stricter than decide time:
+  // there, campaign_repo.dart's decide() only rejects reviewer == owner
+  // when config_gate.dart's sodEnforced(db) (the `sod.enforced` row in
+  // app_config) says to. Submit's rule does not read that row and cannot
+  // currently be turned off. If a future slice makes SoD configurable
+  // end-to-end, this check must be threaded through the same sodEnforced
+  // gate decide() uses -- until then it fails closed by design, not by
+  // omission.
   if (input.approverId == null || input.approverId!.trim().isEmpty) {
     errors.add(const FieldError('approverId', 'An approver is required.'));
   } else if (input.approverId == input.ownerId) {

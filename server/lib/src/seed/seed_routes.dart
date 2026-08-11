@@ -263,11 +263,20 @@ Future<void> _seedBaseline(Db db, {required PasswordHasher hasher}) async {
       'INSERT INTO staff_user_roles (user_id, role) VALUES (@u, @r)',
       params: {'u': userId, 'r': role},
     );
-    await db.execute(
-      'INSERT INTO staff_user_territories (user_id, territory_id) '
-      'VALUES (@u, @t)',
-      params: {'u': userId, 't': seedTerritoryNorthId},
-    );
+    // Both territories, not just north: seed-camp-3 ("Rajshahi Carpenter
+    // Drive", asserted by locale_bengali.yaml) lives in the south
+    // territory. Campaign reads only scope by organization today, so a
+    // north-only grant happens to work now, but territory-scoped reads are
+    // future sub-project work -- granting both up front keeps the locale
+    // e2e flow (and any other south-territory fixture) from going red the
+    // day that scope lands.
+    for (final territoryId in [seedTerritoryNorthId, seedTerritorySouthId]) {
+      await db.execute(
+        'INSERT INTO staff_user_territories (user_id, territory_id) '
+        'VALUES (@u, @t)',
+        params: {'u': userId, 't': territoryId},
+      );
+    }
   }
 }
 
