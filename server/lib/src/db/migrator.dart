@@ -4,6 +4,11 @@ import 'package:postgres/postgres.dart';
 import 'migrations/embedded.dart';
 import 'pool.dart';
 
+/// Session-arbitrary advisory-lock key for "the migration runner". Any
+/// constant works as long as every instance uses the same one; 0x6d696772 is
+/// ASCII 'migr'.
+const int _migrationLockKey = 0x6d696772;
+
 /// Forward-only migration runner.
 ///
 /// Each migration and its schema_migrations row commit in ONE transaction. That
@@ -37,12 +42,20 @@ class Migrator {
   final Future<void> Function(String id)? onBeforeVersionInsert;
 
   Future<List<String>> applyPending() async {
-    await _db.execute(
-      'CREATE TABLE IF NOT EXISTS schema_migrations ('
-      '  id TEXT PRIMARY KEY,'
-      '  applied_at TIMESTAMPTZ NOT NULL DEFAULT now()'
-      ')',
-    );
+    // Locked too: bare `CREATE TABLE IF NOT EXISTS` is not safe under
+    // concurrent DDL on its own — Postgres's existence check and catalog
+    // insert are not atomic, so two migrators racing on a table that does
+    // not yet exist can both pass the check and then collide inserting into
+    // pg_type (SQLSTATE 23505), before either reaches the per-id lock below.
+    await _db.tx((tx) async {
+      await tx.execute('SELECT pg_advisory_xact_lock($_migrationLockKey)');
+      await tx.execute(
+        'CREATE TABLE IF NOT EXISTS schema_migrations ('
+        '  id TEXT PRIMARY KEY,'
+        '  applied_at TIMESTAMPTZ NOT NULL DEFAULT now()'
+        ')',
+      );
+    });
 
     final done = (await _db.execute(
       'SELECT id FROM schema_migrations',
@@ -53,7 +66,22 @@ class Migrator {
 
     final applied = <String>[];
     for (final id in pending) {
+      var appliedThisId = false;
       await _db.tx((tx) async {
+        // Serialises concurrent migrators (two instances booting together).
+        // Transaction-scoped: released automatically at commit/rollback, so
+        // a crashed migrator cannot leave the lock held.
+        await tx.execute('SELECT pg_advisory_xact_lock($_migrationLockKey)');
+
+        // The pending list was computed before we held the lock; another
+        // instance may have applied this id while we waited. Recheck inside
+        // the lock, where the answer cannot change under us.
+        final already = await tx.execute(
+          Sql.named('SELECT 1 FROM schema_migrations WHERE id = @id'),
+          parameters: {'id': id},
+        );
+        if (already.isNotEmpty) return;
+
         // Every statement here goes through `tx`, never `_db` — see Db.tx.
         //
         // Simple query protocol: a migration is a multi-statement DDL script,
@@ -69,8 +97,9 @@ class Migrator {
           Sql.named('INSERT INTO schema_migrations (id) VALUES (@id)'),
           parameters: {'id': id},
         );
+        appliedThisId = true;
       });
-      applied.add(id);
+      if (appliedThisId) applied.add(id);
     }
     return applied;
   }

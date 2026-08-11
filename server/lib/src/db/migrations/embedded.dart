@@ -2,6 +2,7 @@
 const Map<String, String> embeddedMigrations = {
   '001_foundation': _foundation,
   '002_idempotency_reservations': _idempotencyReservations,
+  '003_role_check': _roleCheck,
 };
 
 const String _foundation = r'''
@@ -174,4 +175,16 @@ INSERT INTO app_config (key, value) VALUES ('sod.enforced', 'true');
 const String _idempotencyReservations = r'''
 ALTER TABLE idempotency_keys ALTER COLUMN response_status DROP NOT NULL;
 ALTER TABLE idempotency_keys ALTER COLUMN response_body DROP NOT NULL;
+''';
+
+/// An unknown role reaching the login response breaks sign-in at the
+/// client's claims trust boundary (scope_claims.dart rejects unrecognised
+/// names). The list below IS that vocabulary — change either only with the
+/// other (slice-1 final review, deferred M10).
+const String _roleCheck = r'''
+ALTER TABLE staff_user_roles
+  ADD CONSTRAINT staff_user_roles_role_check
+  CHECK (role IN ('campaign_creator', 'marketing_approver', 'crm_verifier',
+                  'crm_supervisor', 'field_user', 'admin',
+                  'reporting_viewer'));
 ''';
