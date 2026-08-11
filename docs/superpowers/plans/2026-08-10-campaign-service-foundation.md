@@ -2,7 +2,16 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build the Campaign Management Service — a Dart/Postgres backend — far enough that the existing Flutter app runs against it instead of `tool/mock_server` with all five Maestro e2e configs green.
+**Goal:** Build the Campaign Management Service — a Dart/Postgres backend — far enough that the existing Flutter app runs against it instead of `tool/mock_server` for every flow whose endpoints exist in this slice.
+
+> **Acceptance amended during execution (2026-08-11, user-approved).** Task 11's flow-by-flow
+> endpoint audit proved "all five configs green against the real service" unachievable in
+> slice 1: `crm` and `field`'s offline flow depend on `/verification/*`, `/media/*` and
+> `/attendance/*`, which belong to sub-projects 4–5 by the spec's own decomposition. The
+> staged criterion: `locale` (with real auth), `recapture`, `queue` and `realAuth` run green
+> against the real service — 4 of 6 — while `crm` and `field` keep the mock behind a
+> per-config `USE_MOCK` flag, with parity tests pinning the shared contract. Sub-projects
+> 4 and 5 each inherit "move your config off USE_MOCK" as a named deliverable. See spec §9.
 
 **Architecture:** Two new sibling packages in this repo: `packages/campaign_contracts` (pure-Dart wire vocabulary shared by app and server) and `server/` (shelf + shelf_router over Postgres, hand-written SQL, no ORM, no codegen). Middleware composes as correlation → error-envelope → authenticate → authorise → scope → idempotency → handler. The server owns the campaign status machine; the client renders it.
 
@@ -3378,7 +3387,7 @@ cd .. && flutter run -d chrome --dart-define=E2E=true \
   --dart-define=API_BASE_URL=http://localhost:8080
 ```
 
-Walk the campaign list, detail, wizard and approval screens against the real service. Then push and confirm CI: the `gate` job, the new `server` job, and **all five `e2e` configs plus the real-auth config green**.
+Walk the campaign list, detail, wizard and approval screens against the real service. Then push and confirm CI: the `gate` job, the new `server` job, and **the amended matrix green — `locale`/`recapture`/`queue`/`realAuth` against the real service, `crm`/`field` on `USE_MOCK`** (see the acceptance amendment in the header).
 
 **If e2e is red and cannot be reproduced locally, CI is the authority** — its emulator viewport is shorter than a local api-37 AVD, and that difference has already produced a failure that could not be reproduced on this machine.
 

@@ -349,9 +349,17 @@ Migrations are numbered and forward-only. No down-migrations: a failed deploy ro
 
 ## 9. Testing and acceptance
 
-**Acceptance criterion, falsifiable:** the CI `e2e` job runs the real service instead of
-`tool/mock_server`, and all five matrix configs stay green. Not "the service has tests" —
-the existing client, unchanged in behaviour, drives it through five real journeys.
+**Acceptance criterion, falsifiable (amended 2026-08-11, user-approved):** the CI `e2e`
+job runs the real service for **every flow whose endpoints exist in this slice**, and those
+configs stay green: `locale` (with real auth), `recapture`, `queue`, and the new `realAuth`
+config — four of six. `crm` and `field` remain on `tool/mock_server` via a per-config
+`USE_MOCK` flag **because their endpoints (`/verification/*`, `/media/*`, `/attendance/*`)
+belong to sub-projects 4–5 by this spec's own decomposition**; the parity tests pin the
+shared contract so the mock cannot drift while it survives. The original text ("all five
+configs stay green") was written before the flow-by-flow endpoint audit and was unachievable
+in slice 1 — discovered at Task 11, decided by the user over the alternatives of a
+permanently red gate or stubbing fake endpoints into the real service. Each of sub-projects
+4 and 5 inherits "move your config off USE_MOCK" as a named deliverable.
 
 Two things that criterion demands:
 
