@@ -2805,6 +2805,12 @@ In `lib/features/registration/presentation/registration_workspace_screen.dart`:
 ```dart
                             : Semantics(
                                 identifier: 'registration_add_${person.id}',
+                                // Task 9 review correction: a bare
+                                // Semantics(identifier:) node reports
+                                // enabled=true to the Android accessibility
+                                // bridge regardless of the child's state
+                                // (see bmd_button.dart's own doc) — carry it.
+                                enabled: !inBasket,
                                 child: IconButton(
                                   icon: Icon(
                                     inBasket
@@ -2818,14 +2824,23 @@ In `lib/features/registration/presentation/registration_workspace_screen.dart`:
                               ),
 ```
 
+   (Prefer the design-system widgets' built-in `identifier:` parameters —
+   `BmdSearchField`/`BmdField`/`BmdButton` all wrap `Semantics(identifier:)`
+   internally and `BmdButton` carries enabled state — the external wrap is
+   only for the raw `IconButton`, which has no such parameter.)
+
 2. In `_showRequestProfileSheet`: title `'Request new Sales Eco profile'` → `'Request new carpenter profile'`, and the explanatory `Text` → 
 
 ```dart
         const Text(
           'Creates a local profile pending ratification and adds the '
-          'participant to your basket as "Pending profile sync".',
+          'participant to your basket.',
         ),
 ```
+
+   (Task 9 review correction: the copy must not name a "Pending profile sync"
+   state — the basket renders no such badge, and spec 2a.D5 deliberately
+   defers the syncStatus UI to future work.)
 
 - [ ] **Step 7: Run everything app-side**
 
