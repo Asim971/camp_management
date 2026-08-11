@@ -291,12 +291,36 @@ Immediately before the `for (var attempt ...)` loop, add the sweep:
       // expired rows. Postgres has no DELETE ... LIMIT, hence the ctid
       // subquery. Bounded so a request never pays for unbounded cleanup;
       // eventually-complete because every subsequent claim sweeps again.
-      await db.execute(
-        'DELETE FROM idempotency_keys WHERE ctid IN ('
-        '  SELECT ctid FROM idempotency_keys '
-        '  WHERE expires_at <= now() LIMIT $_reapLimit)',
-      );
+      try {
+        await db.execute(
+          'DELETE FROM idempotency_keys WHERE ctid IN ('
+          '  SELECT ctid FROM idempotency_keys '
+          '  WHERE expires_at <= now() '
+          '  ORDER BY expires_at LIMIT $_reapLimit '
+          '  FOR UPDATE SKIP LOCKED)',
+        );
+      } on Object {
+        // Housekeeping must never fail the request it piggybacks on.
+      }
 ```
+
+> **Two corrections found by Task 1's review (2026-08-11), already reflected in the code
+> block above — apply them from the start if re-running this plan.**
+>
+> **1. The original snippet's unguarded, unordered sweep was a deadlock-and-500 vector.**
+> Two concurrent backends seq-scanning for expired ctids lock overlapping row sets in
+> divergent orders (`synchronize_seqscans`), and the loser's deadlock error aborted the
+> user's POST — best-effort cleanup failing the retry-safety endpoint. The guard swallows
+> sweep failures; `ORDER BY expires_at ... FOR UPDATE SKIP LOCKED` makes concurrent
+> sweeps take disjoint, deterministic victim sets.
+>
+> **2. The sweep silently emptied the expired-reclaim branch's only test.** The
+> pre-existing reclaim test seeded ONE expired row, which the sweep now deletes before
+> the claim runs — the test stayed green while pinning nothing. The fix seeds 100 decoy
+> rows with strictly older `expires_at` (the sweep's new ORDER BY makes the victim set
+> deterministic), so the key under test provably survives to reach the `DO UPDATE`
+> reclaim. Verified non-vacuous by breaking the reclaim WHERE clause and watching the
+> test fail.
 
 - [ ] **Step 4: Run the new suite and the existing idempotency suite**
 
