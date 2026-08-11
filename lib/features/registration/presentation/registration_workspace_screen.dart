@@ -70,6 +70,7 @@ class _SearchPanel extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         BmdSearchField(
+          identifier: 'registration_search',
           label: 'Search carpenter master',
           scopeLabel: 'Searches name, carpenter ID and phone suffix',
           onQueryChanged: c.search,
@@ -107,15 +108,18 @@ class _SearchPanel extends ConsumerWidget {
                                 label: 'Ineligible',
                                 tone: StatusTone.warning,
                               )
-                            : IconButton(
-                                icon: Icon(
-                                  inBasket
-                                      ? Icons.check
-                                      : Icons.add_circle_outline,
+                            : Semantics(
+                                identifier: 'registration_add_${person.id}',
+                                child: IconButton(
+                                  icon: Icon(
+                                    inBasket
+                                        ? Icons.check
+                                        : Icons.add_circle_outline,
+                                  ),
+                                  onPressed: inBasket
+                                      ? null
+                                      : () => c.addToBasket(person),
                                 ),
-                                onPressed: inBasket
-                                    ? null
-                                    : () => c.addToBasket(person),
                               ),
                       );
                     },
@@ -140,6 +144,7 @@ class _EmptySearch extends ConsumerWidget {
           const Text('No matching carpenter in the master.'),
           const SizedBox(height: 8),
           BmdButton(
+            identifier: 'registration_request_profile',
             label: 'Request new profile',
             variant: BmdButtonVariant.outlined,
             onPressed: () => _showRequestProfileSheet(context, ref, campaignId),
@@ -160,14 +165,20 @@ Future<void> _showRequestProfileSheet(
 
   await showBmdSideSheet<void>(
     context: context,
-    title: 'Request new Sales Eco profile',
+    title: 'Request new carpenter profile',
     builder: (_) => Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        BmdField(label: 'Full name', controller: name, required: true),
+        BmdField(
+          identifier: 'profile_name',
+          label: 'Full name',
+          controller: name,
+          required: true,
+        ),
         const SizedBox(height: BmdSpace.s3),
         BmdField(
+          identifier: 'profile_phone',
           label: 'Phone',
           controller: phone,
           keyboardType: TextInputType.phone,
@@ -175,15 +186,15 @@ Future<void> _showRequestProfileSheet(
         ),
         const SizedBox(height: BmdSpace.s3),
         const Text(
-          'Creates a Sales Eco request. The participant shows as '
-          '"Pending profile sync" until reconciliation — no local record is '
-          'created.',
+          'Creates a local profile pending ratification and adds the '
+          'participant to your basket as "Pending profile sync".',
         ),
       ],
     ),
     actions: [
       Builder(
         builder: (sheetContext) => BmdButton(
+          identifier: 'profile_submit',
           label: 'Submit request',
           onPressed: () {
             ref
@@ -239,6 +250,7 @@ class _BasketPanel extends ConsumerWidget {
                 ),
             const SizedBox(height: 12),
             BmdButton(
+              identifier: 'registration_submit',
               label: 'Register ${items.length} participant(s)',
               loading: state.registering,
               onPressed: items.isEmpty ? null : c.registerBasket,

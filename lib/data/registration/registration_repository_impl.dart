@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../core/network/dio_client.dart';
 import '../../core/network/trace_options.dart';
@@ -10,6 +11,8 @@ import '../../core/trace/trace_id.dart';
 import '../../domain/common/status.dart';
 import '../../domain/registration/registration.dart';
 import '../../domain/registration/registration_repository.dart';
+
+const Uuid _uuid = Uuid();
 
 /// Offline-first registration repository. The roster is cached as JSON in the
 /// Drift `cached_references` table so field search runs with no network; the
@@ -101,7 +104,7 @@ class RegistrationRepositoryImpl implements RegistrationRepository {
       await _dio.post<void>(
         '/campaigns/$campaignId/registrations',
         data: {'carpenterIds': carpenterIds},
-        options: _options({'Idempotency-Key': carpenterIds.join(',')}, trace),
+        options: _options({'Idempotency-Key': _uuid.v4()}, trace),
       );
       return const Ok(null);
     } catch (e) {
@@ -110,17 +113,18 @@ class RegistrationRepositoryImpl implements RegistrationRepository {
   }
 
   @override
-  Future<Result<void>> requestNewProfile(
+  Future<Result<RegisteredCarpenter>> requestNewProfile(
     String campaignId,
     String name,
     String phone,
   ) async {
     try {
-      await _dio.post<void>(
+      final res = await _dio.post<Map<String, dynamic>>(
         '/campaigns/$campaignId/profile-requests',
         data: {'name': name, 'phone': phone},
+        options: _options({'Idempotency-Key': _uuid.v4()}, null),
       );
-      return const Ok(null);
+      return Ok(_fromJson(res.data!['carpenter'] as Map<String, dynamic>));
     } catch (e) {
       return Err(mapDioError(e));
     }
@@ -135,11 +139,22 @@ class RegistrationRepositoryImpl implements RegistrationRepository {
     dealerContext: j['dealerContext'] as String?,
     thumbnailUrl: j['thumbnailUrl'] as String?,
     eligible: (j['eligible'] as bool?) ?? true,
-    attendanceState: _attendance(j['attendanceState'] as String?),
+    attendanceState: _attendanceFromWire(j['attendanceState'] as String?),
   );
 
-  AttendanceStatus _attendance(String? s) => AttendanceStatus.values.firstWhere(
-    (a) => a.name == s,
-    orElse: () => AttendanceStatus.notCaptured,
-  );
+  /// `attendanceState` is OPTIONAL on the wire: the real service omits it
+  /// until sub-project 4 defines the vocabulary; the mock still sends it.
+  /// Absent → notCaptured is the deliberate, visible fallback for a
+  /// display-only field (the shared-contract rule allows a fallback that is
+  /// CHOSEN, not silently inherited from firstWhere's orElse). An
+  /// unrecognised non-null value also lands on notCaptured — for this field
+  /// that under-claims (shows "not captured" instead of a state we don't
+  /// know), which is the safe direction.
+  AttendanceStatus _attendanceFromWire(String? wire) {
+    if (wire == null) return AttendanceStatus.notCaptured;
+    for (final s in AttendanceStatus.values) {
+      if (s.name == wire) return s;
+    }
+    return AttendanceStatus.notCaptured;
+  }
 }

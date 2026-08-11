@@ -30,10 +30,15 @@ class RegistrationState {
   );
 }
 
-/// Registration Workspace (W-06). Resolves participants to Sales Eco master
-/// records and builds a registration basket with eligibility warnings. Never
-/// creates a local shadow master — missing profiles go through a Sales Eco
-/// request (§8.6).
+/// Registration Workspace (W-06). Resolves participants against the
+/// campaign service's carpenter master and builds a registration basket.
+///
+/// Since D1 (foundation spec, 2026-08-10) the master is OURS: a missing
+/// profile becomes a profile request that immediately creates a local
+/// provisional carpenter (spec 2a.D1) — returned by the server and added
+/// straight to the basket below, so request → basket → register completes
+/// in one visit. Ratification/merge against BMD Sales is sub-project 8's
+/// adjudication queue, not something this workspace waits for.
 class RegistrationController
     extends AutoDisposeFamilyNotifier<RegistrationState, String> {
   @override
@@ -90,8 +95,10 @@ class RegistrationController
         .read(registrationRepositoryProvider)
         .requestNewProfile(arg, name, phone);
     state = res.fold(
-      (_) =>
-          state.copyWith(message: 'Profile request submitted — pending sync'),
+      (carpenter) => state.copyWith(
+        basket: {...state.basket, carpenter.id: carpenter},
+        message: 'Profile request submitted — pending sync',
+      ),
       (f) => state.copyWith(message: f.message ?? 'Request failed'),
     );
   }
