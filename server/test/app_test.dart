@@ -72,4 +72,15 @@ void main() {
       );
     },
   );
+
+  test(
+    'an unauthenticated GET /carpenters is 401 through the real tree',
+    () async {
+      final handler = buildApp(db: db, config: _config());
+      final res = await handler(
+        Request('GET', Uri.parse('http://localhost/carpenters?q=ka')),
+      );
+      expect(res.statusCode, 401);
+    },
+  );
 }
