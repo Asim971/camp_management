@@ -3,18 +3,27 @@
 # Registering AppL10n's delegates was commented out from P0.2 until P0.5 and
 # nothing noticed, so this is the guard at the outermost layer.
 #
-# Requires the `locale` matrix APK (--dart-define=LOCALE=bn). Maestro
-# `arguments:` are Android intent extras and CANNOT reach
-# `const String.fromEnvironment`, so the language lives in the build, not here.
-# See ci.yml's e2e matrix. Every other flow falls back to English visible-text
-# selectors, which is why this configuration is its own APK rather than a
-# `launchApp` argument.
+# Requires the `locale` matrix APK (--dart-define=LOCALE=bn
+# --dart-define=E2E_REAL_AUTH=true). Maestro `arguments:` are Android intent
+# extras and CANNOT reach `const String.fromEnvironment`, so the language
+# lives in the build, not here. See ci.yml's e2e matrix. Every other flow
+# falls back to English visible-text selectors, which is why this
+# configuration is its own APK rather than a `launchApp` argument.
 #
 # NOT the ARB's `appTitle`, which the plan proposed: nothing renders it.
 # `MaterialApp.router`'s `title:` is the hardcoded literal
 # 'ACSL Campaign Management' (lib/app/app.dart:24) and the platform never shows
 # a Flutter `title` on an Android task list here. The two assertions below are
 # the two halves of the chain that DO reach pixels.
+#
+# E2E_REAL_AUTH=true added in Task 11's fix round: half 2 below reads
+# /campaigns from the now-real backend, and FakeAuthService's token
+# ('e2e-token', not a JWT) is correctly rejected by the real authenticate()
+# with 401 -- confirmed by driving this exact scenario manually. Signing in
+# for real, as field_user (the seed fixture's own default role,
+# server/lib/src/seed/seed_routes.dart), gets a genuine JWT the real
+# /campaigns can honour, without changing anything about half 1's
+# network-free, locale-only assertion.
 appId: ${APP_ID}
 tags:
   - localization
@@ -22,6 +31,22 @@ tags:
 ---
 - clearState
 - launchApp
+
+# Unauthenticated after the fake auto-sign-in's real 401 (see the header
+# comment): RouteGuards redirected `/dev` to `/login?from=%2Fdev`. Modelled
+# on real_auth_campaign_journey.yaml's own login steps.
+- assertVisible:
+    id: "login_username"
+- tapOn:
+    id: "login_username"
+- inputText: "field_user"
+- tapOn:
+    id: "login_password"
+- inputText: "Test1234!"
+- hideKeyboard
+- tapOn:
+    id: "login_submit"
+
 - assertVisible:
     id: "dev_launcher"
 
@@ -47,8 +72,9 @@ tags:
 #
 # /campaigns and /campaigns/:id need only `Authenticated()` (route_table.dart),
 # so the matrix's default ROLE=field_user is sufficient — no ROLE define here.
-# Both need the mock server, so a failure here after Half 1 passed points at the
-# backend or the fixture, not at localization.
+# Both hit the real, Postgres-backed service now, so a failure here after
+# Half 1 passed points at the backend, the login above, or the seed fixture
+# (server/lib/src/seed/seed_routes.dart) — not at localization.
 - tapOn:
     id: "dev_open_campaigns"
 

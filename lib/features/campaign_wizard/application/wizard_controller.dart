@@ -10,6 +10,7 @@ class WizardState {
     this.step = 0,
     this.draft = const CampaignDraft(),
     this.savedId,
+    this.savedVersion,
     this.saving = false,
     this.submitting = false,
     this.showErrors = false,
@@ -20,6 +21,10 @@ class WizardState {
   final int step; // 0..4
   final CampaignDraft draft;
   final String? savedId; // set after first successful draft save
+  // The server's version for savedId, always set alongside it — updateDraft
+  // and submitForApproval both need to echo it back (§9.1 optimistic
+  // concurrency), so a null savedVersion with a non-null savedId is a bug.
+  final int? savedVersion;
   final bool saving;
   final bool submitting;
   final bool showErrors; // reveal inline errors after a blocked Continue/Submit
@@ -32,6 +37,7 @@ class WizardState {
     int? step,
     CampaignDraft? draft,
     String? savedId,
+    int? savedVersion,
     bool? saving,
     bool? submitting,
     bool? showErrors,
@@ -41,6 +47,7 @@ class WizardState {
     step: step ?? this.step,
     draft: draft ?? this.draft,
     savedId: savedId ?? this.savedId,
+    savedVersion: savedVersion ?? this.savedVersion,
     saving: saving ?? this.saving,
     submitting: submitting ?? this.submitting,
     showErrors: showErrors ?? this.showErrors,
@@ -102,9 +109,14 @@ class WizardController extends AutoDisposeNotifier<WizardState> {
     final repo = ref.read(campaignRepositoryProvider);
     final result = state.savedId == null
         ? await repo.createDraft(state.draft, trace: TraceId.generate())
-        : await repo.updateDraft(state.savedId!, state.draft);
+        : await repo.updateDraft(
+            state.savedId!,
+            state.draft,
+            version: state.savedVersion!,
+          );
     state = result.fold(
-      (c) => state.copyWith(saving: false, savedId: c.id),
+      (c) =>
+          state.copyWith(saving: false, savedId: c.id, savedVersion: c.version),
       (f) => state.copyWith(saving: false, error: f.message ?? 'Save failed'),
     );
   }
@@ -123,12 +135,17 @@ class WizardController extends AutoDisposeNotifier<WizardState> {
     // Ensure a persisted draft, then submit it.
     final saved = state.savedId == null
         ? await repo.createDraft(state.draft, trace: trace)
-        : await repo.updateDraft(state.savedId!, state.draft);
+        : await repo.updateDraft(
+            state.savedId!,
+            state.draft,
+            version: state.savedVersion!,
+          );
 
     await saved.fold(
       (campaign) async {
         final submitted = await repo.submitForApproval(
           campaign.id,
+          version: campaign.version,
           trace: trace,
         );
         state = submitted.fold(
@@ -136,6 +153,7 @@ class WizardController extends AutoDisposeNotifier<WizardState> {
           (f) => state.copyWith(
             submitting: false,
             savedId: campaign.id,
+            savedVersion: campaign.version,
             error: f.message ?? 'Submit failed',
           ),
         );

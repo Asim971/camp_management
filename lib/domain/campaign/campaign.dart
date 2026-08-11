@@ -21,6 +21,12 @@ class Campaign with _$Campaign {
     @Default(<String>[]) List<String> territoryIds,
     @Default(0) int targetAudience,
     @Default(0) int verifiedAttendance,
+    // Optimistic-concurrency token echoed back on every mutation
+    // (submitForApproval/decide/updateDraft) so the server can reject a
+    // write against a row someone else already changed. Defaults to 0 for
+    // legacy/test call sites that construct a Campaign without a server
+    // round-trip; a real wire payload always carries the server's value.
+    @Default(0) int version,
   }) = _Campaign;
 
   const Campaign._();

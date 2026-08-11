@@ -73,13 +73,49 @@ Router _buildRouter(_Store store) {
   final r = Router();
 
   // ---- Campaigns ----------------------------------------------------------
+  //
+  // Decision values, `version` and list paging below match the real
+  // server's wire contract (Tasks 8-9). This stub does not enforce
+  // idempotency keys or emit the full `{"error": {...}}` envelope on every
+  // path — Task 11's parity tests are what fills in the rest — but it must
+  // not CONTRADICT the shape, which is why status/version/paging now agree.
   r.get('/campaigns', (Request req) {
     final fixture = Platform.environment['MOCK_CAMPAIGNS'] ?? 'rows';
     if (fixture == 'error') return _json({'error': 'boom'}, status: 500);
-    final items = fixture == 'empty'
+    var items = fixture == 'empty'
         ? <Map<String, dynamic>>[]
         : store.campaigns.values.toList();
-    return _json({'items': items, 'total': items.length});
+
+    final q = req.url.queryParameters['q'];
+    if (q != null && q.isNotEmpty) {
+      final needle = q.toLowerCase();
+      items = items
+          .where((c) => (c['name'] as String).toLowerCase().contains(needle))
+          .toList();
+    }
+    final statuses = req.url.queryParametersAll['status'] ?? const [];
+    if (statuses.isNotEmpty) {
+      items = items.where((c) => statuses.contains(c['status'])).toList();
+    }
+
+    final total = items.length;
+    // Mirrors the real server exactly (campaign_routes.dart:65-66 for the
+    // defaults, campaign_repo.dart:70-73 for the clamp): page is 1-based and
+    // clamped to >= 1, pageSize clamped to 1..100. A 0-based `page * pageSize`
+    // offset (this file's previous version) agreed with the real server only
+    // when page was absent — anything else silently returned the wrong
+    // slice, which is exactly the kind of contradiction this mock exists to
+    // not have.
+    final rawPage = int.tryParse(req.url.queryParameters['page'] ?? '') ?? 1;
+    final rawPageSize =
+        int.tryParse(req.url.queryParameters['pageSize'] ?? '') ?? 20;
+    final page = rawPage < 1 ? 1 : rawPage;
+    final pageSize = rawPageSize < 1
+        ? 1
+        : (rawPageSize > 100 ? 100 : rawPageSize);
+    final start = ((page - 1) * pageSize).clamp(0, items.length);
+    final end = (start + pageSize).clamp(start, items.length);
+    return _json({'items': items.sublist(start, end), 'total': total});
   });
 
   r.post('/campaigns', (Request req) async {
@@ -95,25 +131,38 @@ Router _buildRouter(_Store store) {
 
   r.put('/campaigns/<id>', (Request req, String id) async {
     final b = await _body(req);
-    final c = store.updateCampaign(id, b);
-    return c == null ? _json({'error': 'not found'}, status: 404) : _json(c);
+    final result = store.updateCampaign(id, b);
+    return result.toResponse();
   });
 
-  r.post('/campaigns/<id>/submit', (Request req, String id) {
-    final c = store.setStatus(id, 'PENDING_APPROVAL');
-    return c == null ? _json({'error': 'not found'}, status: 404) : _json(c);
+  r.post('/campaigns/<id>/submit', (Request req, String id) async {
+    final b = await _body(req);
+    final result = store.setStatus(
+      id,
+      'PENDING_APPROVAL',
+      expectedVersion: b['version'],
+    );
+    return result.toResponse();
   });
 
   r.post('/campaigns/<id>/decision', (Request req, String id) async {
     final b = await _body(req);
     final status = switch (b['decision']) {
-      'approve' => 'APPROVED',
-      'returnForCorrection' => 'RETURNED',
-      'reject' => 'CANCELLED',
-      _ => 'PENDING_APPROVAL',
+      'APPROVE' => 'APPROVED',
+      'RETURN_FOR_CORRECTION' => 'RETURNED',
+      'REJECT' => 'CANCELLED',
+      _ => null,
     };
-    final c = store.setStatus(id, status);
-    return c == null ? _json({'error': 'not found'}, status: 404) : _json(c);
+    if (status == null) {
+      return _json({
+        'error': {
+          'code': 'BAD_REQUEST',
+          'message': 'Unrecognised decision "${b['decision']}".',
+        },
+      }, status: 400);
+    }
+    final result = store.setStatus(id, status, expectedVersion: b['version']);
+    return result.toResponse();
   });
 
   // ---- Sessions -----------------------------------------------------------
@@ -285,6 +334,38 @@ Map<String, dynamic> _authPayload(String username) {
 }
 
 // ---------------------------------------------------------------------------
+// Campaign mutation result — carries either the updated row or the reason it
+// wasn't updated, so route handlers turn it into a response with one call.
+// ---------------------------------------------------------------------------
+
+class _MutationResult {
+  const _MutationResult.ok(Map<String, dynamic> campaign)
+    : _campaign = campaign,
+      _error = null;
+  const _MutationResult.notFound() : _campaign = null, _error = 'not_found';
+  const _MutationResult.conflict() : _campaign = null, _error = 'conflict';
+
+  final Map<String, dynamic>? _campaign;
+  final String? _error;
+
+  Response toResponse() => switch (_error) {
+    'not_found' => _json({
+      'error': {
+        'code': 'NOT_FOUND',
+        'message': 'The requested resource was not found.',
+      },
+    }, status: 404),
+    'conflict' => _json({
+      'error': {
+        'code': 'CONFLICT_STALE_VERSION',
+        'message': 'The campaign has changed since you last loaded it.',
+      },
+    }, status: 409),
+    _ => _json(_campaign),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // In-memory state + seeds
 // ---------------------------------------------------------------------------
 
@@ -366,6 +447,7 @@ class _Store {
     required String status,
     required int target,
     required int verified,
+    int version = 1,
   }) => {
     'id': id,
     'name': name,
@@ -380,10 +462,13 @@ class _Store {
     'territoryIds': ['Dhaka North'],
     'targetAudience': target,
     'verifiedAttendance': verified,
+    'version': version,
   };
 
   Map<String, dynamic> createCampaign(Map<String, dynamic> draft) {
     final id = 'CAMP-${_seq++}';
+    // Matches the real server: a freshly created row starts at version 1
+    // (server/lib/src/campaign/campaign_repo.dart's INSERT), not 0.
     final c = _campaign(
       id: id,
       name: (draft['name'] as String?) ?? 'Untitled',
@@ -395,20 +480,38 @@ class _Store {
     return c;
   }
 
-  Map<String, dynamic>? updateCampaign(String id, Map<String, dynamic> draft) {
+  /// Zero-affected-rows-as-409 is the real server's whole concurrency
+  /// guarantee (campaign_repo.dart); this mirrors it with a plain
+  /// version-equality check since there is no row to fail to update.
+  _MutationResult updateCampaign(String id, Map<String, dynamic> draft) {
     final c = campaigns[id];
-    if (c == null) return null;
+    if (c == null) return const _MutationResult.notFound();
+    if (!_versionMatches(c, draft['version'])) {
+      return const _MutationResult.conflict();
+    }
     if (draft['name'] != null) c['name'] = draft['name'];
     if (draft['target'] != null) c['targetAudience'] = draft['target'];
-    return c;
+    c['version'] = (c['version'] as int) + 1;
+    return _MutationResult.ok(c);
   }
 
-  Map<String, dynamic>? setStatus(String id, String status) {
+  _MutationResult setStatus(
+    String id,
+    String status, {
+    required Object? expectedVersion,
+  }) {
     final c = campaigns[id];
-    if (c == null) return null;
+    if (c == null) return const _MutationResult.notFound();
+    if (!_versionMatches(c, expectedVersion)) {
+      return const _MutationResult.conflict();
+    }
     c['status'] = status;
-    return c;
+    c['version'] = (c['version'] as int) + 1;
+    return _MutationResult.ok(c);
   }
+
+  bool _versionMatches(Map<String, dynamic> campaign, Object? expected) =>
+      expected is int && campaign['version'] == expected;
 
   final Map<String, Map<String, dynamic>> _sessions = {};
 

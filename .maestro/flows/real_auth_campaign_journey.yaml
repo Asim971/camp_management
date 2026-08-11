@@ -1,0 +1,76 @@
+# D3 / Task 11 step 6: this flow signs in through the REAL identity provider
+# instead of FakeAuthService, proving the campaign service this slice ships
+# can actually issue and honour a token end-to-end. Every OTHER flow in this
+# suite swaps in FakeAuthService whenever `config.e2e` is true and has never
+# logged into the identity provider we now own
+# (lib/app/di/providers.dart's authServiceProvider doc) -- except
+# locale_bengali.yaml, added to the fix round for an unrelated reason (its
+# own /campaigns read needs a real JWT once the backend is real), whose login
+# steps are modelled on this flow's.
+#
+# Requires the `realAuth` matrix APK (--dart-define=E2E_REAL_AUTH=true,
+# alongside the always-on --dart-define=E2E=true), which keeps DioAuthService
+# live while config.e2e stays true (AppConfig.e2eRealAuth). See ci.yml's e2e
+# matrix. Maestro `arguments:` are Android intent extras and CANNOT reach
+# `const String.fromEnvironment`, so this lives in the build, not here.
+#
+# The username/password below are `POST /__test__/reset`'s own fixture
+# (server/lib/src/seed/seed_routes.dart): username == the wire role name,
+# one shared password for every seeded role. `campaign_creator` is used only
+# because it is the role this flow's DevLauncherScreen entry (below) already
+# assumes ownership of the seeded rows under; /campaigns itself needs no
+# permission beyond Authenticated (campaign_routes.dart), so any seeded role
+# would pass this flow's own assertions.
+#
+# `config.e2e`'s own best-effort auto-sign-in (bootstrap.dart's `e2eSignIn`
+# step) still runs first, against `config.e2eRole`/'e2e' -- with real auth
+# that call reaches the real /auth/login and 401s (no seeded user has the
+# password 'e2e'), which degrades silently and leaves the session signed
+# out. That is the point, not a bug this flow works around: it is what makes
+# the app land on /login on a cold E2E_REAL_AUTH boot exactly the way an
+# unauthenticated production boot would, instead of this flow needing to
+# undo a fake session first.
+appId: ${APP_ID}
+tags:
+  - auth
+  - critical
+  - android
+---
+- clearState
+- launchApp
+
+# Unauthenticated after the auto-sign-in's real 401: RouteGuards redirected
+# `/dev` to `/login?from=%2Fdev`.
+- assertVisible:
+    id: "login_username"
+- tapOn:
+    id: "login_username"
+- inputText: "campaign_creator"
+- tapOn:
+    id: "login_password"
+- inputText: "Test1234!"
+- hideKeyboard
+- tapOn:
+    id: "login_submit"
+
+# A real JWT was issued and verified by `authenticate()` -- landed back on
+# the dev launcher (the guard's `redirectTargetAfterSignIn`), not bounced
+# back to /login and not /forbidden.
+- assertVisible:
+    id: "dev_launcher"
+- tapOn:
+    id: "dev_open_campaigns"
+
+# One of `POST /__test__/reset`'s three seeded rows -- proves this list came
+# from the real, Postgres-backed /campaigns, not a fixture. Wrapped in `.*`:
+# BmdDataTable merges each row into one accessibility node ("ACSL Pilot
+# Carpenter Drive\n100") and Maestro anchors its text patterns (confirmed
+# against locale_bengali.yaml's own screen-hierarchy artifact for the same
+# table).
+- assertVisible: ".*ACSL Pilot Carpenter Drive.*"
+- tapOn: ".*ACSL Pilot Carpenter Drive.*"
+
+# Campaign detail loaded for real: the name renders again in the header, and
+# the status chip reads the seeded APPROVED row's English label.
+- assertVisible: ".*ACSL Pilot Carpenter Drive.*"
+- assertVisible: "Status: Approved"

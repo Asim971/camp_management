@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/audit/audit.dart';
 import '../../core/audit/audit_emitter.dart';
 import '../../core/audit/audit_transport.dart';
+import '../../core/auth/auth_binding.dart';
 import '../../core/auth/auth_service.dart';
 import '../../core/auth/e2e_session.dart';
 import '../../core/auth/session_manager.dart';
@@ -62,14 +63,25 @@ final appConfigProvider = Provider<AppConfig>(
 /// the (lazy, safe) runtime one.
 final Provider<AuthService> authServiceProvider = Provider<AuthService>((ref) {
   final config = ref.watch(appConfigProvider);
-  // E2E signs in through a fake transport rather than skipping the lifecycle,
-  // so Maestro exercises the same SessionManager path production does.
-  if (config.e2e) return FakeAuthService(config.e2eRole);
+  // E2E normally signs in through a fake transport rather than skipping the
+  // lifecycle, so Maestro exercises the same SessionManager path production
+  // does. E2E_REAL_AUTH keeps the real one so at least one flow proves the
+  // service we now own can actually issue a token — shipping an identity
+  // provider no end-to-end test has logged into would repeat P0.6's central
+  // mistake (spec D3).
+  if (config.e2e && !config.e2eRealAuth) return FakeAuthService(config.e2eRole);
   return DioAuthService(ref.watch(dioProvider));
 });
 
 final Provider<TokenStore> tokenStoreProvider = Provider<TokenStore>(
   (ref) => createTokenStore(ref.watch(secureStoreProvider)),
+);
+
+/// The leaf that lets [dioProvider]'s AuthInterceptor reach live session
+/// state WITHOUT a provider edge back into the auth graph — see [AuthBinding]
+/// for the cycle it breaks and `auth_cycle_regression_test.dart` for the net.
+final Provider<AuthBinding> authBindingProvider = Provider<AuthBinding>(
+  (_) => AuthBinding(),
 );
 
 final Provider<SessionManager> sessionManagerProvider =
@@ -79,6 +91,9 @@ final Provider<SessionManager> sessionManagerProvider =
         tokens: ref.watch(tokenStoreProvider),
       );
       ref.onDispose(manager.dispose);
+      // Attach INSIDE the build, before any caller can hold the manager and
+      // fire a request, so the interceptor is never live while unattached.
+      ref.read(authBindingProvider).attach(manager);
       return manager;
     });
 
@@ -110,19 +125,22 @@ final Provider<Dio> dioProvider = Provider<Dio>((ref) {
   // like `/campaigns` against the real baseUrl, the original bug this task
   // fixes) but adds no interceptors of its own.
   final replayClient = buildReplayDio(baseUrl: config.apiBaseUrl);
-  // Both `ref.read`s below are lazy closures that run per request, long after
-  // both authStateProvider and sessionManagerProvider are built - not at
-  // provider-build time. authServiceProvider (built above, via dioProvider)
-  // itself reads dioProvider, so hoisting either read here would close a
-  // genuine provider cycle instead of the harmless one Riverpod tolerates
-  // because these callbacks run later.
+  // The callbacks below reach session state through [AuthBinding] — a
+  // dependency LEAF — never through ref.read(authStateProvider) or
+  // ref.read(sessionManagerProvider). Those reads look harmless ("lazy
+  // closures, run per request, long after every provider is built") but
+  // Riverpod checks for cycles AT READ TIME, and both chains lead back to
+  // dioProvider itself (authState -> sessionManager -> authService -> dio).
+  // The very first request through the real DioAuthService — the login —
+  // threw CircularDependencyError from inside onRequest, which broke every
+  // real-auth sign-in while every FakeAuthService config stayed green (the
+  // fake never watches dioProvider, so the closing edge never exists).
+  // auth_cycle_regression_test.dart pins this with the un-overridden graph.
+  final binding = ref.read(authBindingProvider);
   final interceptor = AuthInterceptor(
-    readAccessToken: () => switch (ref.read(authStateProvider)) {
-      AuthSignedIn(:final session) => session.accessToken,
-      _ => null,
-    },
-    refreshToken: () => ref.read(sessionManagerProvider).refresh(),
-    onAuthLost: () => unawaited(ref.read(sessionManagerProvider).signOut()),
+    readAccessToken: () => binding.accessToken,
+    refreshToken: binding.refresh,
+    onAuthLost: () => unawaited(binding.signOut()),
     replay: (options) => replayClient.fetch<dynamic>(options),
   );
   return buildDio(baseUrl: config.apiBaseUrl, authInterceptor: interceptor);

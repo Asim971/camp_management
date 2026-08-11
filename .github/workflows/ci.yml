@@ -90,6 +90,58 @@ jobs:
           if-no-files-found: error
 
   # ---------------------------------------------------------------------------
+  # The campaign_service test suite against a real Postgres 16 service
+  # container -- Task 11's acceptance criterion depends on this backend being
+  # real and proven, not just unit-tested in isolation (spec §9).
+  server:
+    name: server
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: campaign
+          POSTGRES_PASSWORD: campaign
+          POSTGRES_DB: campaign
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://campaign:campaign@localhost:5432/campaign
+      JWT_SECRET: ci-secret-at-least-32-characters-long!!
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+        with: { sdk: '3.12.2' }
+
+      - run: dart pub get
+        working-directory: packages/campaign_contracts
+      - run: dart test
+        working-directory: packages/campaign_contracts
+      - run: dart analyze --fatal-infos
+        working-directory: packages/campaign_contracts
+
+      - run: dart pub get
+        working-directory: server
+      - run: dart format --output=none --set-exit-if-changed .
+        working-directory: server
+      - run: dart analyze --fatal-infos
+        working-directory: server
+
+      # test/contract/parity_test.dart launches tool/mock_server as a
+      # subprocess via a bare `dart run`, which resolves dependencies
+      # implicitly on first run if they aren't already -- on a cold runner
+      # that resolution can eat into the test's own 30x1s health-poll budget
+      # and flake. Resolving here, once, up front removes that risk.
+      - run: dart pub get
+        working-directory: tool/mock_server
+
+      - run: dart test
+        working-directory: server
+
+  # ---------------------------------------------------------------------------
   # Maestro E2E on an Android emulator. A green `e2e` is Epic P0.5's hard exit
   # criterion; it reverses T-0.1.4's recorded "cancelled, not deferred".
   #
@@ -118,22 +170,74 @@ jobs:
     # not compile wastes ~15 minutes per run.
     needs: gate
     timeout-minutes: 45
+    # Audit finding (Task 11, do not remove): this job had no Postgres before
+    # the cut-over. The mock server was purely in-memory; the real
+    # campaign_service it replaces below is not, and needs the exact same
+    # service container the `server` job uses.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: campaign
+          POSTGRES_PASSWORD: campaign
+          POSTGRES_DB: campaign
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://campaign:campaign@localhost:5432/campaign
+      JWT_SECRET: ci-secret-at-least-32-characters-long!!
+      # /__test__/* only exists because of this -- see server/lib/src/app.dart
+      # and server/lib/src/seed/seed_routes.dart. Never set this outside CI.
+      ENABLE_TEST_SEEDING: 'true'
+      # Staged cut-over (spec §9, amended): each config runs against the real
+      # service UNLESS its own `matrix.config.useMock` says otherwise -- see
+      # the matrix below for which configs need the mock and why. The repo/
+      # environment variable E2E_USE_MOCK (Settings -> Secrets and variables
+      # -> Actions -> Variables), when set, overrides EVERY config at once,
+      # for bisecting a red run without editing this file. Kept as a flag
+      # rather than deleted the moment the cut-over landed -- the mock is
+      # still the harness two epics of E2E coverage were built against, and
+      # `crm`/`field` depend on it for real in this staged plan, not just as
+      # a fallback.
+      USE_MOCK: ${{ vars.E2E_USE_MOCK || matrix.config.useMock }}
     strategy:
       # One red configuration must not mask the state of the other four.
       fail-fast: false
       matrix:
         config:
+          # Staged cut-over (spec §9, amended after Task 11's fix-round review):
+          # each config's `useMock` reflects whether ITS OWN flows depend on
+          # endpoints this slice's real service actually implements
+          # (/health, /auth/*, /campaigns only) -- traced flow by flow, not
+          # guessed. `recapture` and `queue` pass against the real service
+          # (their assertions don't need a successful upload: `queue` even
+          # asserts the retry FAILS, and a 404 presign produces exactly
+          # that). `locale` needs E2E_REAL_AUTH now: its second half reads
+          # /campaigns, and FakeAuthService's non-JWT token is correctly
+          # 401'd by the real authenticate() -- see
+          # .maestro/flows/locale_bengali.yaml's updated header comment.
+          #
           # Defaults (ROLE=field_user, QUALITY=pass, no SEED). field_offline_capture
           # belongs HERE and not under `queue`: SEED=queue seeds a pending task and
           # this flow asserts an exact pending count of one (e2e_seeder.dart:51).
           - key: field
             defines: ''
+            useMock: '1' # field_offline_capture asserts a successful upload
+            # completing (Match processing), which needs /media/presign,
+            # /media/upload/<id> and /attendance/<id>/confirm -- endpoints
+            # that belong to sub-project 4/5's slice and don't exist yet.
+            # Move this config off USE_MOCK when they land.
             flows: >-
               .maestro/flows/carpenter_search_confirm.yaml
               .maestro/flows/field_online_capture.yaml
               .maestro/flows/field_offline_capture.yaml
           - key: crm
             defines: '--dart-define=ROLE=crm_verifier'
+            useMock: '1' # both flows read/decide /verification/cases/* --
+            # endpoints belong to sub-project 4/5; move off USE_MOCK when
+            # they land.
             flows: >-
               .maestro/flows/crm_case_decision.yaml
               .maestro/flows/crm_case_conflict.yaml
@@ -141,15 +245,32 @@ jobs:
           # that expects its first capture to pass.
           - key: recapture
             defines: '--dart-define=QUALITY=fail'
+            useMock: '0'
             flows: .maestro/flows/field_capture_recapture.yaml
           - key: queue
             defines: '--dart-define=SEED=queue'
+            useMock: '0'
             flows: .maestro/flows/offline_queue_retry.yaml
           # Its own APK because every other flow falls back to English
           # visible-text selectors and would break against a Bengali build.
+          # E2E_REAL_AUTH=true added in the fix round: the flow's second half
+          # reads /campaigns, which the real authenticate() 401s for
+          # FakeAuthService's non-JWT token -- see the flow's own header
+          # comment for the seeded field_user login this now performs first.
           - key: locale
-            defines: '--dart-define=LOCALE=bn'
+            defines: '--dart-define=LOCALE=bn --dart-define=E2E_REAL_AUTH=true'
+            useMock: '0'
             flows: .maestro/flows/locale_bengali.yaml
+          # D3 / Task 11 step 6: signs in through the REAL identity provider
+          # (DioAuthService) instead of FakeAuthService -- see
+          # providers.dart's authServiceProvider and
+          # real_auth_campaign_journey.yaml's own header comment. `locale`
+          # above does too now (added in the fix round), for its own
+          # unrelated reason.
+          - key: realAuth
+            defines: '--dart-define=E2E_REAL_AUTH=true'
+            useMock: '0'
+            flows: .maestro/flows/real_auth_campaign_journey.yaml
     steps:
       - uses: actions/checkout@v4
 
@@ -179,24 +300,41 @@ jobs:
           curl -Ls "https://get.maestro.mobile.dev" | bash
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
 
-      # tool/mock_server is a real Dart shelf server implementing every endpoint
-      # the repositories call, including the CASE_CONFLICT 409 and the
-      # presign -> PUT -> confirm upload path. Started BEFORE the emulator and
-      # left running: the emulator reaches it at 10.0.2.2:8080. Polled rather
-      # than slept on, so a server that failed to start fails here with a clear
-      # message instead of as five mysteriously red flows.
-      - name: Start the mock backend
+      # The backend the emulator reaches at 10.0.2.2:8080. Defaults to the
+      # REAL campaign_service -- server/bin/server.dart, migrating and
+      # listening against the job's `services.postgres` container above --
+      # which is this task's whole acceptance criterion (spec §9): a real,
+      # non-in-memory backend behind the unchanged client. USE_MOCK (job env,
+      # above) falls back to tool/mock_server for bisection.
+      #
+      # Started BEFORE the emulator and left running, and polled rather than
+      # slept on, so a backend that fails to start fails here with a clear
+      # message instead of as every flow in this config mysteriously red.
+      # `run_maestro_flows.sh` is what resets the real backend's fixtures
+      # before each flow; this step only gets it up once.
+      - name: Start the backend
         run: |
-          cd tool/mock_server
-          dart pub get
-          nohup dart run bin/server.dart > "$RUNNER_TEMP/mock_server.log" 2>&1 &
+          if [ "$USE_MOCK" = "1" ]; then
+            cd tool/mock_server
+            dart pub get
+            nohup dart run bin/server.dart > "$RUNNER_TEMP/backend.log" 2>&1 &
+            ready_url="http://127.0.0.1:8080/campaigns"
+          else
+            cd server
+            dart pub get
+            nohup dart run bin/server.dart > "$RUNNER_TEMP/backend.log" 2>&1 &
+            ready_url="http://127.0.0.1:8080/health"
+          fi
           for i in $(seq 1 30); do
-            if curl -fsS http://127.0.0.1:8080/campaigns > /dev/null; then
-              echo "mock server up"; exit 0
+            if curl -fsS "$ready_url" > /dev/null; then
+              echo "backend up ($ready_url)"
+              exit 0
             fi
             sleep 1
           done
-          echo "mock server did not come up:"; cat "$RUNNER_TEMP/mock_server.log"; exit 1
+          echo "backend did not come up:"
+          cat "$RUNNER_TEMP/backend.log"
+          exit 1
 
       # Built outside the emulator step so a compile failure is not charged to
       # emulator wall-clock, and so the artifact path is asserted before boot.
@@ -258,13 +396,13 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-      # The flows depend on this server; when one fails "for no reason" its log
-      # is the first thing to read.
-      - name: Upload mock server log
+      # The flows depend on this backend; when one fails "for no reason" its
+      # log is the first thing to read.
+      - name: Upload backend log
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: mock-server-log-${{ matrix.config.key }}
-          path: ${{ runner.temp }}/mock_server.log
+          name: backend-log-${{ matrix.config.key }}
+          path: ${{ runner.temp }}/backend.log
           retention-days: 7
           if-no-files-found: ignore

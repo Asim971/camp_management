@@ -41,16 +41,33 @@ abstract interface class CampaignRepository {
   /// event for this action so the two can be joined (Architecture §12).
   Future<Result<Campaign>> createDraft(CampaignDraft draft, {TraceId? trace});
 
-  /// Persists edits to an existing Draft.
-  Future<Result<Campaign>> updateDraft(String id, CampaignDraft draft);
+  /// Persists edits to an existing Draft. [version] is the value the caller
+  /// last saw (§9.1 optimistic concurrency) — the server 409s if it has moved.
+  Future<Result<Campaign>> updateDraft(
+    String id,
+    CampaignDraft draft, {
+    required int version,
+  });
 
-  Future<Result<Campaign>> submitForApproval(String id, {TraceId? trace});
+  /// [version] is the value the caller last saw; a stale value 409s rather
+  /// than silently submitting over someone else's concurrent edit.
+  Future<Result<Campaign>> submitForApproval(
+    String id, {
+    required int version,
+    TraceId? trace,
+  });
 
   /// Approve/return/reject. [reason] is mandatory for return/reject (§8.4).
+  /// [acknowledgedWarnings] must name every critical warning the server
+  /// derived for this campaign or an APPROVE is rejected
+  /// (WARNINGS_UNACKNOWLEDGED) — silently waving one through is exactly the
+  /// permission-escalation failure this migration exists to close.
   Future<Result<Campaign>> decide(
     String id, {
     required CampaignDecision decision,
     String? reason,
+    required int version,
+    required List<String> acknowledgedWarnings,
     TraceId? trace,
   });
 }

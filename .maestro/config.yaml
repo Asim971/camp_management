@@ -20,3 +20,4 @@ flows:
   - flows/crm_case_decision.yaml
   - flows/crm_case_conflict.yaml
   - flows/locale_bengali.yaml
+  - flows/real_auth_campaign_journey.yaml

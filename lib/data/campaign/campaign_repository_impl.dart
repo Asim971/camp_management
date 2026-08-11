@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../core/network/dio_client.dart';
 import '../../core/network/trace_options.dart';
@@ -7,19 +8,15 @@ import '../../core/trace/trace_id.dart';
 import '../../domain/campaign/campaign.dart';
 import '../../domain/campaign/campaign_draft.dart';
 import '../../domain/campaign/campaign_repository.dart';
-import 'campaign_dto.dart';
+import 'campaign_mapper.dart';
 
-/// Dio-backed [CampaignRepository]. Translates DTOs → domain and Dio errors →
-/// [Failure]. Endpoints are placeholders pending the Sales Eco/campaign-service
-/// contract (🔒 dependency; Task T-1.1.2).
+/// Dio-backed [CampaignRepository]. Translates wire JSON → domain (via
+/// [campaignFromWire]) and Dio errors → [Failure].
 class CampaignRepositoryImpl implements CampaignRepository {
   CampaignRepositoryImpl(this._dio);
 
   final Dio _dio;
-
-  /// `null` lets CorrelationIdInterceptor mint a per-request id.
-  Options? _options(TraceId? trace) =>
-      trace == null ? null : traceOptions(trace);
+  static const _uuid = Uuid();
 
   @override
   Future<Result<Paged<Campaign>>> list(CampaignQuery query) async {
@@ -36,9 +33,7 @@ class CampaignRepositoryImpl implements CampaignRepository {
       );
       final data = res.data!;
       final items = (data['items'] as List)
-          .map(
-            (e) => CampaignDto.fromJson(e as Map<String, dynamic>).toDomain(),
-          )
+          .map((e) => campaignFromWire(e as Map<String, dynamic>))
           .toList();
       return Ok(Paged(items: items, total: data['total'] as int));
     } catch (e) {
@@ -50,7 +45,7 @@ class CampaignRepositoryImpl implements CampaignRepository {
   Future<Result<Campaign>> getById(String id) async {
     try {
       final res = await _dio.get<Map<String, dynamic>>('/campaigns/$id');
-      return Ok(CampaignDto.fromJson(res.data!).toDomain());
+      return Ok(campaignFromWire(res.data!));
     } catch (e) {
       return Err(mapDioError(e));
     }
@@ -64,60 +59,62 @@ class CampaignRepositoryImpl implements CampaignRepository {
     try {
       final res = await _dio.post<Map<String, dynamic>>(
         '/campaigns',
-        data: _draftToJson(draft),
-        options: _options(trace),
+        data: draftToWire(draft),
+        // A fresh key per call. User-level double-submit is already
+        // prevented by disabling the action while the request is in flight
+        // (WizardState.saving/.submitting); this key only has to cover a
+        // transport-level retry of the SAME request, which reuses it.
+        options: traceOptions(
+          trace ?? TraceId.generate(),
+          idempotencyKey: 'create:${_uuid.v4()}',
+        ),
       );
-      return Ok(CampaignDto.fromJson(res.data!).toDomain());
+      return Ok(campaignFromWire(res.data!));
     } catch (e) {
       return Err(mapDioError(e));
     }
   }
 
   @override
-  Future<Result<Campaign>> updateDraft(String id, CampaignDraft draft) async {
+  Future<Result<Campaign>> updateDraft(
+    String id,
+    CampaignDraft draft, {
+    required int version,
+  }) async {
     try {
       final res = await _dio.put<Map<String, dynamic>>(
         '/campaigns/$id',
-        data: _draftToJson(draft),
+        // No idempotency key: PUT is already idempotent by HTTP semantics,
+        // and the version guard below is what makes a stale write 409 rather
+        // than silently overwriting a concurrent change.
+        data: {...draftToWire(draft), 'version': version},
       );
-      return Ok(CampaignDto.fromJson(res.data!).toDomain());
+      return Ok(campaignFromWire(res.data!));
     } catch (e) {
       return Err(mapDioError(e));
     }
   }
-
-  Map<String, dynamic> _draftToJson(CampaignDraft d) => {
-    'name': d.name,
-    'type': d.type,
-    'objective': d.objective,
-    'audienceTypes': d.audienceTypes,
-    'territoryIds': d.territoryIds,
-    'target': d.target,
-    'budgetReference': d.budgetReference,
-    'approverId': d.approverId,
-    'geofenceEnabled': d.geofenceEnabled,
-    'sessions': [
-      for (final s in d.sessions)
-        {
-          'venue': s.venue,
-          'capacity': s.capacity,
-          'startAt': s.startAt?.toIso8601String(),
-          'endAt': s.endAt?.toIso8601String(),
-        },
-    ],
-  };
 
   @override
   Future<Result<Campaign>> submitForApproval(
     String id, {
+    required int version,
     TraceId? trace,
   }) async {
     try {
       final res = await _dio.post<Map<String, dynamic>>(
         '/campaigns/$id/submit',
-        options: _options(trace),
+        data: {'version': version},
+        // A key derived from the action, so a double-tap or a transport retry
+        // replays the first response instead of transitioning twice. It
+        // embeds the version so a legitimate second submit after a real
+        // change is not mistaken for a replay of the first.
+        options: traceOptions(
+          trace ?? TraceId.generate(),
+          idempotencyKey: 'submit:$id:$version',
+        ),
       );
-      return Ok(CampaignDto.fromJson(res.data!).toDomain());
+      return Ok(campaignFromWire(res.data!));
     } catch (e) {
       return Err(mapDioError(e));
     }
@@ -128,15 +125,25 @@ class CampaignRepositoryImpl implements CampaignRepository {
     String id, {
     required CampaignDecision decision,
     String? reason,
+    required int version,
+    required List<String> acknowledgedWarnings,
     TraceId? trace,
   }) async {
     try {
       final res = await _dio.post<Map<String, dynamic>>(
         '/campaigns/$id/decision',
-        data: {'decision': decision.name, 'reason': reason},
-        options: _options(trace),
+        data: {
+          'decision': draftDecisionWire(decision),
+          'reason': reason,
+          'version': version,
+          'acknowledgedWarnings': acknowledgedWarnings,
+        },
+        options: traceOptions(
+          trace ?? TraceId.generate(),
+          idempotencyKey: 'decide:$id:$version',
+        ),
       );
-      return Ok(CampaignDto.fromJson(res.data!).toDomain());
+      return Ok(campaignFromWire(res.data!));
     } catch (e) {
       return Err(mapDioError(e));
     }
