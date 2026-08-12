@@ -113,13 +113,35 @@ tags:
 # AND wrap for a partial, multi-line match.
 - assertVisible: '.*Registration basket \(1\).*'
 
-# registration_submit is in the same basket card just scrolled to, so it's
-# already reachable. The "Registered 1 participant(s)" snackbar renders at
-# the screen bottom regardless of scroll position. Same escape-and-wrap fix
-# as above (wrapped here for uniformity/robustness even though a snackbar is
-# a single-line, non-merged node).
+# The previous assert only proves the merged node's TOP bound (the card
+# header) is on screen -- it says nothing about the Register button at the
+# card's BOTTOM. And this route (`/campaigns/:id/register`) matches the
+# "Campaigns" nav destination's path prefix (`selectedIndexFor` in
+# nav_destinations.dart), so `AdaptiveScaffold` renders a bottom
+# `NavigationBar` here -- a chunk of screen height this flow's earlier
+# swipe-distance math didn't budget for. CI's screenshot confirms it: the
+# card header and basket row are visible, but the button sits cut off under
+# that nav bar, so `tapOn: registration_submit` finds no tappable element.
+#
+# One more down swipe closes the gap. Its START point can't reuse the
+# search-field zone (~30%, above) OR a flat screen-center (~50%): at the
+# scroll position the prior two swipes reached, the inner results list's
+# hit-box (still claiming its full Expanded allocation, empty tail
+# included) runs to roughly 64% of the screen, so 50% is still inside it and
+# would get swallowed the same way as an unwrapped assert. 70% lands past
+# that boundary, inside the basket Card (verified against the header/gap/
+# ListTile heights in registration_workspace_screen.dart's `_BasketPanel`),
+# so the outer ListView is the only claimant there.
+- swipe:
+    start: 50%, 70%
+    end: 50%, 20%
 - tapOn:
     id: "registration_submit"
+
+# Snackbar renders as a Scaffold overlay above the bottom nav bar,
+# independent of the ListView's scroll offset -- same escape-and-wrap fix as
+# above (wrapped here for uniformity/robustness even though a snackbar is a
+# single-line, non-merged node).
 - assertVisible: '.*Registered 1 participant\(s\).*'
 
 # Same-visit profile request lands in the basket: a search with no match
@@ -144,6 +166,14 @@ tags:
 # around ~65% of the screen once fully scrolled down, so start well past
 # that, in the card's ListTile/button zone, and drag downward to reverse the
 # scroll. Two swipes for margin, same as above.
+#
+# Re-checked after adding the extra down swipe above (which now pushes
+# scroll further, to actually reveal the Register button past the bottom
+# nav bar): a bigger down-scroll only pulls the card's start percentage
+# EARLIER on screen, not later, so 75% stays safely inside the card either
+# way -- these two swipes' combined travel comfortably exceeds the outer
+# list's full scroll range, so registration_search remains reachable; no
+# extra UP swipe needed.
 - swipe:
     start: 50%, 75%
     end: 50%, 98%
@@ -170,6 +200,11 @@ tags:
 # UP scroll before the no-match search left the ListView scrolled to the top,
 # so the search-field-zone start point is safe again (same reasoning as the
 # first DOWN swipe: it's above the inner results list, not inside it).
+#
+# Unlike the first basket visit, nothing here needs the extra "past the nav
+# bar" swipe added above: these two asserts only target the card's header
+# and the basket row, both well inside this pair's reach, and there's no
+# `registration_submit` tap to satisfy on this branch of the flow.
 - swipe:
     start: 50%, 30%
     end: 50%, 8%
