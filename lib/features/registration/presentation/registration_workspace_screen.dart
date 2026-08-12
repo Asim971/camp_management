@@ -167,31 +167,7 @@ Future<void> _showRequestProfileSheet(
   await showBmdSideSheet<void>(
     context: context,
     title: 'Request new carpenter profile',
-    builder: (_) => Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        BmdField(
-          identifier: 'profile_name',
-          label: 'Full name',
-          controller: name,
-          required: true,
-        ),
-        const SizedBox(height: BmdSpace.s3),
-        BmdField(
-          identifier: 'profile_phone',
-          label: 'Phone',
-          controller: phone,
-          keyboardType: TextInputType.phone,
-          required: true,
-        ),
-        const SizedBox(height: BmdSpace.s3),
-        const Text(
-          'Creates a local profile pending ratification and adds the '
-          'participant to your basket.',
-        ),
-      ],
-    ),
+    builder: (_) => _ProfileRequestFields(name: name, phone: phone),
     actions: [
       Builder(
         builder: (sheetContext) => BmdButton(
@@ -207,9 +183,75 @@ Future<void> _showRequestProfileSheet(
       ),
     ],
   );
+}
 
-  name.dispose();
-  phone.dispose();
+/// Owns [name]/[phone] for exactly as long as the sheet's fields are in the
+/// tree.
+///
+/// Disposing them right after `showBmdSideSheet`'s `await` (as this used to)
+/// is too early: that Future resolves the instant `Navigator.pop` runs —
+/// `Route.didPop` completes it synchronously — while the sheet's own exit
+/// transition is still animating and its [BmdField]s are still mounted and
+/// listening. A later frame of that animation then touches the already
+/// disposed controller (`ChangeNotifier.debugAssertNotDisposed` inside
+/// `_AnimatedState.didUpdateWidget`, reached from the [TextFormField] this
+/// widget renders), which aborts that frame's element-tree walk partway and
+/// leaves an ancestor `InheritedElement` with a dependent that never got to
+/// remove itself — surfacing several frames later as framework.dart's
+/// `'_dependents.isEmpty': is not true` red screen when the sheet's route is
+/// finally torn down.
+///
+/// Disposing from [State.dispose] instead ties their lifetime to this
+/// widget's own: the framework only calls it once this element actually
+/// unmounts, which for a route happens after its exit animation completes —
+/// the same idiom `_BmdConfirmDialog` above already uses for its reason
+/// field.
+class _ProfileRequestFields extends StatefulWidget {
+  const _ProfileRequestFields({required this.name, required this.phone});
+
+  final TextEditingController name;
+  final TextEditingController phone;
+
+  @override
+  State<_ProfileRequestFields> createState() => _ProfileRequestFieldsState();
+}
+
+class _ProfileRequestFieldsState extends State<_ProfileRequestFields> {
+  @override
+  void dispose() {
+    widget.name.dispose();
+    widget.phone.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        BmdField(
+          identifier: 'profile_name',
+          label: 'Full name',
+          controller: widget.name,
+          required: true,
+        ),
+        const SizedBox(height: BmdSpace.s3),
+        BmdField(
+          identifier: 'profile_phone',
+          label: 'Phone',
+          controller: widget.phone,
+          keyboardType: TextInputType.phone,
+          required: true,
+        ),
+        const SizedBox(height: BmdSpace.s3),
+        const Text(
+          'Creates a local profile pending ratification and adds the '
+          'participant to your basket.',
+        ),
+      ],
+    );
+  }
 }
 
 class _BasketPanel extends ConsumerWidget {
