@@ -93,14 +93,23 @@ tags:
 - swipe:
     start: 50%, 30%
     end: 50%, 8%
-- assertVisible: "Registration basket (1)"
+
+# Maestro text patterns are ANCHORED REGEX, not literals -- we've been
+# exploiting that everywhere with `.*` wraps, but it cuts both ways:
+# parentheses are capture groups, not literal characters. The bare pattern
+# "Registration basket (1)" actually matches the string "Registration
+# basket 1" (no parens), which never appears on screen -- the real header
+# text, parens and all, was rendered the whole time. Single-quoted YAML
+# strings keep backslashes literal, so escape the parens: \( \).
+- assertVisible: 'Registration basket \(1\)'
 
 # registration_submit is in the same basket card just scrolled to, so it's
 # already reachable. The "Registered 1 participant(s)" snackbar renders at
-# the screen bottom regardless of scroll position.
+# the screen bottom regardless of scroll position. Same regex-parens fix as
+# above: "(s)" is a capture group, so escape it too.
 - tapOn:
     id: "registration_submit"
-- assertVisible: "Registered 1 participant(s)"
+- assertVisible: 'Registered 1 participant\(s\)'
 
 # Same-visit profile request lands in the basket: a search with no match
 # surfaces the empty-state's "Request new profile" affordance.
@@ -156,7 +165,9 @@ tags:
 - swipe:
     start: 50%, 30%
     end: 50%, 8%
-- assertVisible: "Registration basket (1)"
+
+# Same regex-parens fix as the first basket assert above.
+- assertVisible: 'Registration basket \(1\)'
 
 # Same merged-node idiom as the search result above: the basket row is also
 # a ListTile (title: name, subtitle: displayId), so wrap in `.*`.
