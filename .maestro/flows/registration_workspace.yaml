@@ -101,15 +101,26 @@ tags:
 # basket 1" (no parens), which never appears on screen -- the real header
 # text, parens and all, was rendered the whole time. Single-quoted YAML
 # strings keep backslashes literal, so escape the parens: \( \).
-- assertVisible: 'Registration basket \(1\)'
+#
+# Escaping alone still wasn't enough: the run's screen-hierarchy artifact
+# showed the basket Card's whole subtree merges into ONE multi-line
+# accessibility node ("Registration basket (1)\nMd. Karim\nCARP-••4821"),
+# same as the ListTiles above. Maestro full-matches node text as regex, so
+# an escaped-but-unwrapped pattern only matches when it equals the ENTIRE
+# node text -- it must also be wrapped in `.*` to match as a substring
+# across the \n boundaries, exactly like the ListTile asserts earlier in
+# this flow. Both fixes are required together: escape literal metacharacters
+# AND wrap for a partial, multi-line match.
+- assertVisible: '.*Registration basket \(1\).*'
 
 # registration_submit is in the same basket card just scrolled to, so it's
 # already reachable. The "Registered 1 participant(s)" snackbar renders at
-# the screen bottom regardless of scroll position. Same regex-parens fix as
-# above: "(s)" is a capture group, so escape it too.
+# the screen bottom regardless of scroll position. Same escape-and-wrap fix
+# as above (wrapped here for uniformity/robustness even though a snackbar is
+# a single-line, non-merged node).
 - tapOn:
     id: "registration_submit"
-- assertVisible: 'Registered 1 participant\(s\)'
+- assertVisible: '.*Registered 1 participant\(s\).*'
 
 # Same-visit profile request lands in the basket: a search with no match
 # surfaces the empty-state's "Request new profile" affordance.
@@ -166,8 +177,8 @@ tags:
     start: 50%, 30%
     end: 50%, 8%
 
-# Same regex-parens fix as the first basket assert above.
-- assertVisible: 'Registration basket \(1\)'
+# Same escape-and-wrap fix as the first basket assert above.
+- assertVisible: '.*Registration basket \(1\).*'
 
 # Same merged-node idiom as the search result above: the basket row is also
 # a ListTile (title: name, subtitle: displayId), so wrap in `.*`.
