@@ -69,6 +69,34 @@ void main() {
       expect(hits.map((c) => c.id), contains('c-2'));
     });
 
+    test("q='%%' is a literal two-character probe, not a wildcard-only "
+        'pattern: it must match nothing, not every row', () async {
+      final hits = await repo.search(organizationId: 'org-1', q: '%%');
+      expect(
+        hits,
+        isEmpty,
+        reason:
+            'unescaped, %% would ILIKE-match every row and defeat the '
+            "route's 2-character minimum-length enumeration guard",
+      );
+    });
+
+    test(
+      'a literal underscore in q matches only names containing it, not '
+      'every single character (ILIKE `_` is a single-char wildcard)',
+      () async {
+        await seedCarpenter(
+          db,
+          id: 'c-underscore',
+          name: 'Under_score Person',
+          phone: '+8801700005555',
+          displayCode: 'CARP-00005555',
+        );
+        final hits = await repo.search(organizationId: 'org-1', q: '_');
+        expect(hits.map((c) => c.id), ['c-underscore']);
+      },
+    );
+
     test('the wire shape masks and never carries the raw phone', () async {
       final hits = await repo.search(organizationId: 'org-1', q: 'karim');
       for (final c in hits) {

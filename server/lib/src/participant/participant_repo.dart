@@ -80,6 +80,19 @@ class ParticipantRepo {
     syncStatus: r['sync_status']! as String,
   );
 
+  /// Escapes Postgres's default `LIKE`/`ILIKE` escape character (`\`) plus
+  /// its two metacharacters (`%`, `_`) in a value that will be bound as a
+  /// query PARAMETER and concatenated between literal `%` wildcards in the
+  /// SQL text (e.g. `'%' || @q || '%'`). Without this, `q='%%'` — two
+  /// characters, so it clears the route's minimum-length guard — would bind
+  /// as a wildcard-only pattern and match every row, defeating the very
+  /// guard the minimum exists for. Backslash MUST be escaped first, or the
+  /// backslashes inserted for `%`/`_` would themselves get re-escaped.
+  static String _escapeLikeMetachars(String value) => value
+      .replaceAll(r'\', r'\\')
+      .replaceAll('%', r'\%')
+      .replaceAll('_', r'\_');
+
   /// Org-scoped master search over name (case-insensitive contains),
   /// display code (contains) and phone (suffix). Bounded at 50 rows: the
   /// workspace renders a short list and pagination is a spec non-goal until
@@ -88,6 +101,7 @@ class ParticipantRepo {
     required String organizationId,
     required String q,
   }) async {
+    final escaped = _escapeLikeMetachars(q);
     final res = await _db.execute(
       'SELECT $_carpenterColumns FROM carpenters c '
       'LEFT JOIN territories t ON t.id = c.territory_id '
@@ -97,7 +111,7 @@ class ParticipantRepo {
       "  OR c.phone LIKE '%' || @q"
       ') '
       'ORDER BY lower(c.full_name), c.id LIMIT 50',
-      params: {'org': organizationId, 'q': q},
+      params: {'org': organizationId, 'q': escaped},
     );
     return res.map(row).map(_view).toList();
   }

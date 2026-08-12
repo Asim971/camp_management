@@ -95,6 +95,13 @@ void main() {
       expect(first['phoneSuffix'], '4821');
       expect(first['syncStatus'], 'LOCAL_ONLY');
     });
+
+    test("q='%%' (URL-encoded %25%25) clears the 2-character minimum but must "
+        'not blanket-match every carpenter in the org', () async {
+      final res = await get('/carpenters?q=%25%25', bearer: creatorToken);
+      expect(res.statusCode, 200);
+      expect((await decode(res))['items'], isEmpty);
+    });
   });
 
   group('POST /campaigns/<id>/registrations', () {
