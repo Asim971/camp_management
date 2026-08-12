@@ -54,7 +54,14 @@ tags:
 - tapOn:
     id: "registration_search"
 - inputText: "Karim"
-- assertVisible: "Md. Karim"
+
+# Wrapped in `.*`: this ListTile's title (name) and subtitle (displayId ·
+# territory · phone suffix) merge into one accessibility node, same as
+# real_auth_campaign_journey.yaml's BmdDataTable-row idiom -- Maestro
+# anchors bare text patterns, so an unwrapped "Md. Karim" fails to match
+# "Md. Karim\nCARP-••4821 · Dhaka North · •4821" even though it's plainly
+# visible on screen.
+- assertVisible: ".*Md. Karim.*"
 - assertVisible: ".*CARP-••4821.*"
 - tapOn:
     id: "registration_add_CARP_E2E"
@@ -83,4 +90,7 @@ tags:
 - tapOn:
     id: "profile_submit"
 - assertVisible: "Registration basket (1)"
-- assertVisible: "Flow Person"
+
+# Same merged-node idiom as the search result above: the basket row is also
+# a ListTile (title: name, subtitle: displayId), so wrap in `.*`.
+- assertVisible: ".*Flow Person.*"
