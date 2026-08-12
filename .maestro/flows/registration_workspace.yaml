@@ -71,13 +71,28 @@ tags:
 # ListView -- and the keyboard raised by typing "Karim" is still up, further
 # shrinking the visible viewport. assertVisible does not scroll, so a bare
 # assert here fails exactly like crm_case_conflict.yaml's/crm_case_decision.yaml's
-# below-the-fold cards: hide the keyboard and scroll down to the basket
-# before asserting it.
+# below-the-fold cards.
+#
+# scrollUntilVisible (and plain scroll) swipe from screen CENTER, which lands
+# inside the search pane's INNER ListView.separated (the 2-item results list,
+# lines ~85-127) -- that list has no scroll extent of its own but on Android
+# still CLAIMS the vertical drag (clamping physics, no bubbling to the outer
+# ListView), so the outer list never moves and this timed out for 20s in CI
+# with the basket still below the fold.
+#
+# Fix: coordinate `swipe` whose START point is NOT inside that inner list's
+# hit-box. BmdSearchField + its persistent helper text (scopeLabel, lines
+# ~72-77) is a plain Column child that sits ABOVE the Expanded results list,
+# so a vertical drag starting there is claimed by the OUTER ListView instead.
+# Two swipes for margin -- the outer list's scroll extent is small (just the
+# 16px gap + basket Card), so extra swipes past the end are harmless clamps.
 - hideKeyboard
-- scrollUntilVisible:
-    element:
-      text: "Registration basket (1)"
-    direction: DOWN
+- swipe:
+    start: 50%, 30%
+    end: 50%, 8%
+- swipe:
+    start: 50%, 30%
+    end: 50%, 8%
 - assertVisible: "Registration basket (1)"
 
 # registration_submit is in the same basket card just scrolled to, so it's
@@ -94,10 +109,27 @@ tags:
 # didn't reset the scroll position (it only emptied the basket), so scroll
 # back UP before returning to it -- otherwise this fails the same way in
 # reverse.
-- scrollUntilVisible:
-    element:
-      id: "registration_search"
-    direction: UP
+#
+# Same nested-scrollable hazard as the DOWN swipe above, mirrored: a drag
+# starting at the coordinates the search-field zone occupied BEFORE scrolling
+# (~30%) would, once scrolled down, now land over the search pane's inner
+# results list again (that Expanded box's hit-area covers the full 332px it
+# was given, including the empty space below the 2 rows -- not just where the
+# rows are drawn) and get swallowed the same way. The basket Card below it
+# (lines ~223-259) has no inner scrollable at all -- its rows come from a
+# plain `for` loop straight in the Card's Column (line 241), not a nested
+# ListView -- so anywhere on the lower part of the card is a safe start. Per
+# the mobile layout's cumulative chrome (AppBar + breadcrumb + the 420px
+# search pane + the card's own header), the card only starts appearing
+# around ~65% of the screen once fully scrolled down, so start well past
+# that, in the card's ListTile/button zone, and drag downward to reverse the
+# scroll. Two swipes for margin, same as above.
+- swipe:
+    start: 50%, 75%
+    end: 50%, 98%
+- swipe:
+    start: 50%, 75%
+    end: 50%, 98%
 - tapOn:
     id: "registration_search"
 - inputText: "Nobody Matches This"
@@ -115,11 +147,15 @@ tags:
     id: "profile_submit"
 
 # Back down to the basket card again -- same mobile-layout fold as above; the
-# UP scroll before the no-match search left the ListView scrolled to the top.
-- scrollUntilVisible:
-    element:
-      text: "Registration basket (1)"
-    direction: DOWN
+# UP scroll before the no-match search left the ListView scrolled to the top,
+# so the search-field-zone start point is safe again (same reasoning as the
+# first DOWN swipe: it's above the inner results list, not inside it).
+- swipe:
+    start: 50%, 30%
+    end: 50%, 8%
+- swipe:
+    start: 50%, 30%
+    end: 50%, 8%
 - assertVisible: "Registration basket (1)"
 
 # Same merged-node idiom as the search result above: the basket row is also
