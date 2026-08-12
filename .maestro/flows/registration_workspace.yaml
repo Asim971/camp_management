@@ -65,15 +65,39 @@ tags:
 - assertVisible: ".*CARP-••4821.*"
 - tapOn:
     id: "registration_add_CARP_E2E"
+
+# Mobile layout (registration_workspace_screen.dart's non-desktop branch)
+# stacks a 420px-tall search pane FIRST and the basket card BELOW it in one
+# ListView -- and the keyboard raised by typing "Karim" is still up, further
+# shrinking the visible viewport. assertVisible does not scroll, so a bare
+# assert here fails exactly like crm_case_conflict.yaml's/crm_case_decision.yaml's
+# below-the-fold cards: hide the keyboard and scroll down to the basket
+# before asserting it.
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      text: "Registration basket (1)"
+    direction: DOWN
 - assertVisible: "Registration basket (1)"
 
-# Register:
+# registration_submit is in the same basket card just scrolled to, so it's
+# already reachable. The "Registered 1 participant(s)" snackbar renders at
+# the screen bottom regardless of scroll position.
 - tapOn:
     id: "registration_submit"
 - assertVisible: "Registered 1 participant(s)"
 
 # Same-visit profile request lands in the basket: a search with no match
 # surfaces the empty-state's "Request new profile" affordance.
+#
+# registration_search sits at the TOP of the same ListView, and registering
+# didn't reset the scroll position (it only emptied the basket), so scroll
+# back UP before returning to it -- otherwise this fails the same way in
+# reverse.
+- scrollUntilVisible:
+    element:
+      id: "registration_search"
+    direction: UP
 - tapOn:
     id: "registration_search"
 - inputText: "Nobody Matches This"
@@ -89,6 +113,13 @@ tags:
 - hideKeyboard
 - tapOn:
     id: "profile_submit"
+
+# Back down to the basket card again -- same mobile-layout fold as above; the
+# UP scroll before the no-match search left the ListView scrolled to the top.
+- scrollUntilVisible:
+    element:
+      text: "Registration basket (1)"
+    direction: DOWN
 - assertVisible: "Registration basket (1)"
 
 # Same merged-node idiom as the search result above: the basket row is also
