@@ -86,13 +86,17 @@ tags:
 - tapOn:
     id: "registration_add_CARP_E2E"
 
-# Mobile layout (registration_workspace_screen.dart's non-desktop branch) now
-# stacks the basket card FIRST, with the 420px-tall search pane below it --
-# so the basket header and the Register button are both permanently
-# top-of-screen, above the bottom NavigationBar this route renders. No
-# scroll is needed to reach either one; every swipe this flow used to need
-# to fight the nested-scrollable/below-the-fold problem is gone.
-- hideKeyboard
+# NO hideKeyboard here. The keyboard was already dismissed after the "Md"
+# input above, and tapping the add button raises no new one -- so a
+# hideKeyboard at this point has nothing to hide, and Maestro's Android
+# implementation falls back to a BACK key press, which pops the registration
+# workspace back to Campaign detail (CI proved it: the failing step's
+# screenshot showed the detail screen, not the basket). Only call
+# hideKeyboard immediately after an inputText, where a keyboard is actually up.
+#
+# Mobile layout is basket-first (registration_workspace_screen.dart's
+# non-desktop branch), so the basket header and the Register button are
+# permanently top-of-screen -- no scroll needed to reach either.
 
 # Maestro text patterns are ANCHORED REGEX, not literals -- we've been
 # exploiting that everywhere with `.*` wraps, but it cuts both ways:
