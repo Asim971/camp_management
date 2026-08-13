@@ -198,6 +198,8 @@ Router seedRouter({
 /// `schema_migrations` itself excluded — truncating that would make the
 /// server think it needs to reapply migrations it already ran.
 const List<String> _allSeedableTables = [
+  'import_job_rows',
+  'import_jobs',
   'profile_requests',
   'registrations',
   'carpenters',
@@ -335,6 +337,7 @@ Future<void> _seedCampaignFixture(
 }
 
 Future<void> _seedCarpenterFixture(Db db) async {
+  // The Md. Karim phone (+8801700004821) is what the bulk-import e2e CSV's VALID row matches.
   const carpenters = [
     (
       id: seedCarpenterKarimId,
