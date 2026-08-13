@@ -671,10 +671,16 @@ ParsedImport parseImportCsv(List<int> bytes) {
   // csv's default eol is \r\n; normalize so a \n-only file parses (§6a).
   final normalized = text.replaceAll('\r\n', '\n');
 
-  final table = const CsvToListConverter(
-    eol: '\n',
-    shouldParseNumbers: false,
-  ).convert(normalized);
+  // NOTE (corrected during execution): csv 8.0.0 has NO `CsvToListConverter`.
+  // The real API is `Csv(...).decode(...)`. Use skipEmptyLines: false (so a
+  // both-blank-fields data row survives to be classified ERROR) and
+  // autoDetect: false (so a short file's delimiter isn't misdetected):
+  //   final table = Csv(fieldDelimiter: ',', eol: '\n', shouldParseNumbers: false,
+  //                     skipEmptyLines: false, autoDetect: false).decode(normalized);
+  // The BOM/CRLF normalization above is still done (defense-in-depth) even
+  // though the 8.0.0 decoder also handles CRLF natively. See the committed
+  // server/lib/src/import_/import_file.dart for the exact call.
+  final table = _decodeCsv(normalized);
 
   if (table.isEmpty) _invalid('File is empty.');
 
