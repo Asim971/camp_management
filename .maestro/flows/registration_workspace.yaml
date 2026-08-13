@@ -62,7 +62,18 @@ tags:
 # anywhere in this flow anymore.
 - tapOn:
     id: "registration_search"
-- inputText: "Karim"
+# Search "Md" (not "Karim"): the basket-first mobile layout stacks the basket
+# card ABOVE the search pane, so the results list renders lower on screen.
+# "Karim" matched BOTH fixtures (Karim Uddin AND Md. Karim), pushing the
+# target — CARP_E2E / "Md. Karim" — to the second row; "Md" (an ILIKE match
+# on full_name) returns only "Md. Karim", so it lands at the top of the
+# results, on-screen even on CI's short api-34 viewport.
+- inputText: "Md"
+# hideKeyboard BEFORE asserting the results: with the basket card above it,
+# the soft keyboard raised by typing covers the (now lower) results list
+# entirely. In the old search-first layout the results sat above the keyboard;
+# basket-first moved them behind it. assertVisible does not dismiss the IME.
+- hideKeyboard
 
 # Wrapped in `.*`: this ListTile's title (name) and subtitle (displayId ·
 # territory · phone suffix) merge into one accessibility node, same as
@@ -125,6 +136,10 @@ tags:
 - tapOn:
     id: "registration_search"
 - inputText: "Nobody Matches This"
+# Same basket-first keyboard hazard as the first search: the empty-state
+# message renders in the results area below the basket card, which the IME
+# covers until dismissed.
+- hideKeyboard
 - assertVisible: "No matching carpenter in the master."
 - tapOn:
     id: "registration_request_profile"
