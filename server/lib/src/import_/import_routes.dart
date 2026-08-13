@@ -110,8 +110,16 @@ Router importRouter({required Db db, required String databaseUrl}) {
 }
 
 /// Opens a fresh connection and runs the classify, closing after. Any error
-/// is already swallowed inside [ImportRepo.classify]; this wrapper also guards
-/// the open/close so a connection fault cannot escape either (§6a).
+/// from [Db.open] or [ImportRepo.classify] is caught by the `try`/`on Object`
+/// below (the job stays PROCESSING and the reaper's TTL will fail it); the
+/// `close()` in `finally` is wrapped in its OWN try/catch, separately, because
+/// a `finally` block runs OUTSIDE the enclosing `on Object` guard — a
+/// `close()` that throws (a real case: the connection dropped mid-classify,
+/// which `classify`'s own guard already swallowed and returned from normally,
+/// leaving `close()` acting on an already-broken connection) would otherwise
+/// propagate out of this function and become an unhandled error on the
+/// `unawaited` future, which per §6a kills the whole process. Both guards
+/// together are what make it true that NOTHING escapes this function.
 Future<void> _classifyInBackground(String databaseUrl, String jobId) async {
   Db? worker;
   try {
@@ -120,7 +128,12 @@ Future<void> _classifyInBackground(String databaseUrl, String jobId) async {
   } on Object {
     // The job stays PROCESSING and the reaper (TTL) will fail it.
   } finally {
-    await worker?.close();
+    try {
+      await worker?.close();
+    } on Object {
+      // A close() fault on an already-broken connection must not escape
+      // either — see the doc comment above.
+    }
   }
 }
 

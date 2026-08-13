@@ -148,6 +148,32 @@ void main() {
     );
   });
 
+  test('400 when the multipart body has no "file" part', () async {
+    const boundary = 'X-BOUNDARY';
+    final body =
+        '--$boundary\r\n'
+        'content-disposition: form-data; name="notfile"\r\n\r\n'
+        'irrelevant\r\n'
+        '--$boundary--\r\n';
+    final res = await handler(
+      Request(
+        'POST',
+        Uri.parse('http://localhost/campaigns/camp-1/imports/dry-run'),
+        headers: {
+          'authorization': 'Bearer $creatorToken',
+          'content-type': 'multipart/form-data; boundary=$boundary',
+        },
+        body: body,
+      ),
+    );
+    expect(res.statusCode, 400);
+  });
+
+  test('404 for an unknown job id on poll', () async {
+    final res = await get('/imports/no-such-job', bearer: creatorToken);
+    expect(res.statusCode, 404);
+  });
+
   test('404 for a cross-org campaign on dry-run', () async {
     final res = await handler(
       uploadRequest(
