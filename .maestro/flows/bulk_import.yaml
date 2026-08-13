@@ -1,0 +1,98 @@
+# W-07 bulk import against the REAL campaign_service (2b). Fixtures:
+# POST /__test__/reset seeds campaign "ACSL Pilot Carpenter Drive" (APPROVED,
+# owned by campaign_creator) and carpenter Md. Karim (+8801700004821, id
+# CARP_E2E) -- see server/lib/src/seed/seed_routes.dart, same seed
+# registration_workspace.yaml relies on.
+#
+# Requires the `realAuth` matrix APK (--dart-define=E2E_REAL_AUTH=true,
+# alongside the always-on --dart-define=E2E=true) -- same reason as
+# registration_workspace.yaml and real_auth_campaign_journey.yaml's own
+# header comment: RouteGuards redirect an unauthenticated session to /login,
+# so this flow signs in for real as campaign_creator (who holds bulk_import
+# -- server/lib/src/auth/tokens.dart).
+#
+# Maestro cannot drive a native file picker, so the app substitutes
+# FakeFileSource under config.e2e (lib/app/di/providers.dart's
+# fileSourceProvider): tapping `import_pick` injects the bundled
+# assets/e2e/bulk_import_sample.csv instead of opening a picker. That CSV
+# (checked into the repo) has three rows: row1 Md. Karim/+8801700004821
+# matches the seeded CARP_E2E (-> VALID), row2 is a brand-new person
+# (-> NEEDS_PROFILE), row3 is blank (-> ERROR) -- so after classify the
+# committable count is 2 and the commit button reads "Commit 2 valid
+# row(s)" (bulk_import_screen.dart's `_Results.build`, id `import_commit`).
+appId: ${APP_ID}
+tags:
+  - bulk_import
+  - critical
+  - android
+---
+- clearState
+- launchApp
+
+# Unauthenticated after the auto-sign-in's real 401 (see
+# real_auth_campaign_journey.yaml's header comment for why): RouteGuards
+# redirected `/dev` to `/login?from=%2Fdev`.
+- assertVisible:
+    id: "login_username"
+- tapOn:
+    id: "login_username"
+- inputText: "campaign_creator"
+- tapOn:
+    id: "login_password"
+- inputText: "Test1234!"
+- hideKeyboard
+- tapOn:
+    id: "login_submit"
+
+# A real JWT was issued and verified by `authenticate()` -- landed back on
+# the dev launcher.
+- assertVisible:
+    id: "dev_launcher"
+- tapOn:
+    id: "dev_open_campaigns"
+
+# One of `POST /__test__/reset`'s seeded rows -- the seeded APPROVED
+# campaign whose owner is campaign_creator.
+- assertVisible: ".*ACSL Pilot Carpenter Drive.*"
+- tapOn: ".*ACSL Pilot Carpenter Drive.*"
+- assertVisible: ".*ACSL Pilot Carpenter Drive.*"
+
+# Bulk import entry point: campaign_detail_screen.dart's `_Header` renders a
+# "Bulk import" button (Permission.bulkImport) alongside "Add registrations"
+# whenever the campaign is APPROVED or ACTIVE -- same contextual-action
+# pattern registration_workspace.yaml already exploits for "Add
+# registrations", gated on Permission.campaignCreate right next to it.
+- tapOn: "Bulk import"
+
+# BulkImportScreen's upload panel (bulk_import_screen.dart's `_UploadPanel`).
+# Tapping `import_pick` calls FakeFileSource.pickCsv(), which returns the
+# bundled asset synchronously -- no picker UI ever appears -- and the
+# controller immediately POSTs the dry-run (202) and starts polling
+# GET /imports/{id}.
+- tapOn:
+    id: "import_pick"
+
+# The classify runs on the server as a background, ASYNC job -- polled every
+# 1s (import_controller.dart) -- and can take longer than assertVisible's
+# 7s auto-retry on a real device, so use extendedWaitUntil with a generous
+# timeout instead of a plain assertVisible. `_statusHeadline`
+# (bulk_import_screen.dart) renders "Ready to commit" as a standalone Text
+# once the job reaches a committable terminal state (readyToCommit/dryRun).
+- extendedWaitUntil:
+    visible: ".*Ready to commit.*"
+    timeout: 30000
+
+# Row-level classification landed: 2 of the 3 CSV rows are committable
+# (VALID + NEEDS_PROFILE; the blank row is ERROR), so the commit button's
+# label is data-derived to "Commit 2 valid row(s)" -- but we drive it by id,
+# not by asserting that parenthesized text.
+- tapOn:
+    id: "import_commit"
+
+# Commit registers the committable rows and the job moves to its terminal
+# COMPLETED status; `_statusHeadline` renders "Import completed." Commit is
+# itself an async round trip (POST .../commit), so extendedWaitUntil again
+# rather than a bare assertVisible.
+- extendedWaitUntil:
+    visible: ".*Import completed.*"
+    timeout: 20000

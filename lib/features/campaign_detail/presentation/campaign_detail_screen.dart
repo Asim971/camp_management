@@ -104,7 +104,7 @@ class _Header extends StatelessWidget {
               ),
             )
           else if (c.status == CampaignStatus.approved ||
-              c.status == CampaignStatus.active)
+              c.status == CampaignStatus.active) ...[
             PermissionGate.disabled(
               Permission.campaignCreate,
               reason: 'Only a Campaign Creator can add registrations.',
@@ -114,6 +114,22 @@ class _Header extends StatelessWidget {
                 onPressed: () => context.go('/campaigns/$campaignId/register'),
               ),
             ),
+            const SizedBox(width: 8),
+            // W-07: bulk import entry point (Permission.bulkImport, route
+            // '/campaigns/:id/import' — see route_table.dart). Same
+            // contextual-action pattern as "Add registrations" above.
+            PermissionGate.disabled(
+              Permission.bulkImport,
+              reason:
+                  'Only a user with bulk import access can import participants.',
+              label: 'Bulk import',
+              child: BmdButton(
+                label: 'Bulk import',
+                variant: BmdButtonVariant.outlined,
+                onPressed: () => context.go('/campaigns/$campaignId/import'),
+              ),
+            ),
+          ],
         ],
       ),
     );

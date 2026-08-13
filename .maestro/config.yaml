@@ -22,3 +22,4 @@ flows:
   - flows/locale_bengali.yaml
   - flows/real_auth_campaign_journey.yaml
   - flows/registration_workspace.yaml
+  - flows/bulk_import.yaml
