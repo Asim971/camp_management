@@ -11,8 +11,11 @@ import '../../../core/responsive/breakpoints.dart';
 import '../../../domain/common/status.dart';
 import '../application/registration_controller.dart';
 
-/// Registration Workspace (W-06). Search Sales Eco master on the left, build a
-/// registration basket on the right with eligibility warnings.
+/// Registration Workspace (W-06). Desktop: search Sales Eco master on the
+/// left, build a registration basket on the right with eligibility warnings.
+/// Mobile: the layout leads with the basket so a field user sees their
+/// running selection and the Register action without scrolling past the
+/// search pane below it.
 class RegistrationWorkspaceScreen extends ConsumerWidget {
   const RegistrationWorkspaceScreen({required this.campaignId, super.key});
   final String campaignId;
@@ -49,9 +52,9 @@ class RegistrationWorkspaceScreen extends ConsumerWidget {
             )
           : ListView(
               children: [
-                SizedBox(height: 420, child: search),
-                const SizedBox(height: 16),
                 basket,
+                const SizedBox(height: 16),
+                SizedBox(height: 420, child: search),
               ],
             ),
     );

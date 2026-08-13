@@ -50,7 +50,16 @@ tags:
 
 # Master search + basket (all ids are the Semantics identifiers Task 9
 # adds to registration_workspace_screen.dart; CARP_E2E is the seeded
-# fixture id for "Md. Karim"):
+# fixture id for "Md. Karim").
+#
+# The mobile layout is now basket-first (basket card, then the 420px search
+# pane, in registration_workspace_screen.dart's non-desktop ListView), so
+# the "Registration basket (N)" header and "Register N participant(s)"
+# button sit permanently top-of-screen with no scroll ever required. The
+# search interactions below run while the basket is empty or holds just one
+# row, so the search field/results/add-button/request-profile targets stay
+# on-screen too, inside the fixed-height search pane. No swipe appears
+# anywhere in this flow anymore.
 - tapOn:
     id: "registration_search"
 - inputText: "Karim"
@@ -66,33 +75,13 @@ tags:
 - tapOn:
     id: "registration_add_CARP_E2E"
 
-# Mobile layout (registration_workspace_screen.dart's non-desktop branch)
-# stacks a 420px-tall search pane FIRST and the basket card BELOW it in one
-# ListView -- and the keyboard raised by typing "Karim" is still up, further
-# shrinking the visible viewport. assertVisible does not scroll, so a bare
-# assert here fails exactly like crm_case_conflict.yaml's/crm_case_decision.yaml's
-# below-the-fold cards.
-#
-# scrollUntilVisible (and plain scroll) swipe from screen CENTER, which lands
-# inside the search pane's INNER ListView.separated (the 2-item results list,
-# lines ~85-127) -- that list has no scroll extent of its own but on Android
-# still CLAIMS the vertical drag (clamping physics, no bubbling to the outer
-# ListView), so the outer list never moves and this timed out for 20s in CI
-# with the basket still below the fold.
-#
-# Fix: coordinate `swipe` whose START point is NOT inside that inner list's
-# hit-box. BmdSearchField + its persistent helper text (scopeLabel, lines
-# ~72-77) is a plain Column child that sits ABOVE the Expanded results list,
-# so a vertical drag starting there is claimed by the OUTER ListView instead.
-# Two swipes for margin -- the outer list's scroll extent is small (just the
-# 16px gap + basket Card), so extra swipes past the end are harmless clamps.
+# Mobile layout (registration_workspace_screen.dart's non-desktop branch) now
+# stacks the basket card FIRST, with the 420px-tall search pane below it --
+# so the basket header and the Register button are both permanently
+# top-of-screen, above the bottom NavigationBar this route renders. No
+# scroll is needed to reach either one; every swipe this flow used to need
+# to fight the nested-scrollable/below-the-fold problem is gone.
 - hideKeyboard
-- swipe:
-    start: 50%, 30%
-    end: 50%, 8%
-- swipe:
-    start: 50%, 30%
-    end: 50%, 8%
 
 # Maestro text patterns are ANCHORED REGEX, not literals -- we've been
 # exploiting that everywhere with `.*` wraps, but it cuts both ways:
@@ -113,28 +102,9 @@ tags:
 # AND wrap for a partial, multi-line match.
 - assertVisible: '.*Registration basket \(1\).*'
 
-# The previous assert only proves the merged node's TOP bound (the card
-# header) is on screen -- it says nothing about the Register button at the
-# card's BOTTOM. And this route (`/campaigns/:id/register`) matches the
-# "Campaigns" nav destination's path prefix (`selectedIndexFor` in
-# nav_destinations.dart), so `AdaptiveScaffold` renders a bottom
-# `NavigationBar` here -- a chunk of screen height this flow's earlier
-# swipe-distance math didn't budget for. CI's screenshot confirms it: the
-# card header and basket row are visible, but the button sits cut off under
-# that nav bar, so `tapOn: registration_submit` finds no tappable element.
-#
-# One more down swipe closes the gap. Its START point can't reuse the
-# search-field zone (~30%, above) OR a flat screen-center (~50%): at the
-# scroll position the prior two swipes reached, the inner results list's
-# hit-box (still claiming its full Expanded allocation, empty tail
-# included) runs to roughly 64% of the screen, so 50% is still inside it and
-# would get swallowed the same way as an unwrapped assert. 70% lands past
-# that boundary, inside the basket Card (verified against the header/gap/
-# ListTile heights in registration_workspace_screen.dart's `_BasketPanel`),
-# so the outer ListView is the only claimant there.
-- swipe:
-    start: 50%, 70%
-    end: 50%, 20%
+# Basket-first means the Register button (the card's bottom element) is on
+# screen in the same fold as the header above -- no separate swipe needed to
+# clear the bottom NavigationBar.
 - tapOn:
     id: "registration_submit"
 
@@ -147,39 +117,11 @@ tags:
 # Same-visit profile request lands in the basket: a search with no match
 # surfaces the empty-state's "Request new profile" affordance.
 #
-# registration_search sits at the TOP of the same ListView, and registering
-# didn't reset the scroll position (it only emptied the basket), so scroll
-# back UP before returning to it -- otherwise this fails the same way in
-# reverse.
-#
-# Same nested-scrollable hazard as the DOWN swipe above, mirrored: a drag
-# starting at the coordinates the search-field zone occupied BEFORE scrolling
-# (~30%) would, once scrolled down, now land over the search pane's inner
-# results list again (that Expanded box's hit-area covers the full 332px it
-# was given, including the empty space below the 2 rows -- not just where the
-# rows are drawn) and get swallowed the same way. The basket Card below it
-# (lines ~223-259) has no inner scrollable at all -- its rows come from a
-# plain `for` loop straight in the Card's Column (line 241), not a nested
-# ListView -- so anywhere on the lower part of the card is a safe start. Per
-# the mobile layout's cumulative chrome (AppBar + breadcrumb + the 420px
-# search pane + the card's own header), the card only starts appearing
-# around ~65% of the screen once fully scrolled down, so start well past
-# that, in the card's ListTile/button zone, and drag downward to reverse the
-# scroll. Two swipes for margin, same as above.
-#
-# Re-checked after adding the extra down swipe above (which now pushes
-# scroll further, to actually reveal the Register button past the bottom
-# nav bar): a bigger down-scroll only pulls the card's start percentage
-# EARLIER on screen, not later, so 75% stays safely inside the card either
-# way -- these two swipes' combined travel comfortably exceeds the outer
-# list's full scroll range, so registration_search remains reachable; no
-# extra UP swipe needed.
-- swipe:
-    start: 50%, 75%
-    end: 50%, 98%
-- swipe:
-    start: 50%, 75%
-    end: 50%, 98%
+# registration_search sits BELOW the basket card in this basket-first
+# layout, but the search field itself (plus the 2-row results list under
+# it) fits within the 420px search pane the ListView allocates it, so it's
+# still fully on-screen with no scroll needed -- registering only emptied
+# the basket, it didn't move anything below the fold.
 - tapOn:
     id: "registration_search"
 - inputText: "Nobody Matches This"
@@ -196,22 +138,9 @@ tags:
 - tapOn:
     id: "profile_submit"
 
-# Back down to the basket card again -- same mobile-layout fold as above; the
-# UP scroll before the no-match search left the ListView scrolled to the top,
-# so the search-field-zone start point is safe again (same reasoning as the
-# first DOWN swipe: it's above the inner results list, not inside it).
+# Basket card again -- still the FIRST thing in the mobile ListView, so no
+# scroll is needed to re-check it after the profile-request round trip.
 #
-# Unlike the first basket visit, nothing here needs the extra "past the nav
-# bar" swipe added above: these two asserts only target the card's header
-# and the basket row, both well inside this pair's reach, and there's no
-# `registration_submit` tap to satisfy on this branch of the flow.
-- swipe:
-    start: 50%, 30%
-    end: 50%, 8%
-- swipe:
-    start: 50%, 30%
-    end: 50%, 8%
-
 # Same escape-and-wrap fix as the first basket assert above.
 - assertVisible: '.*Registration basket \(1\).*'
 

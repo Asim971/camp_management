@@ -210,4 +210,59 @@ void main() {
       expect(find.textContaining('Registration basket (1)'), findsOneWidget);
     },
   );
+
+  testWidgets(
+    'mobile layout is basket-first: the basket panel sits above the search '
+    'panel, so "Registration basket (N)" and "Register N participant(s)" '
+    'are on-screen with no scroll — pins the review-flagged fix for the '
+    'fixed 420px search pane that used to sit above the basket and pushed '
+    'it under the fold, which is also why the e2e flow needed escalating '
+    'coordinate swipes (all now dropped; see '
+    '.maestro/flows/registration_workspace.yaml)',
+    (tester) async {
+      // Below Breakpoint.desktop's 1024px threshold (breakpoints.dart) --
+      // same tester.view.physicalSize/devicePixelRatio idiom
+      // crm_case_screen_test.dart uses to force a layout branch, just narrow
+      // instead of wide. Tall enough that the ListView lays out both panels
+      // without an actual scroll being involved.
+      tester.view.physicalSize = const Size(400, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final container = buildTestContainer(
+        permissions: const {},
+        overrides: [
+          registrationControllerProvider.overrideWith(
+            () => _SeededController(_person),
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: _wrapInRouter('camp-1'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final basketTop = tester
+          .getTopLeft(find.textContaining('Registration basket ('))
+          .dy;
+      final searchTop = tester
+          .getTopLeft(find.text('Search carpenter master'))
+          .dy;
+
+      expect(
+        basketTop < searchTop,
+        isTrue,
+        reason:
+            'basket must render above the search pane on mobile so its '
+            'header and Register button need no scroll (swap the ListView '
+            "children back to search-first in "
+            "registration_workspace_screen.dart's non-desktop branch and "
+            'this fails)',
+      );
+    },
+  );
 }
