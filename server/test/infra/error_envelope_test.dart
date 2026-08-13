@@ -58,6 +58,7 @@ void main() {
     // validation failure of the request itself.
     expect(await statusFor(ApiErrorCode.idempotencyKeyInFlight), 409);
     expect(await statusFor(ApiErrorCode.unknownCarpenter), 422);
+    expect(await statusFor(ApiErrorCode.importFileInvalid), 422);
     expect(await statusFor(ApiErrorCode.internal), 500);
   });
 

@@ -19,7 +19,9 @@ enum ApiErrorCode {
   warningsUnacknowledged,
   segregationOfDutiesViolation,
   // participants (sub-project 2a)
-  unknownCarpenter;
+  unknownCarpenter,
+  // bulk import (sub-project 2b)
+  importFileInvalid;
 
   String get wireValue => switch (this) {
     badRequest => 'BAD_REQUEST',
@@ -37,6 +39,7 @@ enum ApiErrorCode {
     warningsUnacknowledged => 'WARNINGS_UNACKNOWLEDGED',
     segregationOfDutiesViolation => 'SEGREGATION_OF_DUTIES_VIOLATION',
     unknownCarpenter => 'UNKNOWN_CARPENTER',
+    importFileInvalid => 'IMPORT_FILE_INVALID',
   };
 
   static ApiErrorCode? tryParseWire(String wire) {

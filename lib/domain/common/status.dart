@@ -10,13 +10,13 @@
 /// The other enums below have NO wire value yet — their server contracts are
 /// blocked — so they stay here until the sub-project that defines them lands.
 /// Do not invent wire values for them to make this file look symmetrical.
-/// [RegistrationStatus] has now moved to `package:campaign_contracts` along
-/// with `CampaignStatus`. [AttendanceStatus], [ImportStatus] and [IntegrityFlag]
-/// remain (import belongs to sub-project 2b, attendance to sub-project 4).
+/// [RegistrationStatus] and [ImportStatus] have now moved to `package:campaign_contracts`
+/// along with `CampaignStatus`. [AttendanceStatus] and [IntegrityFlag] remain
+/// (attendance belongs to sub-project 4).
 library;
 
 export 'package:campaign_contracts/campaign_contracts.dart'
-    show CampaignStatus, RegistrationStatus;
+    show CampaignStatus, RegistrationStatus, ImportStatus;
 
 /// Same wording is used on mobile capture, CRM and analytics (§5.4).
 enum AttendanceStatus {
@@ -27,16 +27,6 @@ enum AttendanceStatus {
   approved,
   rejected,
   returned,
-}
-
-enum ImportStatus {
-  dryRun,
-  readyToCommit,
-  processing,
-  completed,
-  partiallyCompleted,
-  failed,
-  cancelled,
 }
 
 /// Neutral, non-accusatory language (§2.1) — a failed check is "Review

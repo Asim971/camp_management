@@ -10,10 +10,12 @@ dependencies:
   campaign_contracts:
     path: ../packages/campaign_contracts
   cryptography: ^2.9.0
+  csv: ^8.0.0
   dart_jsonwebtoken: ^3.4.1
   meta: ^1.19.0
   postgres: ^3.5.12
   shelf: ^1.4.1
+  shelf_multipart: ^2.0.1
   shelf_router: ^1.1.4
   uuid: ^4.6.0
 

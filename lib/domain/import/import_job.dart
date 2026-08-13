@@ -1,6 +1,11 @@
+import 'package:campaign_contracts/campaign_contracts.dart'
+    show ImportRowOutcome;
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../common/status.dart';
+
+export 'package:campaign_contracts/campaign_contracts.dart'
+    show ImportRowOutcome;
 
 part 'import_job.freezed.dart';
 
@@ -31,13 +36,4 @@ class ImportRow with _$ImportRow {
     String? message,
     String? linkedCarpenterId,
   }) = _ImportRow;
-}
-
-enum ImportRowOutcome {
-  valid,
-  warning,
-  duplicate,
-  needsProfile,
-  unauthorized,
-  error,
 }
