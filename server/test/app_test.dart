@@ -83,4 +83,15 @@ void main() {
       expect(res.statusCode, 401);
     },
   );
+
+  test(
+    'an unauthenticated GET /imports/x is 401 through the real tree',
+    () async {
+      final handler = buildApp(db: db, config: _config());
+      final res = await handler(
+        Request('GET', Uri.parse('http://localhost/imports/x')),
+      );
+      expect(res.statusCode, 401);
+    },
+  );
 }

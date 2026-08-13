@@ -9,6 +9,7 @@ import 'campaign/campaign_repo.dart';
 import 'campaign/campaign_routes.dart';
 import 'config.dart';
 import 'db/pool.dart';
+import 'import_/import_routes.dart';
 import 'infra/correlation.dart';
 import 'infra/error_envelope.dart';
 import 'infra/request_log.dart';
@@ -83,11 +84,22 @@ Handler buildApp({required Db db, required ServerConfig config}) {
       )
       .addHandler(participantRouter(db: db, repo: ParticipantRepo(db)).call);
 
+  final importHandler = const Pipeline()
+      .addMiddleware(
+        _authenticateUnder(
+          const {'campaigns', 'imports'},
+          db: db,
+          tokens: tokens,
+        ),
+      )
+      .addHandler(importRouter(db: db, databaseUrl: config.databaseUrl).call);
+
   var cascade = Cascade()
       .add(publicRouter.call)
       .add(authHandler)
       .add(campaignHandler)
-      .add(participantHandler);
+      .add(participantHandler)
+      .add(importHandler);
 
   // Seed routes are ABSENT, not registered-and-guarded, when seeding is
   // disabled: there is no route at all for a probe to find (spec §9; Task 11
