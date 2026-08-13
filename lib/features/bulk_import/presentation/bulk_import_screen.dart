@@ -70,28 +70,41 @@ class _UploadPanel extends StatelessWidget {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(
+        // A Row([Expanded(description), Download template, Choose file])
+        // clamps the Expanded description to near-zero on a narrow
+        // CI-emulator viewport (~320-360dp) once both buttons' intrinsic
+        // widths are subtracted from it — rendering the description one
+        // letter per line and pushing/clipping "Choose file" (import_pick,
+        // the id the bulk-import e2e flow drives) off-screen. The
+        // description now takes the full card width on its own line, with
+        // the actions below in a Wrap that flows to a second line rather
+        // than overflowing horizontally.
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Expanded(
-              child: Text(
-                'Upload a participant CSV using the approved template. '
-                'A dry run validates every row before anything is committed.',
-              ),
+            const Text(
+              'Upload a participant CSV using the approved template. '
+              'A dry run validates every row before anything is committed.',
             ),
-            const SizedBox(width: 16),
-            BmdButton(
-              label: 'Download template',
-              variant: BmdButtonVariant.text,
-              onPressed: () {
-                /* asset: assets/templates/participants_template.csv */
-              },
-            ),
-            const SizedBox(width: 8),
-            BmdButton(
-              identifier: 'import_pick',
-              label: 'Choose file',
-              icon: Icons.upload_file,
-              onPressed: () => onPick(),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                BmdButton(
+                  label: 'Download template',
+                  variant: BmdButtonVariant.text,
+                  onPressed: () {
+                    /* asset: assets/templates/participants_template.csv */
+                  },
+                ),
+                BmdButton(
+                  identifier: 'import_pick',
+                  label: 'Choose file',
+                  icon: Icons.upload_file,
+                  onPressed: () => onPick(),
+                ),
+              ],
             ),
           ],
         ),
@@ -239,16 +252,25 @@ class _Results extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
-        Row(
-          children: [
-            const Spacer(),
-            BmdButton(
+        // Row([Spacer(), BmdButton]) overflowed the same way _UploadPanel's
+        // Row did: the label grows with the row count ("Commit N valid
+        // row(s)"), and a Spacer cannot shrink a non-flexible sibling that is
+        // already wider than the narrow viewport. Align + FittedBox keeps the
+        // button right-aligned and scales it down only as much as the
+        // viewport actually requires, so the whole control (and its tappable
+        // area) always stays fully on-screen rather than being clipped past
+        // the edge.
+        Align(
+          alignment: Alignment.centerRight,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: BmdButton(
               identifier: 'import_commit',
               label: 'Commit ${job.committable} valid row(s)',
               loading: committing,
               onPressed: _canCommit ? () => onCommit() : null,
             ),
-          ],
+          ),
         ),
       ],
     );
