@@ -267,6 +267,38 @@ CREATE TABLE import_job_rows (
 
 ---
 
+## 6a. Validated dependencies and patterns (web-researched 2026-08-13)
+
+These were confirmed against the live packages and a `dart pub add --dry-run` before
+planning, so the plan builds on verified ground rather than assumption.
+
+- **Multipart parsing:** `shelf_multipart: ^2.0.1` (shelf constraint `^1.0.0`, compatible
+  with the server's `shelf ^1.4.1`; resolves cleanly). API: `request.formData()` returns a
+  form, iterate `form.formData` for `{name, part}`; the `file` part's bytes via
+  `part.readBytes()`, filename from its `Content-Disposition` header. The mock currently
+  only drains the body — it gains real parsing too.
+- **CSV parsing:** `csv: ^8.0.0` (matches the app's pin; resolves cleanly). Use
+  `const CsvToListConverter(shouldParseNumbers: false)` to keep every field a String.
+  **eol caveat:** the converter's default `eol` is `\r\n`; a `\n`-only file mis-parses, so
+  the handler normalises line endings (`\r\n`→`\n`, strip a leading UTF-8 BOM) before
+  converting. This is a required validation step, not optional.
+- **Background task error boundary (2b.D1):** a fire-and-forget future whose error goes
+  unhandled **kills the standalone Dart process**. The task is launched with `unawaited(…)`
+  (satisfies the server's `unawaited_futures` lint) and its entire body is wrapped so any
+  fault flips the job to `FAILED` and is swallowed from the process's top level — never
+  left to propagate. The task opens its own `Db` connection (the parity suite already
+  opens multiple concurrent `Db.open` connections, so this is proven).
+- **Client polling (2b-G):** `Timer.periodic` in the controller, cancelled via
+  `ref.onDispose(timer.cancel)` and on reaching a terminal state; `ref.read` (never
+  `ref.watch`) inside the callback. The 30-second cap is a wall-clock guard, not a
+  per-tick timeout.
+- **e2e wait:** the review state can take longer than `assertVisible`'s 7-second
+  auto-retry on CI's slow emulator, so the poll-completion step uses `extendedWaitUntil`
+  with a generous timeout on the readyToCommit review indicator, rather than a fixed
+  sleep or a bare `assertVisible`.
+
+---
+
 ## 7. Enforcement
 
 The slice-1 middleware chain is reused unchanged. All three endpoints require
