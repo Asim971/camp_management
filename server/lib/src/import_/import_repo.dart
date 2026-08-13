@@ -4,6 +4,8 @@ import 'package:uuid/uuid.dart';
 
 import '../db/pool.dart';
 import '../infra/audit.dart';
+import '../infra/error_envelope.dart';
+import '../participant/participant_repo.dart';
 import 'import_file.dart';
 
 const Uuid _uuid = Uuid();
@@ -245,6 +247,106 @@ class ImportRepo {
       );
     }
     return (ImportRowOutcome.valid, null, carpenterId);
+  }
+
+  /// Registers the committable set (VALID + NEEDS_PROFILE, 2b.D5) in ONE
+  /// transaction: any row failing rolls it all back. NEEDS_PROFILE rows create
+  /// a provisional carpenter via the shared tx helper, then register. Returns
+  /// null for a cross-org campaign/job (route → 404); throws 409 when the job
+  /// is not READY_TO_COMMIT.
+  Future<ImportJobView?> commit({
+    required String campaignId,
+    required String organizationId,
+    required String jobId,
+    required String committedBy,
+    String? correlationId,
+  }) async {
+    final jobs = await _db.execute(
+      'SELECT status FROM import_jobs '
+      'WHERE id = @j AND campaign_id = @c AND organization_id = @org',
+      params: {'j': jobId, 'c': campaignId, 'org': organizationId},
+    );
+    if (jobs.isEmpty) return null; // 404
+    final status = row(jobs.single)['status']! as String;
+    if (status != ImportStatus.readyToCommit.wireValue) {
+      throw ApiException(
+        ApiErrorCode.conflictStaleVersion,
+        message: 'Import job is not ready to commit.',
+      );
+    }
+
+    final participants = ParticipantRepo(_db);
+    await _db.tx((tx) async {
+      final committable = await tx.execute(
+        Sql.named(
+          'SELECT row_id, name, phone, outcome, linked_carpenter_id '
+          'FROM import_job_rows '
+          "WHERE job_id = @j AND outcome IN ('VALID', 'NEEDS_PROFILE') "
+          'ORDER BY row_id',
+        ),
+        parameters: {'j': jobId},
+      );
+
+      for (final rr in committable.map(row)) {
+        final outcome = rr['outcome']! as String;
+        String carpenterId;
+        if (outcome == ImportRowOutcome.needsProfile.wireValue) {
+          final view = await participants.insertProvisionalCarpenterTx(
+            tx,
+            organizationId: organizationId,
+            name: rr['name']! as String,
+            phone: rr['phone']! as String,
+          );
+          carpenterId = view.id;
+        } else {
+          carpenterId = rr['linked_carpenter_id']! as String;
+        }
+
+        await tx.execute(
+          Sql.named(
+            'INSERT INTO registrations '
+            '(campaign_id, carpenter_id, status, registered_by) '
+            "SELECT @c, @id, "
+            "  CASE WHEN sync_status = 'PENDING_PROFILE_SYNC' "
+            "       THEN 'PENDING_PROFILE_SYNC' ELSE 'REGISTERED' END, @by "
+            'FROM carpenters WHERE id = @id AND organization_id = @org '
+            'ON CONFLICT (campaign_id, carpenter_id) DO NOTHING',
+          ),
+          parameters: {
+            'c': campaignId,
+            'id': carpenterId,
+            'org': organizationId,
+            'by': committedBy,
+          },
+        );
+        await tx.execute(
+          Sql.named(
+            'UPDATE import_job_rows SET linked_carpenter_id = @id '
+            'WHERE job_id = @j AND row_id = @r',
+          ),
+          parameters: {'id': carpenterId, 'j': jobId, 'r': rr['row_id']},
+        );
+      }
+
+      await tx.execute(
+        Sql.named(
+          "UPDATE import_jobs SET status = 'COMPLETED', "
+          'updated_at = now() WHERE id = @j',
+        ),
+        parameters: {'j': jobId},
+      );
+      await _audit.writeTx(
+        tx,
+        action: 'import.commit',
+        resourceType: 'import_job',
+        resourceId: jobId,
+        actorId: committedBy,
+        correlationId: correlationId,
+        payload: {'committed': committable.length},
+      );
+    });
+
+    return find(jobId, organizationId: organizationId);
   }
 
   Future<int> reapStale() async {

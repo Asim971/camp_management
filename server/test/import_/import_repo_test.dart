@@ -166,6 +166,114 @@ void main() {
   test('classify of an unknown job id is a no-op, never throws', () async {
     await repo.classify('nope'); // must not throw
   });
+
+  group('commit', () {
+    setUp(() async {
+      await seedCarpenter(
+        db,
+        id: 'c-1',
+        phone: '+8801700004821',
+        displayCode: 'CARP-00004821',
+      );
+    });
+
+    Future<ImportJobView> readyJob() async {
+      final job = await repo.createJob(
+        campaignId: 'camp-1',
+        organizationId: 'org-1',
+        parsed: parsedOf([
+          r('row-1', 'Md. Karim', '+8801700004821'), // VALID (matches c-1)
+          r('row-2', 'Brand New', '+8801733334444'), // NEEDS_PROFILE
+          r('row-3', '', ''), // ERROR (not committable)
+        ]),
+        filename: 'x.csv',
+        fileHash: 'h',
+        uploadedBy: 'user-1',
+      );
+      await repo.classify(job!.id);
+      return (await repo.find(job.id, organizationId: 'org-1'))!;
+    }
+
+    test(
+      'registers the committable set (valid + needsProfile) and completes',
+      () async {
+        final job = await readyJob();
+        final done = await repo.commit(
+          campaignId: 'camp-1',
+          organizationId: 'org-1',
+          jobId: job.id,
+          committedBy: 'user-1',
+        );
+        expect(done!.status, 'COMPLETED');
+
+        // c-1 registered; a provisional carpenter created + registered for row-2.
+        final regs = await db.execute(
+          'SELECT carpenter_id FROM registrations WHERE campaign_id = @c',
+          params: {'c': 'camp-1'},
+        );
+        expect(regs, hasLength(2));
+        final provisional = await db.execute(
+          "SELECT 1 FROM carpenters WHERE source = 'PROFILE_REQUEST' "
+          "AND full_name = 'Brand New'",
+        );
+        expect(provisional, hasLength(1));
+      },
+    );
+
+    test(
+      'a replayed commit registers each row at most once (idempotent set)',
+      () async {
+        final job = await readyJob();
+        await repo.commit(
+          campaignId: 'camp-1',
+          organizationId: 'org-1',
+          jobId: job.id,
+          committedBy: 'user-1',
+        );
+        // The job is COMPLETED now, so a second commit is a 409 at the route;
+        // at the repo level, re-committing a COMPLETED job is a no-op guarded by
+        // the status check.
+        expect(
+          () => repo.commit(
+            campaignId: 'camp-1',
+            organizationId: 'org-1',
+            jobId: job.id,
+            committedBy: 'user-1',
+          ),
+          throwsA(isA<Object>()),
+        );
+        final regs = await db.execute(
+          'SELECT 1 FROM registrations WHERE campaign_id = @c',
+          params: {'c': 'camp-1'},
+        );
+        expect(regs, hasLength(2), reason: 'no duplicate registrations');
+      },
+    );
+
+    test('commit of a not-ready job throws (route → 409)', () async {
+      await seedImportJob(db, id: 'proc', status: 'PROCESSING', rows: const []);
+      expect(
+        () => repo.commit(
+          campaignId: 'camp-1',
+          organizationId: 'org-1',
+          jobId: 'proc',
+          committedBy: 'user-1',
+        ),
+        throwsA(isA<Object>()),
+      );
+    });
+
+    test('commit of a cross-org job is null (route → 404)', () async {
+      final job = await readyJob();
+      final result = await repo.commit(
+        campaignId: 'camp-1',
+        organizationId: 'org-2',
+        jobId: job.id,
+        committedBy: 'user-1',
+      );
+      expect(result, isNull);
+    });
+  });
 }
 
 /// jsonEncode over the job's wire JSON — a tiny local helper so the PII
