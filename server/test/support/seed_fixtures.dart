@@ -258,3 +258,47 @@ Future<void> seedRegistration(
     'by': registeredBy,
   },
 );
+
+/// Inserts an import job and its rows directly, bypassing the route — for
+/// poll/commit tests that need a job in a specific state.
+Future<void> seedImportJob(
+  Db db, {
+  required String id,
+  String campaignId = 'camp-1',
+  String organizationId = 'org-1',
+  String status = 'READY_TO_COMMIT',
+  String uploadedBy = 'user-1',
+  String filename = 'import.csv',
+  List<({String rowId, String name, String phone, String? outcome})> rows =
+      const [],
+}) async {
+  await db.execute(
+    'INSERT INTO import_jobs '
+    '(id, campaign_id, organization_id, status, filename, file_hash, '
+    ' total_rows, processed_rows, uploaded_by, claimed_at) '
+    "VALUES (@id, @c, @org, @s, @f, 'hash', @n, @n, @by, now())",
+    params: {
+      'id': id,
+      'c': campaignId,
+      'org': organizationId,
+      's': status,
+      'f': filename,
+      'n': rows.length,
+      'by': uploadedBy,
+    },
+  );
+  for (final r in rows) {
+    await db.execute(
+      'INSERT INTO import_job_rows '
+      '(job_id, row_id, name, phone, outcome) '
+      'VALUES (@j, @r, @name, @phone, @o)',
+      params: {
+        'j': id,
+        'r': r.rowId,
+        'name': r.name,
+        'phone': r.phone,
+        'o': r.outcome,
+      },
+    );
+  }
+}

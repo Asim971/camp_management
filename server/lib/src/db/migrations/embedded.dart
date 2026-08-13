@@ -4,6 +4,7 @@ const Map<String, String> embeddedMigrations = {
   '002_idempotency_reservations': _idempotencyReservations,
   '003_role_check': _roleCheck,
   '004_identity': _identity,
+  '005_imports': _imports,
 };
 
 const String _foundation = r'''
@@ -240,4 +241,38 @@ CREATE TABLE profile_requests (
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX profile_requests_campaign_idx ON profile_requests(campaign_id);
+''';
+
+const String _imports = r'''
+CREATE TABLE import_jobs (
+  id               TEXT PRIMARY KEY,
+  campaign_id      TEXT NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+  organization_id  TEXT NOT NULL REFERENCES organizations(id),
+  status           TEXT NOT NULL,              -- ImportStatus wire value
+  filename         TEXT NOT NULL,
+  file_hash        TEXT NOT NULL,              -- sha256 of the bytes (2b.D3)
+  total_rows       INTEGER NOT NULL DEFAULT 0,
+  processed_rows   INTEGER NOT NULL DEFAULT 0,
+  config_version   TEXT,
+  uploaded_by      TEXT NOT NULL REFERENCES staff_users(id),
+  claimed_at       TIMESTAMPTZ,                -- worker start; reaper input (2b.D2)
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX import_jobs_campaign_idx ON import_jobs(campaign_id);
+CREATE INDEX import_jobs_status_claimed_idx ON import_jobs(status, claimed_at);
+
+CREATE TABLE import_job_rows (
+  job_id               TEXT NOT NULL REFERENCES import_jobs(id) ON DELETE CASCADE,
+  row_id               TEXT NOT NULL,          -- "row-<1-based line>" (2b.D4)
+  name                 TEXT NOT NULL,
+  phone                TEXT NOT NULL,          -- raw; never leaves the server (2a.D2)
+  nid                  TEXT,
+  territory_hint       TEXT,
+  dealer_context       TEXT,
+  outcome              TEXT,                   -- ImportRowOutcome, NULL until classified
+  message              TEXT,
+  linked_carpenter_id  TEXT REFERENCES carpenters(id),
+  PRIMARY KEY (job_id, row_id)
+);
 ''';

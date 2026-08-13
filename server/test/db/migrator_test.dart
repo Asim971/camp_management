@@ -164,6 +164,8 @@ void main() {
         'carpenters',
         'registrations',
         'profile_requests',
+        'import_jobs',
+        'import_job_rows',
       ]),
     );
   });
