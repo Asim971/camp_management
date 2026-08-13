@@ -62,6 +62,16 @@ void main() {
       environment: {'PORT': '$_mockPort'},
     );
     unawaited(mockProcess.stderr.transform(utf8.decoder).forEach(stderr.write));
+    // Must be drained, not left unread: the mock's logRequests() middleware
+    // writes a line per request to its stdout, and an unread child-process
+    // stdout pipe fills and blocks the child on its next write once enough
+    // requests accumulate — which stalls whatever HTTP response it was mid-
+    // write on. That surfaced as this suite's later, request-heavier tests
+    // (Task 9's import poll/commit flow) hanging until the 30s test timeout
+    // with "Connection closed before full header was received", even though
+    // the exact same requests replayed by hand against a fresh mock process
+    // succeeded instantly — the difference was purely this unread pipe.
+    unawaited(mockProcess.stdout.drain<void>());
     await _waitUntilUp(Uri.parse('http://127.0.0.1:$_mockPort/campaigns'));
   });
 
@@ -77,7 +87,7 @@ void main() {
   /// each test seeds the real side differently (row counts, statuses), and
   /// `freshDb()` (test/support/test_db.dart) enforces `concurrency: 1` across
   /// the whole suite so this is safe.
-  Future<({ParityTarget real, ParityTarget mock})> buildTargets({
+  Future<({ParityTarget real, ParityTarget mock, Db realDb})> buildTargets({
     required int campaignCount,
     bool seedCarpenters = false,
   }) async {
@@ -158,7 +168,7 @@ void main() {
       },
     );
 
-    return (real: real, mock: mock);
+    return (real: real, mock: mock, realDb: db);
   }
 
   for (final targetName in ['real', 'mock']) {
@@ -307,6 +317,129 @@ void main() {
       expect(carpenter['displayId'], matches(RegExp(r'^CARP-••\d{4}$')));
       expect(carpenter.containsKey('phone'), isFalse);
     });
+
+    // Task 9: the ratified async import shapes (2b.D1-D5). dry-run -> 202
+    // PROCESSING -> (poll) READY_TO_COMMIT with classified rows -> commit ->
+    // COMPLETED, under the namespaced `/campaigns/<id>/imports/<jobId>/commit`
+    // path on both backends.
+    //
+    // The real dry-run route requires an actual multipart "file" part
+    // (server/lib/src/import_/import_routes.dart's `_readFilePart`, backed by
+    // shelf_multipart) that this harness's JSON-only `postJson` cannot send.
+    // So only the mock is driven through dry-run itself; the real side is
+    // seeded directly into the DB with `seedImportJob`, landing in the same
+    // post-classify state the mock reaches after its first poll — mirroring
+    // `import_routes_test.dart`'s commit test. Everything from the shape
+    // assertions onward runs identically on both targets.
+    test(
+      '$targetName: import job shape pins {id,campaignId,status,rows} and '
+      'the ImportStatus/ImportRowOutcome vocabularies through poll and commit',
+      () async {
+        final targets = await buildTargets(
+          campaignCount: 1,
+          seedCarpenters: true,
+        );
+        final target = targetName == 'real' ? targets.real : targets.mock;
+
+        late final String jobId;
+        late final Map<String, Object?> initial;
+        if (targetName == 'mock') {
+          // The mock's dry-run just drains whatever body arrives, so the
+          // harness's plain-JSON postJson is enough to create the job.
+          final created = await target.postJson(
+            '/campaigns/seed-0/imports/dry-run',
+            const {},
+          );
+          expect(created.status, 202);
+          initial = created.body;
+          expect(initial['status'], 'PROCESSING');
+          jobId = initial['id']! as String;
+        } else {
+          jobId = 'parity-import-1';
+          await seedImportJob(
+            targets.realDb,
+            id: jobId,
+            campaignId: 'seed-0',
+            rows: const [
+              (
+                rowId: 'row-1',
+                name: 'Md. Karim',
+                phone: '+8801700004821',
+                outcome: 'VALID',
+              ),
+              (
+                rowId: 'row-2',
+                name: 'Brand New',
+                phone: '+8801733334444',
+                outcome: 'NEEDS_PROFILE',
+              ),
+            ],
+          );
+          // The seed helper leaves linked_carpenter_id null; the VALID row
+          // needs it set for commit to find the matched carpenter (mirrors
+          // import_routes_test.dart's commit test).
+          await targets.realDb.execute(
+            "UPDATE import_job_rows SET linked_carpenter_id = 'CARP_E2E' "
+            "WHERE job_id = @j AND row_id = 'row-1'",
+            params: {'j': jobId},
+          );
+          initial = await target.getJson('/imports/$jobId');
+        }
+
+        // Shape pinned identically on both targets.
+        expect(
+          initial.keys,
+          containsAll(<String>[
+            'id',
+            'campaignId',
+            'status',
+            'rows',
+            'totalRows',
+            'processedRows',
+          ]),
+        );
+        expect(
+          ImportStatus.tryParseWire(initial['status']! as String),
+          isNotNull,
+          reason:
+              '${initial['status']} is not in the shared ImportStatus '
+              'vocabulary',
+        );
+
+        // Poll: the mock flips PROCESSING -> READY_TO_COMMIT (planting
+        // classified rows) on this GET; the real job above was already
+        // seeded in that terminal state, so this is a same-shape re-read.
+        // Both must land on the identical destination.
+        final polled = await target.getJson('/imports/$jobId');
+        expect(polled['status'], 'READY_TO_COMMIT');
+        final rows = (polled['rows']! as List).cast<Map<String, Object?>>();
+        expect(rows, isNotEmpty);
+        for (final r in rows) {
+          final outcome = r['outcome'];
+          expect(
+            outcome == null ||
+                ImportRowOutcome.tryParseWire(outcome as String) != null,
+            isTrue,
+            reason:
+                '$outcome is not null and not in the shared '
+                'ImportRowOutcome vocabulary',
+          );
+        }
+        expect(
+          rows.map((r) => r['outcome']).toSet(),
+          containsAll(<String>['VALID', 'NEEDS_PROFILE']),
+        );
+
+        // Commit: READY_TO_COMMIT -> COMPLETED, namespaced under the
+        // campaign — the real server has no un-namespaced commit route.
+        final committed = await target.postJson(
+          '/campaigns/seed-0/imports/$jobId/commit',
+          const {},
+        );
+        expect(committed.status, 200);
+        expect(committed.body['status'], 'COMPLETED');
+      },
+    );
   }
 }
 

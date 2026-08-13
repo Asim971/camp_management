@@ -71,6 +71,7 @@ Future<Map<String, dynamic>> _body(Request req) async {
 
 Router _buildRouter(_Store store) {
   final r = Router();
+  final importJobs = <String, Map<String, dynamic>>{};
 
   // ---- Campaigns ----------------------------------------------------------
   //
@@ -257,13 +258,78 @@ Router _buildRouter(_Store store) {
   });
 
   // ---- Bulk import --------------------------------------------------------
+  //
+  // Ratified async shapes (2b.D1-D5): dry-run answers 202 with a PROCESSING
+  // job; the first poll flips it to READY_TO_COMMIT with classified rows
+  // (this mock has no real classifier, so it just plants the terminal
+  // outcome on the first GET); commit lives under the namespaced
+  // `/campaigns/<id>/imports/<jobId>/commit` path, matching the real
+  // server's route (server/lib/src/import_/import_routes.dart) — the old
+  // un-namespaced `/imports/<jobId>/commit` never matched the real contract.
   r.post('/campaigns/<id>/imports/dry-run', (Request req, String id) async {
     await req.read().drain<void>(); // consume the multipart body
-    return _json(store.dryRunJob(id));
+    final jobId = 'IMPORT-${store.nextId()}';
+    final job = {
+      'id': jobId,
+      'campaignId': id,
+      'status': 'PROCESSING',
+      'totalRows': 2,
+      'processedRows': 0,
+      'rows': [
+        {
+          'rowId': 'row-1',
+          'name': 'Md. Karim',
+          'outcome': null,
+          'message': null,
+          'linkedCarpenterId': null,
+        },
+        {
+          'rowId': 'row-2',
+          'name': 'Brand New',
+          'outcome': null,
+          'message': null,
+          'linkedCarpenterId': null,
+        },
+      ],
+    };
+    importJobs[jobId] = job;
+    return _json(job, status: 202);
   });
 
-  r.post('/imports/<jobId>/commit', (Request req, String jobId) {
-    return _json(store.commitJob(jobId));
+  r.get('/imports/<jobId>', (Request req, String jobId) {
+    final job = importJobs[jobId];
+    if (job == null) {
+      return _json({
+        'error': {'code': 'NOT_FOUND', 'message': 'no job'},
+      }, status: 404);
+    }
+    // First poll flips it to ready with classified rows.
+    job['status'] = 'READY_TO_COMMIT';
+    job['processedRows'] = 2;
+    final rows = job['rows'] as List<Map<String, dynamic>>;
+    rows[0]['outcome'] = 'VALID';
+    rows[1]['outcome'] = 'NEEDS_PROFILE';
+    return _json(job);
+  });
+
+  r.post('/campaigns/<id>/imports/<jobId>/commit', (
+    Request req,
+    String id,
+    String jobId,
+  ) async {
+    await req.read().drain<void>(); // consume the (unused) request body
+    final job =
+        importJobs[jobId] ??
+        {
+          'id': jobId,
+          'campaignId': id,
+          'status': 'READY_TO_COMMIT',
+          'totalRows': 2,
+          'processedRows': 2,
+          'rows': const [],
+        };
+    job['status'] = 'COMPLETED';
+    return _json(job);
   });
 
   // ---- Media / attendance sync -------------------------------------------
@@ -597,39 +663,6 @@ class _Store {
       'reasons': ['Landmark alignment within tolerance'],
     };
   }
-
-  Map<String, dynamic> dryRunJob(String campaignId) => {
-    'id': 'IMPORT-1',
-    'campaignId': campaignId,
-    'status': 'dryRun',
-    'rows': [
-      {'rowId': '1', 'name': 'Md. Karim', 'outcome': 'valid'},
-      {'rowId': '2', 'name': 'Karim Uddin', 'outcome': 'valid'},
-      {
-        'rowId': '3',
-        'name': 'Md. Karim',
-        'outcome': 'duplicate',
-        'message': 'Matches row 1 by phone',
-      },
-      {'rowId': '4', 'name': '', 'outcome': 'error', 'message': 'Missing name'},
-      {
-        'rowId': '5',
-        'name': 'New Person',
-        'outcome': 'needsProfile',
-        'message': 'No Sales Eco profile — request required',
-      },
-    ],
-  };
-
-  Map<String, dynamic> commitJob(String jobId) => {
-    'id': jobId,
-    'campaignId': 'CAMP-1',
-    'status': 'completed',
-    'rows': [
-      {'rowId': '1', 'name': 'Md. Karim', 'outcome': 'valid'},
-      {'rowId': '2', 'name': 'Karim Uddin', 'outcome': 'valid'},
-    ],
-  };
 }
 
 /// 1×1 transparent PNG — enough for Image.network to load in E2E.
