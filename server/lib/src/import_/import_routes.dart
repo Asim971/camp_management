@@ -153,13 +153,22 @@ Future<({List<int> bytes, String? filename})?> _readFilePart(
 ) async {
   final form = request.formData();
   if (form == null) return null;
+  // Read EVERY part to the end — do NOT `return` from inside the loop the
+  // moment `file` is found. Returning early leaves the rest of the multipart
+  // body (any trailing parts and the closing `--boundary--` delimiter)
+  // unread. shelf/dart:io cannot reuse a keep-alive connection whose request
+  // body was not fully consumed, so it closes the socket right after this
+  // 202 — and that FIN races with the client reading the 202 off the same
+  // pooled connection, surfacing intermittently on the client as a
+  // connectionError (the dry-run reported as failed, so polling never starts)
+  // even though the server logged a clean 202. Draining the whole stream lets
+  // the connection stay healthy for the very next request (the first poll).
+  ({List<int> bytes, String? filename})? found;
   await for (final formData in form.formData) {
-    if (formData.name == 'file') {
-      return (
-        bytes: await formData.part.readBytes(),
-        filename: formData.filename,
-      );
+    final bytes = await formData.part.readBytes(); // drains this part
+    if (found == null && formData.name == 'file') {
+      found = (bytes: bytes, filename: formData.filename);
     }
   }
-  return null;
+  return found;
 }
