@@ -92,8 +92,16 @@ class ImportRepositoryImpl implements ImportRepository {
       campaignId: j['campaignId'] as String,
       status: status,
       rows: [
-        for (final r in (j['rows'] as List? ?? []))
-          _rowFromJson(r as Map<String, dynamic>),
+        // A PROCESSING job's rows are not yet classified: the server's
+        // `find()` returns them with `outcome: null` until `classify`
+        // reaches them. Those rows carry no useful outcome for the UI yet —
+        // progress during PROCESSING is read from the job's own
+        // totalRows/processedRows — so they're skipped here rather than
+        // forced through a non-nullable cast. Every row carries a non-null
+        // outcome once the job reaches READY_TO_COMMIT, so nothing is lost
+        // by the time the UI needs to render row-level results.
+        for (final r in (j['rows'] as List? ?? []).cast<Map<String, dynamic>>())
+          if (r['outcome'] != null) _rowFromJson(r),
       ],
     );
   }

@@ -174,6 +174,11 @@ void main() {
     expect(res.statusCode, 404);
   });
 
+  test('403 on poll without bulk_import', () async {
+    final res = await get('/imports/no-such-job', bearer: viewerToken);
+    expect(res.statusCode, 403);
+  });
+
   test('404 for a cross-org campaign on dry-run', () async {
     final res = await handler(
       uploadRequest(

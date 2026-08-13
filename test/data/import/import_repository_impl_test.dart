@@ -107,6 +107,81 @@ void main() {
     expect(job.rows.single.outcome, ImportRowOutcome.error);
   });
 
+  test('uploadDryRun parses a 202 PROCESSING body whose rows are unclassified '
+      '(outcome: null) without throwing', () async {
+    repo = build(
+      (_) => _jsonBody({
+        'id': 'IMPORT-1',
+        'campaignId': 'camp-1',
+        'status': 'PROCESSING',
+        'totalRows': 2,
+        'processedRows': 0,
+        'rows': [
+          {
+            'rowId': 'row-1',
+            'name': 'A',
+            'outcome': null,
+            'message': null,
+            'linkedCarpenterId': null,
+          },
+          {
+            'rowId': 'row-2',
+            'name': 'B',
+            'outcome': null,
+            'message': null,
+            'linkedCarpenterId': null,
+          },
+        ],
+      }, status: 202),
+    );
+    final res = await repo.uploadDryRun(
+      'camp-1',
+      bytes: const [1, 2, 3],
+      filename: 'import.csv',
+    );
+    final job = res.fold((j) => j, (f) => fail('expected Ok: $f'));
+    expect(job.id, 'IMPORT-1');
+    expect(job.status, ImportStatus.processing);
+    expect(
+      job.rows,
+      isEmpty,
+      reason:
+          'unclassified (outcome: null) rows are skipped, not thrown '
+          'on — progress reads from totalRows/processedRows while '
+          'PROCESSING',
+    );
+  });
+
+  test(
+    'uploadDryRun still parses every row once the job is READY_TO_COMMIT',
+    () async {
+      repo = build(
+        (_) => _jsonBody({
+          'id': 'IMPORT-1',
+          'campaignId': 'camp-1',
+          'status': 'READY_TO_COMMIT',
+          'totalRows': 2,
+          'processedRows': 2,
+          'rows': [
+            {'rowId': 'row-1', 'name': 'Md. Karim', 'outcome': 'VALID'},
+            {'rowId': 'row-2', 'name': 'X', 'outcome': 'NEEDS_PROFILE'},
+          ],
+        }, status: 202),
+      );
+      final res = await repo.uploadDryRun(
+        'camp-1',
+        bytes: const [1, 2, 3],
+        filename: 'import.csv',
+      );
+      final job = res.fold((j) => j, (f) => fail('expected Ok: $f'));
+      expect(job.status, ImportStatus.readyToCommit);
+      expect(job.rows.map((r) => r.outcome), [
+        ImportRowOutcome.valid,
+        ImportRowOutcome.needsProfile,
+      ]);
+    },
+  );
+
   test(
     'commit posts to the namespaced path with a UUID idempotency key',
     () async {

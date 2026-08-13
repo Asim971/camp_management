@@ -185,12 +185,23 @@ class ImportRepo {
         'WHERE id = @j',
         params: {'j': jobId},
       );
-      await _audit.write(
-        action: 'import.dry_run',
-        resourceType: 'import_job',
-        resourceId: jobId,
-        payload: {'totalRows': rows.length, 'processed': processed},
-      );
+
+      // Audit is best-effort from here on: the job is ALREADY correctly
+      // READY_TO_COMMIT, and a fault in this write must never undo that by
+      // falling into the `on Object` guard below (which would flip a fully-
+      // classified job to FAILED just because its audit trail failed to
+      // record). So this write gets its own guard rather than sharing the
+      // method's.
+      try {
+        await _audit.write(
+          action: 'import.dry_run',
+          resourceType: 'import_job',
+          resourceId: jobId,
+          payload: {'totalRows': rows.length, 'processed': processed},
+        );
+      } on Object {
+        // Swallowed intentionally — see comment above.
+      }
     } on Object catch (error, stack) {
       // Never let this reach the top level (§6a). Flip to FAILED; the
       // reaper is the backstop if even that flip fails.

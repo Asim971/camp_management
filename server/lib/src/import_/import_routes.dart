@@ -71,16 +71,22 @@ Router importRouter({required Db db, required String databaseUrl}) {
     ),
   );
 
-  router.get('/imports/<jobId>', (Request request, String jobId) async {
-    final auth = authOf(request);
-    await repo.reapStale();
-    final job = await repo.find(jobId, organizationId: auth.organizationId);
-    if (job == null) throw ApiException(ApiErrorCode.notFound);
-    return Response.ok(
-      jsonEncode(job.toWireJson()),
-      headers: {'content-type': 'application/json'},
-    );
-  });
+  router.get(
+    '/imports/<jobId>',
+    const Pipeline().addMiddleware(requirePermission('bulk_import')).addHandler(
+      (Request request) async {
+        final auth = authOf(request);
+        final jobId = request.params['jobId']!;
+        await repo.reapStale();
+        final job = await repo.find(jobId, organizationId: auth.organizationId);
+        if (job == null) throw ApiException(ApiErrorCode.notFound);
+        return Response.ok(
+          jsonEncode(job.toWireJson()),
+          headers: {'content-type': 'application/json'},
+        );
+      },
+    ),
+  );
 
   router.post(
     '/campaigns/<id>/imports/<jobId>/commit',

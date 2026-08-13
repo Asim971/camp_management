@@ -560,7 +560,7 @@ jobs:
           project-id: ${{ secrets.MAESTRO_PROJECT_ID }}
           app-file: build/app/outputs/flutter-apk/app-dev-debug.apk
           workspace: .maestro
-          include-tags: bulkImport
+          include-tags: bulk_import
           # The flow's `appId: ${APP_ID}` needs this at run time (the emulator
           # path passes it via run_maestro_flows.sh --env). If v2.0.2 does not
           # accept `env`, the first CI run reveals it and we hardcode the dev
