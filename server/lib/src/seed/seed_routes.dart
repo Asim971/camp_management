@@ -22,6 +22,13 @@ const String seedOrganizationId = 'org-e2e';
 const String seedTerritoryNorthId = 'terr-dhaka-north';
 const String seedTerritorySouthId = 'terr-dhaka-south';
 
+// Mirror tool/mock_server's carpenters (same ids and names) so
+// carpenter-facing flows keep working whichever backend is behind
+// API_BASE_URL. displayId on the wire: CARP-••4821 / CARP-••7734;
+// phoneSuffix: 4821 / 7734 (4 digits — Task 8 aligns the mock's data).
+const String seedCarpenterKarimId = 'CARP_E2E';
+const String seedCarpenterUddinId = 'CARP_E2E_2';
+
 /// The 7 roles `permissionsByRole` (auth/tokens.dart) recognises. These ARE
 /// the exact wire role names: the client's `scope_claims.dart` rejects
 /// sign-in on any role name it does not recognise, so nothing here may be
@@ -154,6 +161,7 @@ Router seedRouter({
     await _truncateEverything(db);
     await _seedBaseline(db, hasher: hasher);
     await _seedCampaignFixture(db, _campaignFixtures);
+    await _seedCarpenterFixture(db);
     return Response(204);
   });
 
@@ -190,6 +198,9 @@ Router seedRouter({
 /// `schema_migrations` itself excluded — truncating that would make the
 /// server think it needs to reapply migrations it already ran.
 const List<String> _allSeedableTables = [
+  'profile_requests',
+  'registrations',
+  'carpenters',
   'campaign_decisions',
   'campaign_submissions',
   'campaign_territories',
@@ -319,6 +330,45 @@ Future<void> _seedCampaignFixture(
       'INSERT INTO campaign_territories (campaign_id, territory_id) '
       'VALUES (@campaign, @territory)',
       params: {'campaign': fixture.id, 'territory': fixture.territoryId},
+    );
+  }
+}
+
+Future<void> _seedCarpenterFixture(Db db) async {
+  const carpenters = [
+    (
+      id: seedCarpenterKarimId,
+      name: 'Md. Karim',
+      phone: '+8801700004821',
+      code: 'CARP-00004821',
+      territory: seedTerritoryNorthId,
+      dealer: 'Rahman Traders',
+    ),
+    (
+      id: seedCarpenterUddinId,
+      name: 'Karim Uddin',
+      phone: '+8801700007734',
+      code: 'CARP-00007734',
+      territory: seedTerritorySouthId,
+      dealer: null,
+    ),
+  ];
+  for (final c in carpenters) {
+    await db.execute(
+      'INSERT INTO carpenters '
+      '(id, organization_id, full_name, phone, territory_id, '
+      " dealer_context, display_code, source, sync_status) "
+      "VALUES (@id, @org, @name, @phone, @territory, @dealer, @code, "
+      "        'SEED', 'LOCAL_ONLY')",
+      params: {
+        'id': c.id,
+        'org': seedOrganizationId,
+        'name': c.name,
+        'phone': c.phone,
+        'territory': c.territory,
+        'dealer': c.dealer,
+        'code': c.code,
+      },
     );
   }
 }

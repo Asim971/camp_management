@@ -11,8 +11,11 @@ import '../../../core/responsive/breakpoints.dart';
 import '../../../domain/common/status.dart';
 import '../application/registration_controller.dart';
 
-/// Registration Workspace (W-06). Search Sales Eco master on the left, build a
-/// registration basket on the right with eligibility warnings.
+/// Registration Workspace (W-06). Desktop: search Sales Eco master on the
+/// left, build a registration basket on the right with eligibility warnings.
+/// Mobile: the layout leads with the basket so a field user sees their
+/// running selection and the Register action without scrolling past the
+/// search pane below it.
 class RegistrationWorkspaceScreen extends ConsumerWidget {
   const RegistrationWorkspaceScreen({required this.campaignId, super.key});
   final String campaignId;
@@ -49,9 +52,9 @@ class RegistrationWorkspaceScreen extends ConsumerWidget {
             )
           : ListView(
               children: [
-                SizedBox(height: 420, child: search),
-                const SizedBox(height: 16),
                 basket,
+                const SizedBox(height: 16),
+                SizedBox(height: 420, child: search),
               ],
             ),
     );
@@ -70,6 +73,7 @@ class _SearchPanel extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         BmdSearchField(
+          identifier: 'registration_search',
           label: 'Search carpenter master',
           scopeLabel: 'Searches name, carpenter ID and phone suffix',
           onQueryChanged: c.search,
@@ -107,15 +111,19 @@ class _SearchPanel extends ConsumerWidget {
                                 label: 'Ineligible',
                                 tone: StatusTone.warning,
                               )
-                            : IconButton(
-                                icon: Icon(
-                                  inBasket
-                                      ? Icons.check
-                                      : Icons.add_circle_outline,
+                            : Semantics(
+                                identifier: 'registration_add_${person.id}',
+                                enabled: !inBasket,
+                                child: IconButton(
+                                  icon: Icon(
+                                    inBasket
+                                        ? Icons.check
+                                        : Icons.add_circle_outline,
+                                  ),
+                                  onPressed: inBasket
+                                      ? null
+                                      : () => c.addToBasket(person),
                                 ),
-                                onPressed: inBasket
-                                    ? null
-                                    : () => c.addToBasket(person),
                               ),
                       );
                     },
@@ -140,6 +148,7 @@ class _EmptySearch extends ConsumerWidget {
           const Text('No matching carpenter in the master.'),
           const SizedBox(height: 8),
           BmdButton(
+            identifier: 'registration_request_profile',
             label: 'Request new profile',
             variant: BmdButtonVariant.outlined,
             onPressed: () => _showRequestProfileSheet(context, ref, campaignId),
@@ -160,30 +169,12 @@ Future<void> _showRequestProfileSheet(
 
   await showBmdSideSheet<void>(
     context: context,
-    title: 'Request new Sales Eco profile',
-    builder: (_) => Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        BmdField(label: 'Full name', controller: name, required: true),
-        const SizedBox(height: BmdSpace.s3),
-        BmdField(
-          label: 'Phone',
-          controller: phone,
-          keyboardType: TextInputType.phone,
-          required: true,
-        ),
-        const SizedBox(height: BmdSpace.s3),
-        const Text(
-          'Creates a Sales Eco request. The participant shows as '
-          '"Pending profile sync" until reconciliation — no local record is '
-          'created.',
-        ),
-      ],
-    ),
+    title: 'Request new carpenter profile',
+    builder: (_) => _ProfileRequestFields(name: name, phone: phone),
     actions: [
       Builder(
         builder: (sheetContext) => BmdButton(
+          identifier: 'profile_submit',
           label: 'Submit request',
           onPressed: () {
             ref
@@ -195,9 +186,75 @@ Future<void> _showRequestProfileSheet(
       ),
     ],
   );
+}
 
-  name.dispose();
-  phone.dispose();
+/// Owns [name]/[phone] for exactly as long as the sheet's fields are in the
+/// tree.
+///
+/// Disposing them right after `showBmdSideSheet`'s `await` (as this used to)
+/// is too early: that Future resolves the instant `Navigator.pop` runs —
+/// `Route.didPop` completes it synchronously — while the sheet's own exit
+/// transition is still animating and its [BmdField]s are still mounted and
+/// listening. A later frame of that animation then touches the already
+/// disposed controller (`ChangeNotifier.debugAssertNotDisposed` inside
+/// `_AnimatedState.didUpdateWidget`, reached from the [TextFormField] this
+/// widget renders), which aborts that frame's element-tree walk partway and
+/// leaves an ancestor `InheritedElement` with a dependent that never got to
+/// remove itself — surfacing several frames later as framework.dart's
+/// `'_dependents.isEmpty': is not true` red screen when the sheet's route is
+/// finally torn down.
+///
+/// Disposing from [State.dispose] instead ties their lifetime to this
+/// widget's own: the framework only calls it once this element actually
+/// unmounts, which for a route happens after its exit animation completes —
+/// the same idiom `_BmdConfirmDialog` above already uses for its reason
+/// field.
+class _ProfileRequestFields extends StatefulWidget {
+  const _ProfileRequestFields({required this.name, required this.phone});
+
+  final TextEditingController name;
+  final TextEditingController phone;
+
+  @override
+  State<_ProfileRequestFields> createState() => _ProfileRequestFieldsState();
+}
+
+class _ProfileRequestFieldsState extends State<_ProfileRequestFields> {
+  @override
+  void dispose() {
+    widget.name.dispose();
+    widget.phone.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        BmdField(
+          identifier: 'profile_name',
+          label: 'Full name',
+          controller: widget.name,
+          required: true,
+        ),
+        const SizedBox(height: BmdSpace.s3),
+        BmdField(
+          identifier: 'profile_phone',
+          label: 'Phone',
+          controller: widget.phone,
+          keyboardType: TextInputType.phone,
+          required: true,
+        ),
+        const SizedBox(height: BmdSpace.s3),
+        const Text(
+          'Creates a local profile pending ratification and adds the '
+          'participant to your basket.',
+        ),
+      ],
+    );
+  }
 }
 
 class _BasketPanel extends ConsumerWidget {
@@ -239,6 +296,7 @@ class _BasketPanel extends ConsumerWidget {
                 ),
             const SizedBox(height: 12),
             BmdButton(
+              identifier: 'registration_submit',
               label: 'Register ${items.length} participant(s)',
               loading: state.registering,
               onPressed: items.isEmpty ? null : c.registerBasket,

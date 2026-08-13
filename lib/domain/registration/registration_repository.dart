@@ -33,9 +33,11 @@ abstract interface class RegistrationRepository {
     TraceId? trace,
   });
 
-  /// Submits a Sales Eco new-profile request; the participant shows as
-  /// "Pending profile sync" until reconciliation (§9.2, §9.4).
-  Future<Result<void>> requestNewProfile(
+  /// Submits a new-profile request and returns the provisional carpenter the
+  /// server created for it (spec 2a.D1) so the caller can put the person
+  /// straight into the registration basket — request → basket → register in
+  /// one visit.
+  Future<Result<RegisteredCarpenter>> requestNewProfile(
     String campaignId,
     String name,
     String phone,

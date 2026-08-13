@@ -57,6 +57,7 @@ void main() {
     // running", the same family as a stale-version conflict, not a
     // validation failure of the request itself.
     expect(await statusFor(ApiErrorCode.idempotencyKeyInFlight), 409);
+    expect(await statusFor(ApiErrorCode.unknownCarpenter), 422);
     expect(await statusFor(ApiErrorCode.internal), 500);
   });
 

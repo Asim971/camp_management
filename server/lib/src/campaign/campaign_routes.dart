@@ -9,6 +9,7 @@ import '../db/pool.dart';
 import '../infra/correlation.dart';
 import '../infra/error_envelope.dart';
 import '../infra/idempotency.dart';
+import '../infra/json_fields.dart';
 import 'campaign_repo.dart';
 import 'validation.dart';
 
@@ -103,7 +104,7 @@ Router campaignRouter({required Db db, required CampaignRepo repo}) {
         .addMiddleware(idempotency(db: db))
         .addHandler((Request request) async {
           final auth = authOf(request);
-          final body = await _readJsonBody(request);
+          final body = await readJsonBody(request);
           final input = _draftInputFromBody(body, ownerId: auth.userId);
           final created = await repo.create(
             input,
@@ -122,7 +123,7 @@ Router campaignRouter({required Db db, required CampaignRepo repo}) {
         .addHandler((Request request) async {
           final auth = authOf(request);
           final id = request.params['id']!;
-          final body = await _readJsonBody(request);
+          final body = await readJsonBody(request);
           final input = _draftInputFromBody(body, ownerId: auth.userId);
           final updated = await repo.updateDraft(
             id,
@@ -143,7 +144,7 @@ Router campaignRouter({required Db db, required CampaignRepo repo}) {
         .addHandler((Request request) async {
           final auth = authOf(request);
           final id = request.params['id']!;
-          final body = await _readJsonBody(request);
+          final body = await readJsonBody(request);
           final submitted = await repo.submit(
             id,
             organizationId: auth.organizationId,
@@ -163,17 +164,14 @@ Router campaignRouter({required Db db, required CampaignRepo repo}) {
         .addHandler((Request request) async {
           final auth = authOf(request);
           final id = request.params['id']!;
-          final body = await _readJsonBody(request);
+          final body = await readJsonBody(request);
           final decided = await repo.decide(
             id,
             organizationId: auth.organizationId,
             reviewerId: auth.userId,
             decision: _requireDecision(body),
             reason: body['reason'] as String?,
-            acknowledgedWarnings: _stringListField(
-              body,
-              'acknowledgedWarnings',
-            ),
+            acknowledgedWarnings: stringListField(body, 'acknowledgedWarnings'),
             expectedVersion: _requireVersion(body),
             correlationId: correlationOf(request),
           );
@@ -188,28 +186,6 @@ Response _jsonResponse(Map<String, Object?> body) => Response.ok(
   jsonEncode(body),
   headers: {'content-type': 'application/json'},
 );
-
-/// Decodes [request]'s body as a JSON object. A missing/empty body decodes
-/// to `{}` (every field below is then "missing", which the field-level
-/// parsing turns into its own specific error) rather than failing outright —
-/// only a body that IS present but isn't a JSON object is a [badRequest].
-Future<Map<String, Object?>> _readJsonBody(Request request) async {
-  final text = await request.readAsString();
-  if (text.isEmpty) return const {};
-  Object? decoded;
-  try {
-    decoded = jsonDecode(text);
-  } on FormatException {
-    throw ApiException(ApiErrorCode.badRequest, message: 'Invalid JSON body.');
-  }
-  if (decoded is! Map<String, Object?>) {
-    throw ApiException(
-      ApiErrorCode.badRequest,
-      message: 'Expected a JSON object body.',
-    );
-  }
-  return decoded;
-}
 
 /// The wire shape the client's wizard sends for create/update: everything
 /// [CampaignDraftInput] needs, with [ownerId] coming from the caller's own
@@ -229,17 +205,17 @@ CampaignDraftInput _draftInputFromBody(
   Map<String, Object?> body, {
   required String ownerId,
 }) {
-  final sessionsJson = _listField(body, 'sessions');
+  final sessionsJson = listField(body, 'sessions');
   return CampaignDraftInput(
-    name: _stringField(body, 'name') ?? '',
-    type: _stringField(body, 'type') ?? '',
-    objective: _stringField(body, 'objective'),
-    territoryIds: _stringListField(body, 'territoryIds'),
-    target: _intField(body, 'target') ?? 0,
-    budgetReference: _stringField(body, 'budgetReference'),
-    approverId: _stringField(body, 'approverId'),
+    name: stringField(body, 'name') ?? '',
+    type: stringField(body, 'type') ?? '',
+    objective: stringField(body, 'objective'),
+    territoryIds: stringListField(body, 'territoryIds'),
+    target: intField(body, 'target') ?? 0,
+    budgetReference: stringField(body, 'budgetReference'),
+    approverId: stringField(body, 'approverId'),
     ownerId: ownerId,
-    geofenceEnabled: _boolField(body, 'geofenceEnabled') ?? false,
+    geofenceEnabled: boolField(body, 'geofenceEnabled') ?? false,
     sessions: [
       for (var i = 0; i < sessionsJson.length; i++)
         _sessionInputFromJson(sessionsJson[i], index: i),
@@ -258,93 +234,15 @@ CampaignDraftInput _draftInputFromBody(
 // conflated the two.
 SessionInput _sessionInputFromJson(Object? raw, {required int index}) {
   if (raw is! Map<String, Object?>) {
-    _badField('sessions[$index]', 'must be an object');
+    badField('sessions[$index]', 'must be an object');
   }
   final prefix = 'sessions[$index]';
   return SessionInput(
-    venue: _stringField(raw, 'venue', reportAs: '$prefix.venue'),
-    capacity: _intField(raw, 'capacity', reportAs: '$prefix.capacity'),
-    startAt: _dateTimeField(raw, 'startAt', reportAs: '$prefix.startAt'),
-    endAt: _dateTimeField(raw, 'endAt', reportAs: '$prefix.endAt'),
+    venue: stringField(raw, 'venue', reportAs: '$prefix.venue'),
+    capacity: intField(raw, 'capacity', reportAs: '$prefix.capacity'),
+    startAt: dateTimeField(raw, 'startAt', reportAs: '$prefix.startAt'),
+    endAt: dateTimeField(raw, 'endAt', reportAs: '$prefix.endAt'),
   );
-}
-
-/// Every `_*Field` helper below shares the same contract: `null`/absent is
-/// a valid "not provided" (the caller decides the fallback), but a value
-/// that IS present and the wrong JSON type is a [badRequest] naming [field]
-/// (or [reportAs], for a nested field whose own JSON key isn't the name a
-/// caller wants surfaced) — never a silent coercion and never an uncaught
-/// cast exception.
-Never _badField(String field, String problem) => throw ApiException(
-  ApiErrorCode.badRequest,
-  message: '"$field" $problem.',
-  details: {'field': field},
-);
-
-String? _stringField(
-  Map<String, Object?> body,
-  String field, {
-  String? reportAs,
-}) {
-  final value = body[field];
-  if (value == null) return null;
-  if (value is! String) _badField(reportAs ?? field, 'must be a string');
-  return value;
-}
-
-int? _intField(Map<String, Object?> body, String field, {String? reportAs}) {
-  final value = body[field];
-  if (value == null) return null;
-  if (value is! int) _badField(reportAs ?? field, 'must be an integer');
-  return value;
-}
-
-bool? _boolField(Map<String, Object?> body, String field) {
-  final value = body[field];
-  if (value == null) return null;
-  if (value is! bool) _badField(field, 'must be a boolean');
-  return value;
-}
-
-/// `[]` when [field] is absent — every caller here treats "not provided"
-/// the same as "provided empty" — but a [field] that IS present and not a
-/// JSON array (e.g. `{}`) is a [badRequest], not a value silently coerced
-/// into an empty list.
-List<Object?> _listField(Map<String, Object?> body, String field) {
-  final value = body[field];
-  if (value == null) return const [];
-  if (value is! List) _badField(field, 'must be an array');
-  return value;
-}
-
-/// [_listField] plus an element-type check — `{"territoryIds": [1]}` names
-/// the specific offending index (`territoryIds[0]`) rather than failing
-/// lazily, mid-iteration, wherever the list is later consumed (`cast`'s
-/// laziness is exactly how this one reached the envelope as a 500 before
-/// this check existed).
-List<String> _stringListField(Map<String, Object?> body, String field) {
-  final list = _listField(body, field);
-  for (var i = 0; i < list.length; i++) {
-    if (list[i] is! String) _badField('$field[$i]', 'must be a string');
-  }
-  return list.cast<String>();
-}
-
-DateTime? _dateTimeField(
-  Map<String, Object?> body,
-  String field, {
-  String? reportAs,
-}) {
-  final value = body[field];
-  if (value == null) return null;
-  if (value is! String) {
-    _badField(reportAs ?? field, 'must be an ISO-8601 string');
-  }
-  try {
-    return DateTime.parse(value);
-  } on FormatException {
-    _badField(reportAs ?? field, 'must be a valid ISO-8601 date/time');
-  }
 }
 
 /// `version` is required on every version-checked write (update, submit,

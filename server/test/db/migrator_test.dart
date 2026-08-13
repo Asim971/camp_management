@@ -161,6 +161,9 @@ void main() {
         'audit_events',
         'app_config',
         'schema_migrations',
+        'carpenters',
+        'registrations',
+        'profile_requests',
       ]),
     );
   });
@@ -171,5 +174,31 @@ void main() {
       "SELECT value FROM app_config WHERE key = 'sod.enforced'",
     );
     expect(row(res.single)['value'], 'true');
+  });
+
+  test('003_role_check rejects a role outside the client vocabulary', () async {
+    await Migrator(db).applyPending();
+    await db.execute(
+      "INSERT INTO organizations (id, name) VALUES ('o1', 'Org')",
+    );
+    await db.execute(
+      'INSERT INTO staff_users '
+      '(id, username, display_name, password_hash, organization_id) '
+      "VALUES ('u1', 'u1', 'U', 'x', 'o1')",
+    );
+    await expectLater(
+      db.execute(
+        "INSERT INTO staff_user_roles (user_id, role) VALUES ('u1', 'not_a_role')",
+      ),
+      // 23514 = check_violation. Assert the cause, not just "some exception"
+      // (slice-1 Task 3 lesson: a loose matcher accepted the wrong error).
+      throwsA(
+        isA<ServerException>().having((e) => e.code, 'sqlstate', '23514'),
+      ),
+    );
+    // The whole valid vocabulary still inserts.
+    await db.execute(
+      "INSERT INTO staff_user_roles (user_id, role) VALUES ('u1', 'admin')",
+    );
   });
 }

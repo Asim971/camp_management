@@ -73,7 +73,19 @@ jobs:
         run: flutter build web --release
 
       - name: Build APK (dev flavor)
-        run: flutter build apk --flavor dev --debug
+        run: |
+          # A retry only helps transient failures -- a genuine compile error
+          # still fails all 3 attempts, just after two extra ~2-minute no-op
+          # Gradle starts. Accepted trade: the Gradle wrapper's distribution
+          # download (org.gradle.wrapper.Download) has flaked 4x today.
+          for attempt in 1 2 3; do
+            flutter build apk --flavor dev --debug && break
+            if [ "$attempt" = "3" ]; then
+              echo "APK build failed after 3 attempts"; exit 1
+            fi
+            echo "APK build attempt $attempt failed (transient Gradle-distribution downloads have failed 4x today); retrying in 20s"
+            sleep 20
+          done
 
       - uses: actions/upload-artifact@v4
         with:
@@ -271,6 +283,14 @@ jobs:
             defines: '--dart-define=E2E_REAL_AUTH=true'
             useMock: '0'
             flows: .maestro/flows/real_auth_campaign_journey.yaml
+          # 2a-I: real-auth login, master search/basket, register, and the
+          # same-visit profile-request -> basket path -- the acceptance proof
+          # for sub-project 2a (identity & registrations). See
+          # registration_workspace.yaml's own header comment.
+          - key: registration
+            defines: '--dart-define=E2E_REAL_AUTH=true'
+            useMock: '0'
+            flows: .maestro/flows/registration_workspace.yaml
     steps:
       - uses: actions/checkout@v4
 
@@ -344,10 +364,21 @@ jobs:
       # AndroidManifest.xml; release builds keep Android's secure default.
       - name: Build the ${{ matrix.config.key }} APK
         run: |
-          flutter build apk --debug --flavor dev \
-            --dart-define=E2E=true \
-            --dart-define=API_BASE_URL=http://10.0.2.2:8080 \
-            ${{ matrix.config.defines }}
+          # A retry only helps transient failures -- a genuine compile error
+          # still fails all 3 attempts, just after two extra ~2-minute no-op
+          # Gradle starts. Accepted trade: the Gradle wrapper's distribution
+          # download (org.gradle.wrapper.Download) has flaked 4x today.
+          for attempt in 1 2 3; do
+            flutter build apk --debug --flavor dev \
+              --dart-define=E2E=true \
+              --dart-define=API_BASE_URL=http://10.0.2.2:8080 \
+              ${{ matrix.config.defines }} && break
+            if [ "$attempt" = "3" ]; then
+              echo "APK build failed after 3 attempts"; exit 1
+            fi
+            echo "APK build attempt $attempt failed (transient Gradle-distribution downloads have failed 4x today); retrying in 20s"
+            sleep 20
+          done
           # The gate job already uploads this exact path with
           # `if-no-files-found: error`, so it is confirmed for a plain
           # `--flavor dev --debug`; assert it again here because --dart-define

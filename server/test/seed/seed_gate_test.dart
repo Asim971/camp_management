@@ -217,4 +217,17 @@ void main() {
       reason: 'the armed failure is one-shot, mirroring MOCK_CAMPAIGNS=error',
     );
   });
+
+  test('reset seeds the two carpenter fixtures', () async {
+    final handler = buildApp(db: db, config: configWithSeeding(true));
+    await _post(handler, '/__test__/reset');
+
+    final res = await db.execute(
+      'SELECT id, display_code FROM carpenters ORDER BY id',
+    );
+    final byId = {
+      for (final r in res.map(row)) r['id']! as String: r['display_code'],
+    };
+    expect(byId, {'CARP_E2E': 'CARP-00004821', 'CARP_E2E_2': 'CARP-00007734'});
+  });
 }

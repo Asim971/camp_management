@@ -12,6 +12,8 @@ import 'db/pool.dart';
 import 'infra/correlation.dart';
 import 'infra/error_envelope.dart';
 import 'infra/request_log.dart';
+import 'participant/participant_repo.dart';
+import 'participant/participant_routes.dart';
 import 'seed/seed_routes.dart';
 
 /// Assembles the full request-handling pipeline: `/health`, `/auth/*`,
@@ -49,7 +51,7 @@ Handler buildApp({required Db db, required ServerConfig config}) {
   ).call;
 
   var campaignPipeline = const Pipeline().addMiddleware(
-    _authenticateOnlyUnderCampaigns(db: db, tokens: tokens),
+    _authenticateUnder(const {'campaigns'}, db: db, tokens: tokens),
   );
   if (config.seedingEnabled) {
     // Lets `POST /__test__/campaigns {"fixture":"error"}` arm the next
@@ -65,10 +67,27 @@ Handler buildApp({required Db db, required ServerConfig config}) {
     campaignRouter(db: db, repo: repo).call,
   );
 
+  final participantHandler = const Pipeline()
+      .addMiddleware(
+        // 'campaigns' is here too: /campaigns/<id>/registrations and
+        // /campaigns/<id>/profile-requests reach this leg via Cascade
+        // fall-through from campaignRouter (which does not know them). For a
+        // request that already passed the campaign leg's authenticate this
+        // runs authenticate twice -- one extra indexed query, accepted for
+        // keeping both legs independently fail-closed.
+        _authenticateUnder(
+          const {'carpenters', 'sessions', 'campaigns'},
+          db: db,
+          tokens: tokens,
+        ),
+      )
+      .addHandler(participantRouter(db: db, repo: ParticipantRepo(db)).call);
+
   var cascade = Cascade()
       .add(publicRouter.call)
       .add(authHandler)
-      .add(campaignHandler);
+      .add(campaignHandler)
+      .add(participantHandler);
 
   // Seed routes are ABSENT, not registered-and-guarded, when seeding is
   // disabled: there is no route at all for a probe to find (spec §9; Task 11
@@ -92,30 +111,32 @@ Handler buildApp({required Db db, required ServerConfig config}) {
       .addHandler(cascade.handler);
 }
 
-/// [authenticate], but only actually invoked for a request under
-/// `/campaigns`; anything else passes straight through to [inner] —
-/// `campaignRouter`'s own handler — unauthenticated.
+/// [authenticate], but only actually invoked for a request under one of
+/// [roots]; anything else passes straight through to [inner] — the
+/// Cascade leg's own router handler — unauthenticated, so a LATER Cascade
+/// candidate still gets a real shot at it.
 ///
 /// `authenticate` answers 401 for a missing/invalid Bearer token,
-/// unconditionally. Wiring it as a `Pipeline` middleware OUTSIDE
-/// `campaignRouter.call` (as `bin/server.dart` did before this file existed)
-/// means it runs before shelf_router ever gets to decide whether the path
-/// even matches — so campaignHandler answered 401, not 404, for a completely
-/// unregistered path with no Authorization header. That was latent and
-/// untested until Task 11 added a Cascade candidate (`seedRouter`) AFTER
-/// this one and a gate test that probes `/__test__/reset` with no token
-/// while seeding is disabled: it needs a genuine 404 (`seed_gate_test.dart`
-/// — "a data-wiping route must not exist"), and with the unconditional wrap
-/// it got 401 instead, because campaignHandler swallowed the unmatched path
-/// before campaignRouter's own shelf_router routing ever ran.
+/// unconditionally. Wiring it as a `Pipeline` middleware OUTSIDE the leg's
+/// own router (as `bin/server.dart` did before this file existed) means it
+/// runs before shelf_router ever gets to decide whether the path even
+/// matches — so the leg answered 401, not 404, for a completely unregistered
+/// path with no Authorization header. That was latent and untested until
+/// Task 11 added a Cascade candidate (`seedRouter`) AFTER the campaign leg
+/// and a gate test that probes `/__test__/reset` with no token while
+/// seeding is disabled: it needs a genuine 404 (`seed_gate_test.dart` — "a
+/// data-wiping route must not exist"), and with the unconditional wrap it
+/// got 401 instead, because the campaign leg swallowed the unmatched path
+/// before its own shelf_router routing ever ran.
 ///
-/// Scoping the check to `/campaigns`* here restores the real 404 for every
-/// other path — `campaignRouter.call` runs unauthenticated, matches nothing,
-/// and returns shelf_router's own "not found" sentinel, which is what lets
+/// Scoping the check to [roots] here restores the real 404 for every other
+/// path — the leg's own router runs unauthenticated, matches nothing, and
+/// returns shelf_router's own "not found" sentinel, which is what lets
 /// [Cascade] relinquish to whatever candidate (or nothing) comes next —
-/// while every genuine `/campaigns` request is authenticated exactly as
+/// while every genuine request under [roots] is authenticated exactly as
 /// before.
-Middleware _authenticateOnlyUnderCampaigns({
+Middleware _authenticateUnder(
+  Set<String> roots, {
   required Db db,
   required TokenService tokens,
 }) {
@@ -128,20 +149,20 @@ Middleware _authenticateOnlyUnderCampaigns({
       // relative... to requestedUri.path without the initial '/'". Today
       // this handler sits at the top level, so the two agree modulo the
       // leading slash (`campaigns` vs `/campaigns`), which is why the
-      // literals below have none. The point of reading `url` instead of
+      // literals in [roots] have none. The point of reading `url` instead of
       // `requestedUri` is that THIS predicate keeps matching correctly if
-      // `campaignHandler` is ever mounted under a prefix (e.g.
+      // the leg is ever mounted under a prefix (e.g.
       // `Router().mount('/api', ...)`) -- `url.path` stays `campaigns`
       // relative to that mount, while `requestedUri.path` would still be the
       // full, unstripped `/api/campaigns` and would stop matching, silently
-      // routing real campaign requests past `authenticate` unauthenticated.
-      // Reading `url` is what keeps a future mount failing CLOSED (still
+      // routing real requests past `authenticate` unauthenticated. Reading
+      // `url` is what keeps a future mount failing CLOSED (still
       // authenticated) instead of open.
       final path = request.url.path;
-      if (path == 'campaigns' || path.startsWith('campaigns/')) {
-        return gated(request);
-      }
-      return inner(request);
+      final matches = roots.any(
+        (root) => path == root || path.startsWith('$root/'),
+      );
+      return matches ? gated(request) : inner(request);
     };
   };
 }

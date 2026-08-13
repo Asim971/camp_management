@@ -1,0 +1,16 @@
+# The image build context is the REPOSITORY ROOT (server/Dockerfile copies
+# the sibling packages/campaign_contracts path dependency), so this file must
+# live here: Docker only reads .dockerignore from the context root, which is
+# why the old server/.dockerignore was silently ineffective (slice-1 final
+# review, deferred finding).
+#
+# Allowlist style: drop everything, re-admit only what the server image
+# needs, then re-drop the junk inside those trees. Without this the context
+# uploads the whole repo — including build/ with a ~220MB APK per e2e build.
+*
+!server/
+!packages/
+server/.dart_tool/
+server/build/
+server/test/
+packages/**/.dart_tool/

@@ -291,12 +291,36 @@ Immediately before the `for (var attempt ...)` loop, add the sweep:
       // expired rows. Postgres has no DELETE ... LIMIT, hence the ctid
       // subquery. Bounded so a request never pays for unbounded cleanup;
       // eventually-complete because every subsequent claim sweeps again.
-      await db.execute(
-        'DELETE FROM idempotency_keys WHERE ctid IN ('
-        '  SELECT ctid FROM idempotency_keys '
-        '  WHERE expires_at <= now() LIMIT $_reapLimit)',
-      );
+      try {
+        await db.execute(
+          'DELETE FROM idempotency_keys WHERE ctid IN ('
+          '  SELECT ctid FROM idempotency_keys '
+          '  WHERE expires_at <= now() '
+          '  ORDER BY expires_at LIMIT $_reapLimit '
+          '  FOR UPDATE SKIP LOCKED)',
+        );
+      } on Object {
+        // Housekeeping must never fail the request it piggybacks on.
+      }
 ```
+
+> **Two corrections found by Task 1's review (2026-08-11), already reflected in the code
+> block above — apply them from the start if re-running this plan.**
+>
+> **1. The original snippet's unguarded, unordered sweep was a deadlock-and-500 vector.**
+> Two concurrent backends seq-scanning for expired ctids lock overlapping row sets in
+> divergent orders (`synchronize_seqscans`), and the loser's deadlock error aborted the
+> user's POST — best-effort cleanup failing the retry-safety endpoint. The guard swallows
+> sweep failures; `ORDER BY expires_at ... FOR UPDATE SKIP LOCKED` makes concurrent
+> sweeps take disjoint, deterministic victim sets.
+>
+> **2. The sweep silently emptied the expired-reclaim branch's only test.** The
+> pre-existing reclaim test seeded ONE expired row, which the sweep now deletes before
+> the claim runs — the test stayed green while pinning nothing. The fix seeds 100 decoy
+> rows with strictly older `expires_at` (the sweep's new ORDER BY makes the victim set
+> deterministic), so the key under test provably survives to reach the `DO UPDATE`
+> reclaim. Verified non-vacuous by breaking the reclaim WHERE clause and watching the
+> test fail.
 
 - [ ] **Step 4: Run the new suite and the existing idempotency suite**
 
@@ -445,6 +469,16 @@ Replace the body of the `for (final id in pending)` loop:
       if (appliedThisId) applied.add(id);
     }
 ```
+
+> **Correction found by Task 2's execution (2026-08-11, TDD, deterministic 5/5): the
+> Step 3 snippet alone does NOT close the race.** The bootstrap
+> `CREATE TABLE IF NOT EXISTS schema_migrations` at the top of `applyPending` runs
+> outside any lock, and Postgres's existence-check-then-create is not atomic under
+> concurrent DDL — two cold-boot migrators fail with SQLSTATE 23505 on `pg_type` before
+> the per-migration lock is ever reached. Wrap that bootstrap statement in its own
+> lock-guarded transaction using the same `_migrationLockKey`. The loser-skips guarantee
+> still holds across the bootstrap/loop lock gap because the in-tx recheck (not the lock
+> alone) is what makes the loser skip.
 
 - [ ] **Step 4: Add migration `003_role_check`**
 
@@ -1495,6 +1529,13 @@ class ParticipantRepo {
       );
     }
 
+    // Corrections from Task 5's review (2026-08-11), reflected below: (1) the
+    // write's SELECT carries its own org predicate — D7 requires scoping
+    // INSIDE the SQL, never only in a pre-check outside the transaction;
+    // (2) ids are deduplicated at entry — ANY() matches carpenter ROWS, not
+    // list entries, so ['c-1','c-1'] miscounted alreadyRegistered and the
+    // audit payload without it.
+    final ids = carpenterIds.toSet().toList();
     late int inserted;
     await _db.tx((tx) async {
       final result = await tx.execute(
@@ -1507,11 +1548,13 @@ class ParticipantRepo {
           "       ELSE '${RegistrationStatus.registered.wireValue}' END, "
           '  @by '
           'FROM carpenters c WHERE c.id = ANY(@ids) '
+          '  AND c.organization_id = @org '
           'ON CONFLICT (campaign_id, carpenter_id) DO NOTHING',
         ),
         parameters: {
           'campaign': campaignId,
-          'ids': carpenterIds,
+          'ids': ids,
+          'org': organizationId,
           'by': registeredBy,
         },
       );
@@ -2762,6 +2805,12 @@ In `lib/features/registration/presentation/registration_workspace_screen.dart`:
 ```dart
                             : Semantics(
                                 identifier: 'registration_add_${person.id}',
+                                // Task 9 review correction: a bare
+                                // Semantics(identifier:) node reports
+                                // enabled=true to the Android accessibility
+                                // bridge regardless of the child's state
+                                // (see bmd_button.dart's own doc) — carry it.
+                                enabled: !inBasket,
                                 child: IconButton(
                                   icon: Icon(
                                     inBasket
@@ -2775,14 +2824,23 @@ In `lib/features/registration/presentation/registration_workspace_screen.dart`:
                               ),
 ```
 
+   (Prefer the design-system widgets' built-in `identifier:` parameters —
+   `BmdSearchField`/`BmdField`/`BmdButton` all wrap `Semantics(identifier:)`
+   internally and `BmdButton` carries enabled state — the external wrap is
+   only for the raw `IconButton`, which has no such parameter.)
+
 2. In `_showRequestProfileSheet`: title `'Request new Sales Eco profile'` → `'Request new carpenter profile'`, and the explanatory `Text` → 
 
 ```dart
         const Text(
           'Creates a local profile pending ratification and adds the '
-          'participant to your basket as "Pending profile sync".',
+          'participant to your basket.',
         ),
 ```
+
+   (Task 9 review correction: the copy must not name a "Pending profile sync"
+   state — the basket renders no such badge, and spec 2a.D5 deliberately
+   defers the syncStatus UI to future work.)
 
 - [ ] **Step 7: Run everything app-side**
 

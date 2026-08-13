@@ -21,18 +21,31 @@ import '../support/seed_fixtures.dart';
 import '../support/test_db.dart';
 
 /// One backend to probe: [name] names it in test descriptions, [getJson]
-/// performs a `GET` and returns the decoded JSON object body.
+/// performs a `GET` and returns the decoded JSON object body, [postJson]
+/// performs a `POST` with a JSON body and returns the status and decoded
+/// JSON object body.
 class ParityTarget {
-  ParityTarget(this.name, this.getJson);
+  ParityTarget(this.name, this.getJson, this.postJson);
 
   final String name;
   final Future<Map<String, Object?>> Function(String pathAndQuery) getJson;
+  final Future<({int status, Map<String, Object?> body})> Function(
+    String pathAndQuery,
+    Map<String, Object?> body,
+  )
+  postJson;
 }
 
 /// The mock's listen port for this file only — distinct from its usual 8080
 /// default so this suite never collides with a locally-running dev instance
 /// of either backend.
 const int _mockPort = 8099;
+
+/// File-level counter so every real-side POST in this suite gets a unique
+/// `Idempotency-Key` — reusing one across distinct requests would make the
+/// second call replay the first's cached response instead of actually
+/// running (server/lib/src/infra/idempotency.dart).
+var _keySeq = 0;
 
 void main() {
   late Process mockProcess;
@@ -66,6 +79,7 @@ void main() {
   /// the whole suite so this is safe.
   Future<({ParityTarget real, ParityTarget mock})> buildTargets({
     required int campaignCount,
+    bool seedCarpenters = false,
   }) async {
     final db = await freshDb();
     openDbs.add(db);
@@ -73,6 +87,16 @@ void main() {
     await seedOrganizationWithUser(db); // campaign_creator, org-1/user-1
     if (campaignCount > 0) {
       await seedCampaigns(db, count: campaignCount);
+    }
+    if (seedCarpenters) {
+      await seedCarpenter(db, id: 'CARP_E2E');
+      await seedCarpenter(
+        db,
+        id: 'CARP_E2E_2',
+        name: 'Karim Uddin',
+        phone: '+8801700007734',
+        displayCode: 'CARP-00007734',
+      );
     }
 
     final config = ServerConfig.fromEnvironment({
@@ -83,23 +107,56 @@ void main() {
     final token = (await tokens.issueFor('user-1')).accessToken;
     final handler = buildApp(db: db, config: config);
 
-    final real = ParityTarget('real service', (pathAndQuery) async {
-      final res = await handler(
-        Request(
-          'GET',
-          Uri.parse('http://localhost$pathAndQuery'),
-          headers: {'authorization': 'Bearer $token'},
-        ),
-      );
-      return jsonDecode(await res.readAsString()) as Map<String, Object?>;
-    });
+    final real = ParityTarget(
+      'real service',
+      (pathAndQuery) async {
+        final res = await handler(
+          Request(
+            'GET',
+            Uri.parse('http://localhost$pathAndQuery'),
+            headers: {'authorization': 'Bearer $token'},
+          ),
+        );
+        return jsonDecode(await res.readAsString()) as Map<String, Object?>;
+      },
+      (pathAndQuery, body) async {
+        final res = await handler(
+          Request(
+            'POST',
+            Uri.parse('http://localhost$pathAndQuery'),
+            headers: {
+              'authorization': 'Bearer $token',
+              'content-type': 'application/json',
+              'Idempotency-Key': 'parity-${_keySeq++}',
+            },
+            body: jsonEncode(body),
+          ),
+        );
+        final decoded =
+            jsonDecode(await res.readAsString()) as Map<String, Object?>;
+        return (status: res.statusCode, body: decoded);
+      },
+    );
 
-    final mock = ParityTarget('mock server', (pathAndQuery) async {
-      final res = await _httpGet(
-        Uri.parse('http://127.0.0.1:$_mockPort$pathAndQuery'),
-      );
-      return jsonDecode(res) as Map<String, Object?>;
-    });
+    final mock = ParityTarget(
+      'mock server',
+      (pathAndQuery) async {
+        final res = await _httpGet(
+          Uri.parse('http://127.0.0.1:$_mockPort$pathAndQuery'),
+        );
+        return jsonDecode(res) as Map<String, Object?>;
+      },
+      (pathAndQuery, body) async {
+        final res = await _httpPost(
+          Uri.parse('http://127.0.0.1:$_mockPort$pathAndQuery'),
+          body,
+        );
+        return (
+          status: res.status,
+          body: jsonDecode(res.body) as Map<String, Object?>,
+        );
+      },
+    );
 
     return (real: real, mock: mock);
   }
@@ -188,6 +245,68 @@ void main() {
         );
       });
     }
+
+    test(
+      '$targetName: carpenter search items satisfy the masked shape',
+      () async {
+        final targets = await buildTargets(
+          campaignCount: 0,
+          seedCarpenters: true,
+        );
+        final target = targetName == 'real' ? targets.real : targets.mock;
+
+        final body = await target.getJson('/carpenters?q=karim');
+        final items = (body['items']! as List).cast<Map<String, Object?>>();
+        expect(items, isNotEmpty);
+        for (final c in items) {
+          expect(c['displayId'], matches(RegExp(r'^CARP-••\d{4}$')));
+          expect(c['phoneSuffix'], matches(RegExp(r'^\d{4}$')));
+          expect(c['eligible'], isA<bool>());
+          expect(c['syncStatus'], anyOf('LOCAL_ONLY', 'PENDING_PROFILE_SYNC'));
+          // attendanceState is OPTIONAL in the shared contract (2a.D4): the
+          // real service omits it, the mock still emits it for the configs
+          // that remain mocked. If present it must at least be a string.
+          if (c.containsKey('attendanceState')) {
+            expect(c['attendanceState'], isA<String>());
+          }
+        }
+      },
+    );
+
+    test('$targetName: registration answers the counts shape', () async {
+      final targets = await buildTargets(
+        campaignCount: 1,
+        seedCarpenters: true,
+      );
+      final target = targetName == 'real' ? targets.real : targets.mock;
+      // seed-0 is buildTargets' first campaign on the real side; the mock
+      // ignores the id entirely.
+      final res = await target.postJson('/campaigns/seed-0/registrations', {
+        'carpenterIds': ['CARP_E2E'],
+      });
+      expect(res.status, 200);
+      expect(res.body['registered'], isA<int>());
+      expect(res.body['alreadyRegistered'], isA<int>());
+    });
+
+    test('$targetName: profile request answers 201 with a provisional '
+        'carpenter', () async {
+      final targets = await buildTargets(
+        campaignCount: 1,
+        seedCarpenters: false,
+      );
+      final target = targetName == 'real' ? targets.real : targets.mock;
+      final res = await target.postJson('/campaigns/seed-0/profile-requests', {
+        'name': 'Parity Person',
+        'phone': '+8801755556666',
+      });
+      expect(res.status, 201);
+      expect(res.body['requestId'], isA<String>());
+      final carpenter = res.body['carpenter']! as Map<String, Object?>;
+      expect(carpenter['syncStatus'], 'PENDING_PROFILE_SYNC');
+      expect(carpenter['displayId'], matches(RegExp(r'^CARP-••\d{4}$')));
+      expect(carpenter.containsKey('phone'), isFalse);
+    });
   }
 }
 
@@ -209,6 +328,23 @@ Future<String> _httpGet(Uri uri) async {
     final request = await client.getUrl(uri);
     final response = await request.close();
     return await response.transform(utf8.decoder).join();
+  } finally {
+    client.close();
+  }
+}
+
+Future<({int status, String body})> _httpPost(
+  Uri uri,
+  Map<String, Object?> body,
+) async {
+  final client = HttpClient();
+  try {
+    final request = await client.postUrl(uri);
+    request.headers.contentType = ContentType.json;
+    request.write(jsonEncode(body));
+    final response = await request.close();
+    final text = await response.transform(utf8.decoder).join();
+    return (status: response.statusCode, body: text);
   } finally {
     client.close();
   }

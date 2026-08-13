@@ -9,3 +9,4 @@ library;
 export 'src/campaign_decision.dart';
 export 'src/campaign_status.dart';
 export 'src/error_codes.dart';
+export 'src/registration_status.dart';

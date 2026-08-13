@@ -257,6 +257,25 @@ void main() {
         "WHERE user_id = 'user-1' AND key = 'stale-key'",
       );
 
+      // The claim's opportunistic reaper (idempotency.dart) sweeps up to
+      // 100 expired rows, oldest-first, ahead of every claim — including
+      // the one below. Without decoys, that sweep would itself delete
+      // 'stale-key' before the claim ever ran, so the second POST's INSERT
+      // would be a plain fresh row rather than a DO UPDATE reclaim, and
+      // this test would stop covering the `expires_at <= now()` reclaim
+      // branch entirely. Seeding exactly 100 rows strictly older than
+      // 'stale-key' (2 hours vs. 1 hour) makes the sweep's oldest-first
+      // LIMIT 100 batch provably consist of only these decoys, leaving
+      // 'stale-key' expired-but-present for the claim below to reclaim.
+      // 100 must track idempotency.dart's private `_reapLimit`.
+      await db.execute(
+        'INSERT INTO idempotency_keys '
+        '(user_id, key, request_hash, expires_at) '
+        "SELECT 'user-1', 'decoy-' || i, 'h', "
+        "  now() - interval '2 hours' - (i * interval '1 second') "
+        'FROM generate_series(1, 100) AS i',
+      );
+
       final second = await post(handler, key: 'stale-key', body: {'name': 'A'});
       expect(
         second.statusCode,
