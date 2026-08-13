@@ -24,7 +24,8 @@ class ImportJob with _$ImportJob {
 
   int count(ImportRowOutcome o) => rows.where((r) => r.outcome == o).length;
 
-  int get committable => count(ImportRowOutcome.valid);
+  int get committable =>
+      count(ImportRowOutcome.valid) + count(ImportRowOutcome.needsProfile);
 }
 
 @freezed

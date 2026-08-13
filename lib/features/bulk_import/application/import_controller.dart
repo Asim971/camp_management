@@ -1,8 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/di/providers.dart';
 import '../../../core/trace/trace_id.dart';
+import '../../../domain/common/status.dart';
 import '../../../domain/import/import_job.dart';
+
+/// How long the poll loop keeps retrying before giving up on an import that
+/// never reaches a terminal state — a stuck server shouldn't poll forever.
+const importPollCap = Duration(seconds: 30);
+const importPollInterval = Duration(seconds: 1);
 
 class ImportState {
   const ImportState({
@@ -19,8 +27,11 @@ class ImportState {
       );
 }
 
-/// Bulk Import (W-07): upload → dry run → review rows → commit valid rows.
+/// Bulk Import (W-07): upload → dry run (async, polled) → review rows →
+/// commit valid + needs-profile rows.
 class ImportController extends AutoDisposeFamilyNotifier<ImportState, String> {
+  Timer? _pollTimer;
+
   @override
   ImportState build(String campaignId) => const ImportState();
 
@@ -29,9 +40,33 @@ class ImportController extends AutoDisposeFamilyNotifier<ImportState, String> {
     final res = await ref
         .read(importRepositoryProvider)
         .uploadDryRun(arg, bytes: bytes, filename: filename);
-    state = state.copyWith(
-      job: res.fold(AsyncData.new, (f) => AsyncError(f, StackTrace.current)),
-    );
+    res.fold((job) {
+      state = state.copyWith(job: AsyncData(job));
+      if (job.status == ImportStatus.processing) _startPolling(job.id);
+    }, (f) => state = state.copyWith(job: AsyncError(f, StackTrace.current)));
+  }
+
+  /// Polls `GET /imports/{jobId}` once a second until the job reaches a
+  /// terminal state (`readyToCommit`/`failed`) or [importPollCap] elapses —
+  /// whichever comes first. The timer is cancelled on either exit AND via
+  /// [ref.onDispose], so a screen navigated away from mid-poll (autoDispose)
+  /// never leaves a timer calling `ref.read` on a dead provider.
+  void _startPolling(String jobId) {
+    final started = DateTime.now();
+    _pollTimer?.cancel();
+    final timer = Timer.periodic(importPollInterval, (t) async {
+      if (DateTime.now().difference(started) > importPollCap) {
+        t.cancel();
+        return;
+      }
+      final res = await ref.read(importRepositoryProvider).poll(jobId);
+      res.fold((job) {
+        state = state.copyWith(job: AsyncData(job));
+        if (job.status != ImportStatus.processing) t.cancel();
+      }, (_) {});
+    });
+    _pollTimer = timer;
+    ref.onDispose(timer.cancel);
   }
 
   Future<void> commit() async {
@@ -40,7 +75,7 @@ class ImportController extends AutoDisposeFamilyNotifier<ImportState, String> {
     state = state.copyWith(committing: true);
     final res = await ref
         .read(importRepositoryProvider)
-        .commit(job.id, trace: TraceId.generate());
+        .commit(arg, job.id, trace: TraceId.generate());
     state = state.copyWith(
       committing: false,
       job: res.fold(AsyncData.new, (f) => AsyncError(f, StackTrace.current)),

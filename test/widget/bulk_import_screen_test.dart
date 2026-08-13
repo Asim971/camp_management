@@ -1,6 +1,9 @@
 import 'dart:typed_data';
 
+import 'package:acsl_campaign/app/flavors.dart';
 import 'package:acsl_campaign/core/auth/rbac.dart';
+import 'package:acsl_campaign/domain/common/status.dart';
+import 'package:acsl_campaign/domain/import/import_job.dart';
 import 'package:acsl_campaign/features/bulk_import/application/import_controller.dart';
 import 'package:acsl_campaign/features/bulk_import/presentation/bulk_import_screen.dart';
 import 'package:file_selector_platform_interface/file_selector_platform_interface.dart';
@@ -11,6 +14,13 @@ import 'package:go_router/go_router.dart';
 
 import '../support/harness.dart';
 import '../support/single_primary.dart';
+
+/// Finds the [Semantics] node carrying a given stable test id — the same
+/// `Semantics(identifier: …)` convention Maestro flows key off (mirrors
+/// `test/widget/registration_workspace_screen_test.dart`'s `_byIdentifier`).
+Finder _byIdentifier(String id) => find.byWidgetPredicate(
+  (w) => w is Semantics && w.properties.identifier == id,
+);
 
 /// AppShell derives the selected nav index from GoRouterState.of(context),
 /// which requires the widget under test to be built by an actual GoRouter
@@ -56,6 +66,30 @@ class _FakeImportController extends ImportController {
     receivedBytes = bytes;
     receivedFilename = filename;
   }
+}
+
+/// Seeds a ready-to-commit job straight into [build] so `_Results` (and its
+/// "Ready to commit" headline / `import_commit` control) renders without
+/// driving an upload — the point of these tests is the review/commit surface,
+/// not the pick-to-upload wiring already covered above.
+class _JobSeededController extends ImportController {
+  @override
+  ImportState build(String campaignId) => const ImportState(
+    job: AsyncData(
+      ImportJob(
+        id: 'IMPORT-1',
+        campaignId: 'CAMP-1',
+        status: ImportStatus.readyToCommit,
+        rows: [
+          ImportRow(
+            rowId: 'row-1',
+            name: 'Md. Karim',
+            outcome: ImportRowOutcome.valid,
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 void main() {
@@ -152,4 +186,97 @@ void main() {
       expectSinglePrimaryAction(tester);
     },
   );
+
+  testWidgets('bulk_import_screen: the pick control carries the stable '
+      '"import_pick" semantics id Maestro drives', (tester) async {
+    FileSelectorPlatform.instance = _FakeFileSelectorPlatform(null);
+
+    const campaignId = 'CAMP-3';
+    final container = buildTestContainer(
+      permissions: {Permission.bulkImport},
+      overrides: [
+        importControllerProvider.overrideWith(_FakeImportController.new),
+      ],
+    );
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: _wrapInRouter(campaignId),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(_byIdentifier('import_pick'), findsOneWidget);
+  });
+
+  testWidgets(
+    'bulk_import_screen: a ready-to-commit job shows the stable "Ready to '
+    'commit" headline and an "import_commit" control',
+    (tester) async {
+      const campaignId = 'CAMP-4';
+      final container = buildTestContainer(
+        permissions: {Permission.bulkImport},
+        overrides: [
+          importControllerProvider.overrideWith(_JobSeededController.new),
+        ],
+      );
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: _wrapInRouter(campaignId),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Ready to commit'), findsOneWidget);
+      expect(_byIdentifier('import_commit'), findsOneWidget);
+    },
+  );
+
+  testWidgets('bulk_import_screen: under E2E config, picking a file loads the '
+      'bundled asset via FakeFileSource — no native picker involved', (
+    tester,
+  ) async {
+    // Deliberately does NOT stub FileSelectorPlatform.instance: if the
+    // e2e-config seam regressed back to RealFileSource, this test would
+    // hang or throw on the (unstubbed) real platform channel rather than
+    // silently passing.
+    const campaignId = 'CAMP-5';
+    final container = buildTestContainer(
+      permissions: {Permission.bulkImport},
+      config: const AppConfig(
+        flavor: Flavor.dev,
+        apiBaseUrl: 'https://example.invalid',
+        mediaHost: 'https://example.invalid',
+        e2e: true,
+      ),
+      overrides: [
+        importControllerProvider.overrideWith(_FakeImportController.new),
+      ],
+    );
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: _wrapInRouter(campaignId),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(_byIdentifier('import_pick'));
+    await tester.pumpAndSettle();
+
+    final controller =
+        container.read(importControllerProvider(campaignId).notifier)
+            as _FakeImportController;
+
+    expect(controller.receivedFilename, 'bulk_import_sample.csv');
+    expect(controller.receivedBytes, isNotNull);
+    expect(
+      String.fromCharCodes(controller.receivedBytes!),
+      contains('Md. Karim'),
+    );
+  });
 }
