@@ -662,6 +662,207 @@ void main() {
             'or otherwise-cased variant',
       );
     });
+
+    // Task 7 (5a): the mock's verification queue/case fixtures were
+    // modernised to the ratified SCREAMING_SNAKE wire (`band`/`referenceSource`
+    // were previously camelCase, e.g. 'medium'/'verifiedProfilePhoto'), and
+    // its decision handler now reads the case's own version against the
+    // caller's `If-Match` header instead of hardcoding a 409 for
+    // CASE_CONFLICT. This pins both: the queue/case shapes carry real
+    // MatchBand/ReferenceSource wire values on both backends, and a stale
+    // If-Match yields exactly 412 on both — not the mock's old unconditional
+    // 409.
+    //
+    // The real side needs its own `crm_verifier` token (verification_decide +
+    // sensitive_media_view): `buildTargets`' default user-1 is
+    // `campaign_creator`, which carries neither (auth/tokens.dart's
+    // permissionsByRole) -- so, as the confirm-parity case above does for its
+    // field_user token, the real side mints its own token and calls the app
+    // handler directly instead of going through `target.getJson`/`postJson`.
+    test(
+      '$targetName: verification queue/case carry SCREAMING_SNAKE '
+      'band/referenceSource, and a stale If-Match decision returns 412',
+      () async {
+        final targets = await buildTargets(campaignCount: 0);
+
+        late final String attendanceId;
+        late final Map<String, Object?> queueItem;
+        late final Map<String, Object?> caseView;
+        String verifierBearer = '';
+        Handler? realHandler;
+
+        Future<Map<String, Object?>> getReal(String path) async {
+          final res = await realHandler!(
+            Request(
+              'GET',
+              Uri.parse('http://localhost$path'),
+              headers: {'authorization': 'Bearer $verifierBearer'},
+            ),
+          );
+          return jsonDecode(await res.readAsString()) as Map<String, Object?>;
+        }
+
+        if (targetName == 'real') {
+          attendanceId = 'parity-verify-att';
+          await seedOrganizationWithUser(
+            targets.realDb,
+            userId: 'parity-verifier',
+            username: 'parity-verifier',
+            roles: const ['crm_verifier'],
+          );
+          await seedCampaign(
+            targets.realDb,
+            id: 'parity-verify-camp',
+            status: CampaignStatus.approved,
+          );
+          await seedCampaignSession(
+            targets.realDb,
+            id: 'parity-verify-sess',
+            campaignId: 'parity-verify-camp',
+            venue: 'Hall A',
+          );
+          await seedCarpenter(targets.realDb, id: 'parity-verify-carp');
+          await targets.realDb.execute(
+            'INSERT INTO attendance '
+            '(id, organization_id, campaign_id, session_id, carpenter_id, '
+            ' media_ref, status, captured_by, captured_at, machine_band, '
+            ' machine_reference_src, machine_reasons, version) '
+            "VALUES (@id, 'org-1', 'parity-verify-camp', "
+            "'parity-verify-sess', 'parity-verify-carp', @id, 'CRM_REVIEW', "
+            "'parity-verifier', now(), 'MEDIUM', 'APPROVED_BASELINE_PHOTO', "
+            "@reasons::jsonb, 1)",
+            params: {
+              'id': attendanceId,
+              'reasons': jsonEncode(const [
+                'Landmark alignment within tolerance',
+              ]),
+            },
+          );
+          await targets.realDb.execute(
+            "INSERT INTO media_objects (id, content_type, bytes) "
+            "VALUES (@id, 'image/png', @bytes)",
+            params: {
+              'id': attendanceId,
+              'bytes': Uint8List.fromList(const [1, 2, 3, 4]),
+            },
+          );
+
+          final config = ServerConfig.fromEnvironment({
+            'DATABASE_URL': testDatabaseUrl,
+            'JWT_SECRET': 'a-secret-at-least-32-characters-long!!',
+          });
+          verifierBearer = (await TokenService(
+            db: targets.realDb,
+            config: config,
+          ).issueFor('parity-verifier')).accessToken;
+          realHandler = buildApp(db: targets.realDb, config: config);
+
+          final queueBody = await getReal('/verification/queue');
+          queueItem =
+              ((queueBody['items']! as List).cast<Map<String, Object?>>())
+                  .singleWhere((i) => i['attendanceId'] == attendanceId);
+          caseView = await getReal('/verification/cases/$attendanceId');
+        } else {
+          attendanceId = 'CASE_E2E';
+          final queueBody = await targets.mock.getJson('/verification/queue');
+          queueItem =
+              ((queueBody['items']! as List).cast<Map<String, Object?>>())
+                  .singleWhere((i) => i['attendanceId'] == attendanceId);
+          caseView = await targets.mock.getJson(
+            '/verification/cases/$attendanceId',
+          );
+        }
+
+        // (a) Queue item shape.
+        expect(
+          queueItem.keys,
+          containsAll(<String>[
+            'attendanceId',
+            'carpenterName',
+            'campaignName',
+            'ageSeconds',
+            'band',
+            'referenceSource',
+            'assigneeId',
+          ]),
+        );
+        expect(
+          MatchBand.tryParseWire(queueItem['band']! as String),
+          isNotNull,
+          reason:
+              '${queueItem['band']} is not a SCREAMING_SNAKE MatchBand wire '
+              'value',
+        );
+
+        // (b) Case shape.
+        expect(
+          caseView.keys,
+          containsAll(<String>[
+            'attendanceId',
+            'version',
+            'carpenterName',
+            'carpenterIdMasked',
+            'campaignName',
+            'sessionName',
+            'capturedAt',
+            'capturedImageUrl',
+            'referenceImageUrl',
+            'band',
+            'referenceSource',
+            'padReview',
+            'lowQuality',
+            'reasons',
+          ]),
+        );
+        expect(
+          MatchBand.tryParseWire(caseView['band']! as String),
+          isNotNull,
+          reason:
+              '${caseView['band']} is not a SCREAMING_SNAKE MatchBand '
+              'wire value',
+        );
+        expect(
+          ReferenceSource.tryParseWire(caseView['referenceSource']! as String),
+          isNotNull,
+          reason:
+              '${caseView['referenceSource']} is not a SCREAMING_SNAKE '
+              'ReferenceSource wire value',
+        );
+
+        // (c) A stale If-Match on the decision returns exactly 412 on both
+        // backends. The real fixture is at version 1, so `If-Match: 0` is
+        // stale; the mock's CASE_CONFLICT fixture is fixed at version 2, so
+        // `If-Match: 1` (what a client that last saw version 1 would send)
+        // is stale there too.
+        if (targetName == 'real') {
+          final res = await realHandler!(
+            Request(
+              'POST',
+              Uri.parse(
+                'http://localhost/verification/cases/$attendanceId/decision',
+              ),
+              headers: {
+                'authorization': 'Bearer $verifierBearer',
+                'if-match': '0',
+                'content-type': 'application/json',
+              },
+              body: jsonEncode(const {'outcome': 'APPROVED'}),
+            ),
+          );
+          expect(res.statusCode, 412);
+        } else {
+          final res = await _httpPostWithIfMatch(
+            Uri.parse(
+              'http://127.0.0.1:$_mockPort/verification/cases/'
+              'CASE_CONFLICT/decision',
+            ),
+            const {'outcome': 'APPROVED'},
+            ifMatch: '1',
+          );
+          expect(res.status, 412);
+        }
+      },
+    );
   }
 }
 
@@ -696,6 +897,28 @@ Future<({int status, String body})> _httpPost(
   try {
     final request = await client.postUrl(uri);
     request.headers.contentType = ContentType.json;
+    request.write(jsonEncode(body));
+    final response = await request.close();
+    final text = await response.transform(utf8.decoder).join();
+    return (status: response.statusCode, body: text);
+  } finally {
+    client.close();
+  }
+}
+
+/// Like [_httpPost], but also sets an `If-Match` header — needed for the
+/// mock's version-aware verification decision endpoint, which [_httpPost]
+/// alone can't exercise.
+Future<({int status, String body})> _httpPostWithIfMatch(
+  Uri uri,
+  Map<String, Object?> body, {
+  required String ifMatch,
+}) async {
+  final client = HttpClient();
+  try {
+    final request = await client.postUrl(uri);
+    request.headers.contentType = ContentType.json;
+    request.headers.set('if-match', ifMatch);
     request.write(jsonEncode(body));
     final response = await request.close();
     final text = await response.transform(utf8.decoder).join();
