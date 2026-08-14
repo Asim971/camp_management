@@ -12,3 +12,4 @@ export 'src/error_codes.dart';
 export 'src/import_row_outcome.dart';
 export 'src/import_status.dart';
 export 'src/registration_status.dart';
+export 'src/session_status.dart';

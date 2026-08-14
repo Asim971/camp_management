@@ -21,7 +21,10 @@ enum ApiErrorCode {
   // participants (sub-project 2a)
   unknownCarpenter,
   // bulk import (sub-project 2b)
-  importFileInvalid;
+  importFileInvalid,
+  // session operations (sub-project 3a)
+  sessionInvalidTransition,
+  sessionNotReady;
 
   String get wireValue => switch (this) {
     badRequest => 'BAD_REQUEST',
@@ -40,6 +43,8 @@ enum ApiErrorCode {
     segregationOfDutiesViolation => 'SEGREGATION_OF_DUTIES_VIOLATION',
     unknownCarpenter => 'UNKNOWN_CARPENTER',
     importFileInvalid => 'IMPORT_FILE_INVALID',
+    sessionInvalidTransition => 'SESSION_INVALID_TRANSITION',
+    sessionNotReady => 'SESSION_NOT_READY',
   };
 
   static ApiErrorCode? tryParseWire(String wire) {
