@@ -308,6 +308,14 @@ jobs:
             defines: '--dart-define=E2E_REAL_AUTH=true'
             useMock: '0'
             flows: .maestro/flows/session_ops.yaml
+          # 4a: real-auth field_user capture round-trip (presign -> upload ->
+          # confirm) against the real campaign_service. Acceptance proof for
+          # sub-project 4a. The `field` config keeps the mock until 4c migrates
+          # field_capture_recapture.
+          - key: capture
+            defines: '--dart-define=E2E_REAL_AUTH=true --dart-define=ROLE=field_user'
+            useMock: '0'
+            flows: .maestro/flows/attendance_capture.yaml
     steps:
       - uses: actions/checkout@v4
 

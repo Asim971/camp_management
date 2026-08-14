@@ -218,7 +218,7 @@ void main() {
     );
   });
 
-  test('reset seeds one operable session on seed-camp-1', () async {
+  test('reset seeds two operable sessions on seed-camp-1', () async {
     final handler = buildApp(db: db, config: configWithSeeding(true));
     await _post(handler, '/__test__/reset');
 
@@ -244,17 +244,27 @@ void main() {
     final items = (body['items']! as List<Object?>)
         .cast<Map<String, Object?>>();
 
+    // Two rows: `seed-camp-1-session-1` (session_ops.yaml's start/pause/close
+    // lifecycle) and `SESSION_E2E` (the dev launcher's hard-coded
+    // dev_open_search/dev_open_capture target — attendance_capture.yaml,
+    // Task 8). Ordered by start_at, so session-1 (09:00) is always first.
     expect(
       items,
-      hasLength(1),
+      hasLength(2),
       reason:
-          '.maestro/flows/session_ops.yaml needs exactly one seeded session '
-          'on seed-camp-1',
+          '.maestro/flows/session_ops.yaml needs seed-camp-1-session-1 and '
+          'attendance_capture.yaml needs SESSION_E2E, both on seed-camp-1',
     );
-    final session = items.single;
+    final session = items.first;
     expect(session['id'], 'seed-camp-1-session-1');
     expect(session['status'], 'UPCOMING');
     expect(session['readinessOk'], true);
+    final e2eSession = items.last;
+    expect(e2eSession['id'], 'SESSION_E2E');
+    // CAPTURE_CLOSED, not UPCOMING: it must not add a second `session_start`
+    // button on this campaign's Sessions tab (session_ops.yaml assumes
+    // exactly one). See the seeding comment in seed_routes.dart.
+    expect(e2eSession['status'], 'CAPTURE_CLOSED');
   });
 
   test('reset seeds no session for the other campaign fixtures', () async {
