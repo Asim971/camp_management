@@ -193,6 +193,29 @@ class _Results extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 16),
+        // Commit action ABOVE the detail table on purpose. The table is a
+        // fixed 360px block; with the button below it, on a short (~640px)
+        // emulator viewport the button lands off the bottom of the screen —
+        // rendered but unreachable, so the W-07 e2e drove `import_commit` and
+        // got "element not found" even though "Ready to commit" was visible.
+        // Placed here, the commit button and the status headline above it stay
+        // in the always-visible top region (the post-commit "Import completed."
+        // headline included); the row-level table scrolls below. Align +
+        // FittedBox keeps the label ("Commit N valid row(s)", whose width grows
+        // with the count) fully on-screen instead of overflowing a narrow width.
+        Align(
+          alignment: Alignment.centerRight,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: BmdButton(
+              identifier: 'import_commit',
+              label: 'Commit ${job.committable} valid row(s)',
+              loading: committing,
+              onPressed: _canCommit ? () => onCommit() : null,
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
         // Row-level validation table.
         SizedBox(
           height: 360,
@@ -249,27 +272,6 @@ class _Results extends StatelessWidget {
                 cell: (r) => Text(r.message ?? r.linkedCarpenterId ?? '—'),
               ),
             ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        // Row([Spacer(), BmdButton]) overflowed the same way _UploadPanel's
-        // Row did: the label grows with the row count ("Commit N valid
-        // row(s)"), and a Spacer cannot shrink a non-flexible sibling that is
-        // already wider than the narrow viewport. Align + FittedBox keeps the
-        // button right-aligned and scales it down only as much as the
-        // viewport actually requires, so the whole control (and its tappable
-        // area) always stays fully on-screen rather than being clipped past
-        // the edge.
-        Align(
-          alignment: Alignment.centerRight,
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: BmdButton(
-              identifier: 'import_commit',
-              label: 'Commit ${job.committable} valid row(s)',
-              loading: committing,
-              onPressed: _canCommit ? () => onCommit() : null,
-            ),
           ),
         ),
       ],
