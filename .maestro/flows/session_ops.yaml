@@ -1,0 +1,67 @@
+# 3a session operations against the REAL campaign_service. POST /__test__/reset
+# seeds campaign "ACSL Pilot Carpenter Drive" (APPROVED, owner campaign_creator)
+# with one UPCOMING, ready session. Requires the realAuth APK
+# (--dart-define=E2E_REAL_AUTH=true): RouteGuards redirect an unauthenticated
+# session to /login, so this signs in for real as campaign_creator (who holds
+# campaign_create -- the permission gating start/pause/close).
+appId: ${APP_ID}
+tags:
+  - session_ops
+  - critical
+  - android
+---
+- clearState
+- launchApp
+
+- assertVisible:
+    id: "login_username"
+- tapOn:
+    id: "login_username"
+- inputText: "campaign_creator"
+- tapOn:
+    id: "login_password"
+- inputText: "Test1234!"
+- hideKeyboard
+- tapOn:
+    id: "login_submit"
+
+- assertVisible:
+    id: "dev_launcher"
+- tapOn:
+    id: "dev_open_campaigns"
+
+- assertVisible: ".*ACSL Pilot Carpenter Drive.*"
+- tapOn: ".*ACSL Pilot Carpenter Drive.*"
+
+# Campaign detail: open the Sessions tab. The tab's accessibility node is the
+# merged multi-line text "Sessions\nTab 2 of 6" (Flutter TabBar exposes the
+# position as a second line), so a bare "Sessions" text match fails — wrap it
+# in .*…*.* the same way the campaign-name and status asserts do for merged
+# nodes. Assert it first so the tap waits for the detail's TabBar to render.
+- assertVisible: ".*Sessions.*"
+- tapOn: ".*Sessions.*"
+
+# The seeded UPCOMING session's Start is enabled (readiness OK). Each action is
+# a real POST /sessions/<id>/<action> to the campaign_service; assert the
+# resulting status label after each (extendedWaitUntil: the action is an async
+# round trip).
+- tapOn:
+    id: "session_start"
+- extendedWaitUntil:
+    visible: ".*Active.*"
+    timeout: 15000
+- tapOn:
+    id: "session_pause"
+- extendedWaitUntil:
+    visible: ".*Paused.*"
+    timeout: 15000
+- tapOn:
+    id: "session_start"
+- extendedWaitUntil:
+    visible: ".*Active.*"
+    timeout: 15000
+- tapOn:
+    id: "session_close"
+- extendedWaitUntil:
+    visible: ".*Capture closed.*"
+    timeout: 15000

@@ -5,6 +5,7 @@ const Map<String, String> embeddedMigrations = {
   '003_role_check': _roleCheck,
   '004_identity': _identity,
   '005_imports': _imports,
+  '006_session_status': _sessionStatus,
 };
 
 const String _foundation = r'''
@@ -275,4 +276,13 @@ CREATE TABLE import_job_rows (
   linked_carpenter_id  TEXT REFERENCES carpenters(id),
   PRIMARY KEY (job_id, row_id)
 );
+''';
+
+const String _sessionStatus = r'''
+-- 3a reconciles the session vocabulary: the foundation shipped
+-- campaign_sessions.status DEFAULT 'PLANNED', but the ratified SessionStatus
+-- contract (campaign_contracts) has no PLANNED — a freshly created session is
+-- UPCOMING. The wizard insert sets no status and leans on this default.
+ALTER TABLE campaign_sessions ALTER COLUMN status SET DEFAULT 'UPCOMING';
+UPDATE campaign_sessions SET status = 'UPCOMING' WHERE status = 'PLANNED';
 ''';

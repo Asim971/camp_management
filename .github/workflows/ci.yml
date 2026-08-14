@@ -301,6 +301,13 @@ jobs:
             defines: '--dart-define=E2E_REAL_AUTH=true'
             useMock: '0'
             flows: .maestro/flows/bulk_import.yaml
+          # 3a: real-auth login, open the seeded APPROVED campaign's Sessions
+          # tab, and drive start -> pause -> resume -> close against the real
+          # campaign_service. Acceptance proof for sub-project 3a.
+          - key: sessionOps
+            defines: '--dart-define=E2E_REAL_AUTH=true'
+            useMock: '0'
+            flows: .maestro/flows/session_ops.yaml
     steps:
       - uses: actions/checkout@v4
 

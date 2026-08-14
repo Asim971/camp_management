@@ -1,4 +1,10 @@
+import 'package:campaign_contracts/campaign_contracts.dart' show SessionStatus;
 import 'package:freezed_annotation/freezed_annotation.dart';
+
+// `export` alone re-exports the name to importers of this library, but does
+// NOT bring it into scope for this file's own code (including the generated
+// `part` below) — hence the `import` above as well.
+export 'package:campaign_contracts/campaign_contracts.dart' show SessionStatus;
 
 part 'campaign_session.freezed.dart';
 
@@ -26,5 +32,3 @@ class CampaignSession with _$CampaignSession {
 
   bool get overCapacity => capacity > 0 && registeredCount > capacity;
 }
-
-enum SessionStatus { upcoming, active, captureClosed, paused, completed }

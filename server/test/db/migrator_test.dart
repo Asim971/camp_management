@@ -203,4 +203,27 @@ void main() {
       "INSERT INTO staff_user_roles (user_id, role) VALUES ('u1', 'admin')",
     );
   });
+
+  test('006 reconciles the session status vocabulary to UPCOMING', () async {
+    await Migrator(db).applyPending();
+
+    // The column default is now UPCOMING, so a wizard insert (which sets no
+    // status) starts a session in the 3a vocabulary, not the retired PLANNED.
+    final def = await db.execute(
+      "SELECT column_default FROM information_schema.columns "
+      "WHERE table_name = 'campaign_sessions' AND column_name = 'status'",
+    );
+    expect(
+      row(def.single)['column_default'],
+      contains('UPCOMING'),
+      reason: 'the default must be UPCOMING after 006',
+    );
+
+    // No legacy PLANNED rows survive (there are none in a fresh db, but the
+    // UPDATE must be present and correct for existing deployments).
+    final planned = await db.execute(
+      "SELECT count(*) AS n FROM campaign_sessions WHERE status = 'PLANNED'",
+    );
+    expect(row(planned.single)['n'], 0);
+  });
 }
