@@ -275,6 +275,16 @@ jobs:
             flows: >-
               .maestro/flows/crm_case_recapture.yaml
               .maestro/flows/crm_case_override.yaml
+          # 5c (Task 8): crm_queue_claim drives the C-01 queue's
+          # claim -> Mine -> release as crm_verifier. Its OWN matrix entry
+          # (not appended to crm/crm2, which already run 2 flows each) --
+          # same ≤2-flows-per-emulator rule as those two; a single flow is
+          # safest given the queue list adds its own scroll/tab-switch churn.
+          - key: crm3
+            defines: '--dart-define=E2E_REAL_AUTH=true --dart-define=ROLE=crm_verifier'
+            useMock: '0'
+            flows: >-
+              .maestro/flows/crm_queue_claim.yaml
           # failFirst is process-wide, so this cannot share an APK with a flow
           # that expects its first capture to pass.
           - key: recapture
