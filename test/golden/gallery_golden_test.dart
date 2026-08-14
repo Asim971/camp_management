@@ -1,5 +1,8 @@
 import 'package:acsl_campaign/app/theme/bmd_theme.dart';
+import 'package:acsl_campaign/app/theme/tokens.dart';
+import 'package:acsl_campaign/features/dashboard/presentation/widgets/hero_header.dart';
 import 'package:acsl_campaign/features/gallery/presentation/gallery_screen.dart';
+import 'package:acsl_campaign/l10n/generated/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -103,6 +106,65 @@ void main() {
     await expectLater(
       find.byType(MaterialApp),
       matchesGoldenFile('goldens/bengali-wrapping-mobile.png'),
+    );
+  });
+
+  goldenTest('bengali display hero renders at 72px without clipping', (
+    tester,
+  ) async {
+    // Task 8 (spec RD.D2): the new expressive `displayHero` role must render
+    // Bengali script without clipping or a synthetic-bold fallback glyph —
+    // both at its raw 72px size and through a real consumer, `HeroHeader`
+    // (which steps it down to 40px on mobile, per its own doc). Real Bengali
+    // glyphs (not the placeholder test font) are what make this assertable;
+    // `test/flutter_test_config.dart` loads NotoSansBengali for every test.
+    _setViewport(tester, const Size(390, 900));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: bmdTheme(),
+        locale: const Locale('bn'),
+        localizationsDelegates: AppL10n.localizationsDelegates,
+        supportedLocales: AppL10n.supportedLocales,
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // The raw token, unstepped — pins the 72px size itself.
+                  Builder(
+                    builder: (context) => Text(
+                      'ক্যাম্পেইন ড্যাশবোর্ড ওভারভিউ',
+                      style: context.displayHero,
+                    ),
+                  ),
+                  const SizedBox(height: BmdSpace.s6),
+                  // The real composed consumer (W-01's own hero), so the
+                  // baseline pins the mobile step-down too, not only the
+                  // bare token.
+                  HeroHeader(
+                    greeting: 'ক্যাম্পেইন ড্যাশবোর্ড',
+                    contextLine:
+                        'আপনার ক্যাম্পেইন, যাচাইকরণ সারি এবং সিঙ্ক অবস্থা '
+                        'এক নজরে।',
+                    ctaLabel: 'যাচাইকরণ সারি খুলুন',
+                    onCta: () {},
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('goldens/bengali-display-hero-mobile.png'),
     );
   });
 }
