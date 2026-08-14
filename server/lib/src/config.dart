@@ -1,3 +1,7 @@
+import 'dart:convert';
+
+import 'package:cryptography/dart.dart' show DartSha256;
+
 /// Startup configuration. Every value is validated here so a misconfigured
 /// deploy fails at boot with a precise message rather than at the first
 /// request with a stack trace.
@@ -20,6 +24,16 @@ class ServerConfig {
   /// Gates the test-only seeding routes. Defaults to false and requires the
   /// exact string 'true': a typo must not open a data-mutating surface.
   final bool seedingEnabled;
+
+  /// The key that signs media upload URLs — DERIVED from [jwtSecret] with a
+  /// fixed context so the upload-URL HMAC is domain-separated from JWT signing
+  /// (they must never share a key). Synchronous: SHA-256 over a context-prefixed
+  /// secret (DartSha256 is already used elsewhere in this service).
+  String get uploadSigningKey => base64Url.encode(
+    const DartSha256()
+        .hashSync(utf8.encode('media-upload-url|v1|$jwtSecret'))
+        .bytes,
+  );
 
   static ServerConfig fromEnvironment(Map<String, String> env) {
     final databaseUrl = env['DATABASE_URL'];

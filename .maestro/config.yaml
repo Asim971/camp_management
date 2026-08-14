@@ -34,3 +34,4 @@ flows:
   - flows/registration_workspace.yaml
   - flows/bulk_import.yaml
   - flows/session_ops.yaml
+  - flows/attendance_capture.yaml

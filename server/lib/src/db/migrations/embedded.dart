@@ -6,6 +6,7 @@ const Map<String, String> embeddedMigrations = {
   '004_identity': _identity,
   '005_imports': _imports,
   '006_session_status': _sessionStatus,
+  '007_attendance': _attendance,
 };
 
 const String _foundation = r'''
@@ -285,4 +286,52 @@ const String _sessionStatus = r'''
 -- UPCOMING. The wizard insert sets no status and leans on this default.
 ALTER TABLE campaign_sessions ALTER COLUMN status SET DEFAULT 'UPCOMING';
 UPDATE campaign_sessions SET status = 'UPCOMING' WHERE status = 'PLANNED';
+''';
+
+const String _attendance = r'''
+CREATE TABLE consent_notices (
+  version       INTEGER     NOT NULL,
+  language      TEXT        NOT NULL,
+  title         TEXT        NOT NULL,
+  body          TEXT        NOT NULL,
+  content_hash  TEXT        NOT NULL,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (version, language)
+);
+
+-- No organization_id: written by the bearer-less (signed) upload PUT, which
+-- has no auth context. Org scope is enforced by the attendance row that links
+-- it at confirm time (sub-project 4a.D2/D3). Real object storage, encryption
+-- at rest and retention are sub-project 4b.
+CREATE TABLE media_objects (
+  id            TEXT PRIMARY KEY,
+  content_type  TEXT        NOT NULL,
+  bytes         BYTEA       NOT NULL,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE attendance (
+  id              TEXT PRIMARY KEY,            -- == idempotency key == media id
+  organization_id TEXT        NOT NULL REFERENCES organizations(id),
+  campaign_id     TEXT        NOT NULL REFERENCES campaigns(id),
+  session_id      TEXT        NOT NULL REFERENCES campaign_sessions(id),
+  carpenter_id    TEXT        NOT NULL REFERENCES carpenters(id),
+  media_ref       TEXT        NOT NULL,
+  status          TEXT        NOT NULL,        -- 'MATCH_PROCESSING' in 4a
+  captured_by     TEXT        NOT NULL REFERENCES staff_users(id),
+  captured_at     TIMESTAMPTZ NOT NULL,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX attendance_org_session_idx
+  ON attendance(organization_id, session_id);
+
+CREATE TABLE consent_records (
+  id             TEXT PRIMARY KEY,
+  attendance_id  TEXT        NOT NULL REFERENCES attendance(id) ON DELETE CASCADE,
+  notice_version INTEGER     NOT NULL,
+  language       TEXT        NOT NULL,
+  content_hash   TEXT        NOT NULL,
+  shown_at       TIMESTAMPTZ NOT NULL,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 ''';

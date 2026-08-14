@@ -1,0 +1,128 @@
+# 4a E2E: the presign -> upload -> confirm round-trip against the REAL
+# campaign_service (Tasks 4-6), authenticated for real as field_user rather
+# than the FakeAuth launcher. POST /__test__/reset seeds `SESSION_E2E` on the
+# APPROVED seed-camp-1 campaign (seed_routes.dart) so the dev launcher's
+# hard-coded `dev_open_search` -> `/search/SESSION_E2E` route resolves on the
+# real service, and seeds Md. Karim (CARP_E2E) so the carpenter search below
+# finds a real row. Capture itself still uses the E2E `FakeCaptureSource` (no
+# camera) and the E2E `PassthroughQualityChecker` (QUALITY=pass) - only the
+# network leg (media + attendance) is real.
+#
+# Requires the `capture` matrix APK (--dart-define=E2E_REAL_AUTH=true
+# --dart-define=ROLE=field_user, useMock 0): RouteGuards redirect an
+# unauthenticated session to /login, so this signs in for real as field_user
+# (who holds attendance_capture) rather than using
+# ../subflows/launch_as_field_user.yaml (that subflow is FakeAuth-only and
+# skips /login entirely). See ci.yml's e2e matrix, `capture` entry.
+appId: ${APP_ID}
+tags:
+  - capture
+  - critical
+  - android
+---
+- clearState
+- launchApp
+
+- assertVisible:
+    id: "login_username"
+- tapOn:
+    id: "login_username"
+- inputText: "field_user"
+- tapOn:
+    id: "login_password"
+- inputText: "Test1234!"
+- hideKeyboard
+- tapOn:
+    id: "login_submit"
+
+- assertVisible:
+    id: "dev_launcher"
+
+# Search -> confirm -> capture -> quality pass -> queued. Same steps as
+# field_online_capture.yaml (the mock-backed sibling flow) from
+# `dev_open_search` onward; see that file for the step-by-step commentary.
+- tapOn:
+    id: "dev_open_search" # opens /search/SESSION_E2E
+- assertVisible:
+    id: "search_field" # label "Find carpenter", hint "At least 2 characters"
+- tapOn:
+    id: "search_field"
+- inputText: "kar"
+- assertVisible:
+    id: "search_result"
+
+# Select first match and clear the mandatory second identity cue.
+- tapOn:
+    id: "search_result"
+    index: 0
+- assertVisible:
+    id: "confirm_continue"
+- tapOn:
+    id: "confirm_ack" # "I confirmed this is the correct carpenter"
+- tapOn:
+    id: "confirm_continue"
+
+# Purpose notice -> positioning -> live camera.
+- assertVisible: "Attendance photo and identity verification"
+- tapOn:
+    id: "capture_accept" # "Accept and continue"
+- tapOn:
+    id: "capture_ready" # "I'm ready"
+- assertVisible:
+    id: "capture_shutter"
+- tapOn:
+    id: "capture_shutter"
+
+# Quality passes (E2E PassthroughQualityChecker) -> submit -> queued.
+- assertVisible: "Capture looks good"
+- tapOn:
+    id: "capture_submit"
+- assertVisible: "Attendance captured and queued"
+- tapOn:
+    id: "capture_done"
+
+# `capture_done` is `Navigator.maybePop()` (capture_flow_screen.dart:417), so
+# it pops ONE route back to the search screen, NOT to /dev. Relaunching (no
+# clearState) keeps the durable queued item — but UNLIKE the FakeAuth
+# field_offline_capture flow (which lands on /dev), this flow runs under
+# E2E_REAL_AUTH, so the relaunch's auto sign-in is 401'd by the real
+# authenticate() and RouteGuards redirect to /login. We must sign in AGAIN to
+# reach /dev — and re-authenticating is also what lets the sync engine drain
+# the queued attendance (a signed-out app has no token to presign/confirm with).
+- launchApp
+- assertVisible:
+    id: "login_username"
+- tapOn:
+    id: "login_username"
+- inputText: "field_user"
+- tapOn:
+    id: "login_password"
+- inputText: "Test1234!"
+- hideKeyboard
+- tapOn:
+    id: "login_submit"
+- assertVisible:
+    id: "dev_launcher"
+- tapOn:
+    id: "dev_open_queue"
+- assertVisible: ".*Status: Pending sync.*"
+
+# The sync engine auto-drains only on a connectivity-REGAINED event (see the
+# connectivity stream that "drives an automatic queue drain"); a fresh
+# post-login start never emits one, so the item sits at Pending sync forever
+# (round 2 confirmed: zero presign/confirm reached the server in 30s). Trigger
+# the drain explicitly via the queue row's Retry action — the same control
+# offline_queue_retry.yaml drives — instead of waiting on a connectivity toggle.
+- tapOn:
+    id: "queue_item_menu"
+    index: 0
+- tapOn: "Retry"
+
+# Retry drives the REAL round-trip: presign -> PUT -> confirm against
+# campaign_service. "Status: Match processing" (offline_queue_screen.dart's
+# `matchProcessing` label) only appears once that confirm returns 200 with
+# status MATCH_PROCESSING — the round-trip's proof, not a client-side guess.
+# The queue row is one merged node, so wrap in `.*...*`.
+- extendedWaitUntil:
+    visible: ".*Status: Match processing.*"
+    timeout: 30000

@@ -1,6 +1,7 @@
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
+import 'attendance/attendance_routes.dart';
 import 'auth/auth_routes.dart';
 import 'auth/middleware.dart';
 import 'auth/password.dart';
@@ -9,11 +10,13 @@ import 'campaign/campaign_repo.dart';
 import 'campaign/campaign_routes.dart';
 import 'campaign/session_routes.dart';
 import 'config.dart';
+import 'consent/consent_routes.dart';
 import 'db/pool.dart';
 import 'import_/import_routes.dart';
 import 'infra/correlation.dart';
 import 'infra/error_envelope.dart';
 import 'infra/request_log.dart';
+import 'media/media_routes.dart';
 import 'participant/participant_repo.dart';
 import 'participant/participant_routes.dart';
 import 'seed/seed_routes.dart';
@@ -105,13 +108,42 @@ Handler buildApp({required Db db, required ServerConfig config}) {
       )
       .addHandler(sessionRouter(db: db).call);
 
+  final mediaHandler = const Pipeline()
+      .addMiddleware(
+        _authenticateUnder(
+          const {
+            'media/presign',
+          }, // NOT 'media' — /media/upload is signature-gated
+          db: db,
+          tokens: tokens,
+        ),
+      )
+      .addHandler(
+        mediaRouter(db: db, signingKey: config.uploadSigningKey).call,
+      );
+
+  final consentHandler = const Pipeline()
+      .addMiddleware(
+        _authenticateUnder(const {'consent'}, db: db, tokens: tokens),
+      )
+      .addHandler(consentRouter(db: db).call);
+
+  final attendanceHandler = const Pipeline()
+      .addMiddleware(
+        _authenticateUnder(const {'attendance'}, db: db, tokens: tokens),
+      )
+      .addHandler(attendanceRouter(db: db).call);
+
   var cascade = Cascade()
       .add(publicRouter.call)
       .add(authHandler)
       .add(campaignHandler)
       .add(participantHandler)
       .add(importHandler)
-      .add(sessionHandler);
+      .add(sessionHandler)
+      .add(mediaHandler)
+      .add(consentHandler)
+      .add(attendanceHandler);
 
   // Seed routes are ABSENT, not registered-and-guarded, when seeding is
   // disabled: there is no route at all for a probe to find (spec §9; Task 11

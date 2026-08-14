@@ -162,6 +162,7 @@ Router seedRouter({
     await _seedBaseline(db, hasher: hasher);
     await _seedCampaignFixture(db, _campaignFixtures);
     await _seedCarpenterFixture(db);
+    await _seedConsentNotices(db);
     return Response(204);
   });
 
@@ -198,6 +199,7 @@ Router seedRouter({
 /// `schema_migrations` itself excluded — truncating that would make the
 /// server think it needs to reapply migrations it already ran.
 const List<String> _allSeedableTables = [
+  'consent_notices',
   'import_job_rows',
   'import_jobs',
   'profile_requests',
@@ -349,6 +351,38 @@ Future<void> _seedCampaignFixture(
           's': DateTime.utc(2026, 9, 1, 9),
         },
       );
+      // The dev launcher's `dev_open_search`/`dev_open_capture` entries are
+      // hard-coded to `SESSION_E2E` (dev_launcher_screen.dart) — Task 8's
+      // real-service capture flow reaches the capture screen through that
+      // launcher, so a session with this exact id must exist on
+      // `seed-camp-1` (APPROVED) or the confirm's session lookup 404s.
+      // Separate row from `seed-camp-1-session-1` (owned by
+      // `session_ops.yaml`'s start/pause/close lifecycle) so the capture
+      // flow's session is never mutated by that flow's actions.
+      //
+      // Status CAPTURE_CLOSED, deliberately NOT UPCOMING: neither the confirm
+      // transaction (attendance_repo.dart — it joins campaign_sessions only
+      // on id + the campaign's organization_id, never status) nor the
+      // client's search/capture screens (carpenter_search_controller.dart,
+      // capture_controller.dart — sessionId is passed through opaquely) read
+      // this session's status, so it has no bearing on the capture flow. A
+      // second UPCOMING row here WOULD matter elsewhere though:
+      // campaign_detail_screen.dart renders one `session_start`-identified
+      // button per UPCOMING/PAUSED session, and session_ops.yaml's
+      // `tapOn: {id: session_start}` (no index) assumes exactly one such
+      // button on seed-camp-1. CAPTURE_CLOSED renders no action button at
+      // all, so that flow's selector stays unambiguous.
+      await db.execute(
+        'INSERT INTO campaign_sessions '
+        '(id, campaign_id, venue, capacity, start_at, status) '
+        "VALUES (@id, @c, @v, 60, @s, 'CAPTURE_CLOSED')",
+        params: {
+          'id': 'SESSION_E2E',
+          'c': fixture.id,
+          'v': 'BMD Training Center, Hall B',
+          's': DateTime.utc(2026, 9, 1, 10),
+        },
+      );
     }
   }
 }
@@ -391,6 +425,23 @@ Future<void> _seedCarpenterFixture(Db db) async {
       },
     );
   }
+}
+
+/// Seeds the v1 consent notice in both languages the client bundles
+/// (`assets/consent/notice_v1.json`) — the same content `GET
+/// /consent/notices` reads back for its background refresh. `ON CONFLICT ...
+/// DO NOTHING` rather than an unconditional insert because [_truncateEverything]
+/// already clears the table on every reset; the guard just keeps this call
+/// idempotent if it is ever invoked without a preceding truncate.
+Future<void> _seedConsentNotices(Db db) async {
+  await db.execute(
+    "INSERT INTO consent_notices (version, language, title, body, content_hash) VALUES "
+    "(1, 'en', 'Attendance consent', "
+    " 'Your photo and attendance are recorded for verification.', 'seed-en-v1'), "
+    "(1, 'bn', 'উপস্থিতি সম্মতি', "
+    " 'যাচাইয়ের জন্য আপনার ছবি ও উপস্থিতি সংরক্ষণ করা হয়।', 'seed-bn-v1') "
+    "ON CONFLICT (version, language) DO NOTHING",
+  );
 }
 
 Future<Map<String, Object?>> _readJsonBody(Request request) async {

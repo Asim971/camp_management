@@ -44,6 +44,7 @@ class ApiException implements Exception {
     ApiErrorCode.importFileInvalid => 422,
     ApiErrorCode.sessionInvalidTransition => 409,
     ApiErrorCode.sessionNotReady => 422,
+    ApiErrorCode.attendanceEvidenceMissing => 422,
     ApiErrorCode.internal => 500,
   };
 

@@ -24,7 +24,9 @@ enum ApiErrorCode {
   importFileInvalid,
   // session operations (sub-project 3a)
   sessionInvalidTransition,
-  sessionNotReady;
+  sessionNotReady,
+  // attendance & evidence (sub-project 4a)
+  attendanceEvidenceMissing;
 
   String get wireValue => switch (this) {
     badRequest => 'BAD_REQUEST',
@@ -45,6 +47,7 @@ enum ApiErrorCode {
     importFileInvalid => 'IMPORT_FILE_INVALID',
     sessionInvalidTransition => 'SESSION_INVALID_TRANSITION',
     sessionNotReady => 'SESSION_NOT_READY',
+    attendanceEvidenceMissing => 'ATTENDANCE_EVIDENCE_MISSING',
   };
 
   static ApiErrorCode? tryParseWire(String wire) {

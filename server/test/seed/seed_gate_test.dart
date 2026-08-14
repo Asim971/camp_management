@@ -218,7 +218,7 @@ void main() {
     );
   });
 
-  test('reset seeds one operable session on seed-camp-1', () async {
+  test('reset seeds two operable sessions on seed-camp-1', () async {
     final handler = buildApp(db: db, config: configWithSeeding(true));
     await _post(handler, '/__test__/reset');
 
@@ -244,17 +244,27 @@ void main() {
     final items = (body['items']! as List<Object?>)
         .cast<Map<String, Object?>>();
 
+    // Two rows: `seed-camp-1-session-1` (session_ops.yaml's start/pause/close
+    // lifecycle) and `SESSION_E2E` (the dev launcher's hard-coded
+    // dev_open_search/dev_open_capture target — attendance_capture.yaml,
+    // Task 8). Ordered by start_at, so session-1 (09:00) is always first.
     expect(
       items,
-      hasLength(1),
+      hasLength(2),
       reason:
-          '.maestro/flows/session_ops.yaml needs exactly one seeded session '
-          'on seed-camp-1',
+          '.maestro/flows/session_ops.yaml needs seed-camp-1-session-1 and '
+          'attendance_capture.yaml needs SESSION_E2E, both on seed-camp-1',
     );
-    final session = items.single;
+    final session = items.first;
     expect(session['id'], 'seed-camp-1-session-1');
     expect(session['status'], 'UPCOMING');
     expect(session['readinessOk'], true);
+    final e2eSession = items.last;
+    expect(e2eSession['id'], 'SESSION_E2E');
+    // CAPTURE_CLOSED, not UPCOMING: it must not add a second `session_start`
+    // button on this campaign's Sessions tab (session_ops.yaml assumes
+    // exactly one). See the seeding comment in seed_routes.dart.
+    expect(e2eSession['status'], 'CAPTURE_CLOSED');
   });
 
   test('reset seeds no session for the other campaign fixtures', () async {
@@ -302,5 +312,42 @@ void main() {
       for (final r in res.map(row)) r['id']! as String: r['display_code'],
     };
     expect(byId, {'CARP_E2E': 'CARP-00004821', 'CARP_E2E_2': 'CARP-00007734'});
+  });
+
+  test('reset seeds the v1 consent notices in both languages, and GET '
+      '/consent/notices serves them back', () async {
+    final handler = buildApp(db: db, config: configWithSeeding(true));
+    await _post(handler, '/__test__/reset');
+
+    final loginRes = await _post(
+      handler,
+      '/auth/login',
+      body: {'username': 'field_user', 'password': seedPassword},
+    );
+    final token =
+        (jsonDecode(await loginRes.readAsString())
+                as Map<String, Object?>)['accessToken']!
+            as String;
+
+    final res = await handler(
+      Request(
+        'GET',
+        Uri.parse('http://localhost/consent/notices'),
+        headers: {'authorization': 'Bearer $token'},
+      ),
+    );
+    expect(res.statusCode, 200);
+    final body = jsonDecode(await res.readAsString()) as Map<String, Object?>;
+    final notices = (body['notices']! as List<Object?>)
+        .cast<Map<String, Object?>>();
+
+    final byLanguage = {for (final n in notices) n['language']: n};
+    expect(
+      byLanguage.keys,
+      containsAll(['en', 'bn']),
+      reason: 'reset should seed the v1 notice in both bundled languages',
+    );
+    expect(byLanguage['en']!['version'], 1);
+    expect(byLanguage['bn']!['version'], 1);
   });
 }
