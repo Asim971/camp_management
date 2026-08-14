@@ -292,9 +292,21 @@ void main() {
     });
 
     test('the queue orders worst band first, then oldest', () async {
-      // att-1 (seeded in setUp) is already MEDIUM; add a NO_REFERENCE and a
-      // LOW row sharing the same org/campaign/session/carpenter so only the
-      // machine_band severity distinguishes them.
+      // Timestamps deliberately OPPOSE severity: att-1 (MEDIUM, seeded in
+      // setUp) is made the OLDEST capture, NO_REFERENCE the MOST RECENT, and
+      // LOW in between. If the ORDER BY ever regressed to a plain
+      // `captured_at` ascending sort (dropping the machine_band CASE
+      // severity ranking), this would instead yield
+      // [MEDIUM, LOW, NO_REFERENCE] — the opposite of the expected sequence
+      // below — so only a correct severity-first ordering can pass.
+      final now = DateTime.now().toUtc();
+      await db.execute(
+        'UPDATE attendance SET captured_at = @at WHERE id = @id',
+        params: {
+          'id': 'att-1',
+          'at': now.subtract(const Duration(minutes: 30)),
+        },
+      );
       await seedCrmReviewAttendance(
         db,
         id: 'att-band-no-ref',
@@ -303,9 +315,7 @@ void main() {
         sessionId: 'sess-1',
         carpenterId: 'c-1',
         machineBand: 'NO_REFERENCE',
-        capturedAt: DateTime.now().toUtc().subtract(
-          const Duration(minutes: 10),
-        ),
+        capturedAt: now.subtract(const Duration(minutes: 1)),
       );
       await seedCrmReviewAttendance(
         db,
@@ -315,7 +325,7 @@ void main() {
         sessionId: 'sess-1',
         carpenterId: 'c-1',
         machineBand: 'LOW',
-        capturedAt: DateTime.now().toUtc().subtract(const Duration(minutes: 8)),
+        capturedAt: now.subtract(const Duration(minutes: 15)),
       );
 
       final res = await get('/verification/queue', bearer: verifierToken);
