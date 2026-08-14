@@ -14,6 +14,7 @@ import 'import_/import_routes.dart';
 import 'infra/correlation.dart';
 import 'infra/error_envelope.dart';
 import 'infra/request_log.dart';
+import 'media/media_routes.dart';
 import 'participant/participant_repo.dart';
 import 'participant/participant_routes.dart';
 import 'seed/seed_routes.dart';
@@ -105,13 +106,26 @@ Handler buildApp({required Db db, required ServerConfig config}) {
       )
       .addHandler(sessionRouter(db: db).call);
 
+  final mediaHandler = const Pipeline()
+      .addMiddleware(
+        _authenticateUnder(
+          const {
+            'media/presign',
+          }, // NOT 'media' — /media/upload is signature-gated
+          db: db,
+          tokens: tokens,
+        ),
+      )
+      .addHandler(mediaRouter(db: db, signingKey: config.jwtSecret).call);
+
   var cascade = Cascade()
       .add(publicRouter.call)
       .add(authHandler)
       .add(campaignHandler)
       .add(participantHandler)
       .add(importHandler)
-      .add(sessionHandler);
+      .add(sessionHandler)
+      .add(mediaHandler);
 
   // Seed routes are ABSENT, not registered-and-guarded, when seeding is
   // disabled: there is no route at all for a probe to find (spec §9; Task 11
