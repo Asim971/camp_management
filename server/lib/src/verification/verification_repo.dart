@@ -213,14 +213,22 @@ class VerificationRepo {
     final newStatus = outcome!.wireValue; // 'APPROVED' or 'REJECTED'
 
     return _db.tx((tx) async {
-      // The CAS: zero affected rows means the version the caller presented
-      // is no longer current (existence was already confirmed above, outside
-      // this tx — a defensive re-check below distinguishes a genuine race
-      // where the row vanished between the two).
+      // The CAS: zero affected rows means either the version the caller
+      // presented is no longer current, OR the case is no longer open
+      // (`status <> 'CRM_REVIEW'` — already decided). Existence was already
+      // confirmed above, outside this tx; the re-check below distinguishes
+      // those cases from a genuine race where the row vanished entirely
+      // between the two. An already-decided case falling into the same
+      // `versionConflict` (412 "decided by someone else; reload") branch is
+      // deliberate: from the caller's point of view a closed case IS a
+      // conflict — reloading it will show the decision that closed it —
+      // and it is exactly the right shape to prevent a re-decide of a
+      // closed case, without inventing a new outcome/branch for it.
       final casResult = await tx.execute(
         Sql.named(
           'UPDATE attendance SET status = @status, version = version + 1 '
           'WHERE id = @id AND version = @ifMatch AND organization_id = @org '
+          "  AND status = 'CRM_REVIEW' "
           'RETURNING version',
         ),
         parameters: {

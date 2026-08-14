@@ -403,6 +403,48 @@ void main() {
       },
     );
 
+    test(
+      'an already-decided case cannot be re-decided even with a matching '
+      'If-Match -> 412 PRECONDITION_FAILED, row unchanged, no new decision row',
+      () async {
+        await seedCrmReviewAttendance(
+          db,
+          id: 'att-decided',
+          organizationId: 'org-1',
+          campaignId: 'camp-1',
+          sessionId: 'sess-1',
+          carpenterId: 'c-1',
+          status: 'APPROVED',
+          version: 2,
+        );
+
+        final res = await decide(
+          'att-decided',
+          bearer: verifierToken,
+          ifMatch: '2', // matches the current version exactly
+          body: const {'outcome': 'REJECTED', 'reason': 'Second look.'},
+        );
+
+        expect(res.statusCode, 412);
+        expect(
+          ((await decode(res))['error']! as Map)['code'],
+          'PRECONDITION_FAILED',
+        );
+        expect(await attendanceStatus('att-decided'), 'APPROVED');
+        expect(await attendanceVersion('att-decided'), 2);
+
+        final decisionRes = await db.execute(
+          'SELECT 1 FROM verification_decisions WHERE attendance_id = @id',
+          params: {'id': 'att-decided'},
+        );
+        expect(
+          decisionRes,
+          isEmpty,
+          reason: 'the CAS must not insert a decision for a closed case',
+        );
+      },
+    );
+
     for (final outcome in ['RETURN_FOR_RECAPTURE', 'ESCALATED']) {
       test(
         'outcome $outcome -> 422 VERIFICATION_OUTCOME_UNSUPPORTED',
