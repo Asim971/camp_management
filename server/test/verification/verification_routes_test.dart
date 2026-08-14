@@ -244,6 +244,30 @@ void main() {
     ),
   );
 
+  Future<Response> claim(String id, {String? bearer}) async => handler(
+    Request(
+      'POST',
+      Uri.parse('http://localhost/verification/cases/$id/claim'),
+      headers: {if (bearer != null) 'authorization': 'Bearer $bearer'},
+    ),
+  );
+
+  Future<Response> release(String id, {String? bearer}) async => handler(
+    Request(
+      'POST',
+      Uri.parse('http://localhost/verification/cases/$id/release'),
+      headers: {if (bearer != null) 'authorization': 'Bearer $bearer'},
+    ),
+  );
+
+  Future<String?> assigneeId(String id) async {
+    final res = await db.execute(
+      'SELECT assignee_id FROM attendance WHERE id = @id',
+      params: {'id': id},
+    );
+    return row(res.single)['assignee_id'] as String?;
+  }
+
   Future<String> errorCode(Response r) async =>
       ((await decode(r))['error']! as Map)['code']! as String;
 
@@ -1010,6 +1034,90 @@ void main() {
         ifMatch: '1',
         body: const {'outcome': 'APPROVED'},
       );
+      expect(res.statusCode, 401);
+    });
+  });
+
+  group('POST /verification/cases/<id>/claim and /release', () {
+    test(
+      'claiming an unassigned case assigns it to the caller + audits',
+      () async {
+        final res = await claim('att-1', bearer: verifierToken);
+        expect(res.statusCode, 200);
+        expect(await assigneeId('att-1'), 'user-1');
+        final audit = await db.execute(
+          "SELECT 1 FROM audit_events WHERE action='verification.claimed' "
+          'AND resource_id=@id',
+          params: {'id': 'att-1'},
+        );
+        expect(audit, isNotEmpty);
+      },
+    );
+
+    test('claiming a case held by another is 409, unchanged', () async {
+      // assignee_id is a real FK to staff_users(id), so the "someone else"
+      // has to be one of the seeded users — user-4 (supervisor).
+      await db.execute(
+        'UPDATE attendance SET assignee_id=@u WHERE id=@id',
+        params: {'u': 'user-4', 'id': 'att-1'},
+      );
+      final res = await claim('att-1', bearer: verifierToken);
+      expect(res.statusCode, 409);
+      expect(await assigneeId('att-1'), 'user-4');
+    });
+
+    test('claiming your own case is idempotent 200', () async {
+      await claim('att-1', bearer: verifierToken);
+      final res = await claim('att-1', bearer: verifierToken);
+      expect(res.statusCode, 200);
+    });
+
+    test('claiming a decided case is 409', () async {
+      await db.execute(
+        "UPDATE attendance SET status='APPROVED' WHERE id=@id",
+        params: {'id': 'att-1'},
+      );
+      expect((await claim('att-1', bearer: verifierToken)).statusCode, 409);
+    });
+
+    test('claiming a cross-org / missing case is 404', () async {
+      expect(
+        (await claim('no-such-id', bearer: verifierToken)).statusCode,
+        404,
+      );
+      expect((await claim('att-2', bearer: verifierToken)).statusCode, 404);
+    });
+
+    // The key invariant: claim does NOT bump version.
+    test('claim does not bump the decision version', () async {
+      await claim('att-1', bearer: verifierToken); // att-1 still version 1
+      final res = await decide(
+        'att-1',
+        bearer: verifierToken,
+        ifMatch: '1',
+        body: const {'outcome': 'APPROVED'},
+      );
+      expect(res.statusCode, 200); // pre-claim If-Match still valid
+    });
+
+    test('release clears only your own; releasing anothers is 409', () async {
+      await claim('att-1', bearer: verifierToken);
+      expect((await release('att-1', bearer: verifierToken)).statusCode, 200);
+      expect(await assigneeId('att-1'), isNull);
+      await db.execute(
+        'UPDATE attendance SET assignee_id=@u WHERE id=@id',
+        params: {'u': 'user-4', 'id': 'att-1'},
+      );
+      expect((await release('att-1', bearer: verifierToken)).statusCode, 409);
+    });
+
+    test('403 without verification_decide (claim)', () async {
+      final res = await claim('att-1', bearer: viewerToken);
+      expect(res.statusCode, 403);
+    });
+
+    test('401 unauthenticated (claim)', () async {
+      final res = await claim('att-1');
       expect(res.statusCode, 401);
     });
   });

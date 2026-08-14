@@ -337,4 +337,81 @@ class VerificationRepo {
       );
     });
   }
+
+  /// Assigns [attendanceId] to [userId], or [release]s that assignment —
+  /// version-free self-claim/release for the queue's "work this case"
+  /// workflow (sub-project 5c). Deliberately does NOT touch `version`: a
+  /// claim is a workflow-visibility change, not a decision, so a pending
+  /// [decide] presenting the pre-claim version must still succeed.
+  ///
+  /// Modeled on [decide]'s atomic-CAS + zero-rows re-check, but as a single
+  /// `_db.execute` rather than a `tx`: there is exactly one UPDATE here (no
+  /// companion insert), so it is already atomic on its own, and the audit
+  /// write is a best-effort follow-on rather than something that must share
+  /// the UPDATE's atomicity.
+  Future<ClaimCode> claim({
+    required String attendanceId,
+    required String organizationId,
+    required String userId,
+    String? correlationId,
+  }) async {
+    final res = await _db.execute(
+      'UPDATE attendance SET assignee_id = @me '
+      'WHERE id = @id AND organization_id = @org '
+      "  AND status = 'CRM_REVIEW' "
+      '  AND (assignee_id IS NULL OR assignee_id = @me) '
+      'RETURNING id',
+      params: {'me': userId, 'id': attendanceId, 'org': organizationId},
+    );
+    if (res.affectedRows == 0) {
+      final exists = await _db.execute(
+        'SELECT 1 FROM attendance WHERE id = @id AND organization_id = @org',
+        params: {'id': attendanceId, 'org': organizationId},
+      );
+      return exists.isEmpty ? ClaimCode.notFound : ClaimCode.conflict;
+    }
+    await _audit.write(
+      action: 'verification.claimed',
+      resourceType: 'attendance',
+      resourceId: attendanceId,
+      actorId: userId,
+      correlationId: correlationId,
+    );
+    return ClaimCode.done;
+  }
+
+  /// Clears [attendanceId]'s assignment — only if [userId] is the current
+  /// assignee. Releasing a case assigned to someone else is
+  /// [ClaimCode.conflict], same shape as a lost claim race.
+  Future<ClaimCode> release({
+    required String attendanceId,
+    required String organizationId,
+    required String userId,
+    String? correlationId,
+  }) async {
+    final res = await _db.execute(
+      'UPDATE attendance SET assignee_id = NULL '
+      'WHERE id = @id AND organization_id = @org AND assignee_id = @me '
+      'RETURNING id',
+      params: {'me': userId, 'id': attendanceId, 'org': organizationId},
+    );
+    if (res.affectedRows == 0) {
+      final exists = await _db.execute(
+        'SELECT 1 FROM attendance WHERE id = @id AND organization_id = @org',
+        params: {'id': attendanceId, 'org': organizationId},
+      );
+      return exists.isEmpty ? ClaimCode.notFound : ClaimCode.conflict;
+    }
+    await _audit.write(
+      action: 'verification.released',
+      resourceType: 'attendance',
+      resourceId: attendanceId,
+      actorId: userId,
+      correlationId: correlationId,
+    );
+    return ClaimCode.done;
+  }
 }
+
+/// Outcome of [VerificationRepo.claim] / [VerificationRepo.release].
+enum ClaimCode { done, conflict, notFound }

@@ -149,6 +149,38 @@ Router verificationRouter({required Db db, required String signingKey}) {
         }),
   );
 
+  router.post(
+    '/verification/cases/<id>/claim',
+    const Pipeline()
+        .addMiddleware(requirePermission('verification_decide'))
+        .addHandler((Request request) async {
+          final auth = authOf(request);
+          final code = await repo.claim(
+            attendanceId: request.params['id']!,
+            organizationId: auth.organizationId,
+            userId: auth.userId,
+            correlationId: correlationOf(request),
+          );
+          return _claimResponse(code);
+        }),
+  );
+
+  router.post(
+    '/verification/cases/<id>/release',
+    const Pipeline()
+        .addMiddleware(requirePermission('verification_decide'))
+        .addHandler((Request request) async {
+          final auth = authOf(request);
+          final code = await repo.release(
+            attendanceId: request.params['id']!,
+            organizationId: auth.organizationId,
+            userId: auth.userId,
+            correlationId: correlationOf(request),
+          );
+          return _claimResponse(code);
+        }),
+  );
+
   return router;
 }
 
@@ -156,3 +188,16 @@ Response _json(Object? body) => Response.ok(
   jsonEncode(body),
   headers: {'content-type': 'application/json'},
 );
+
+/// Shared response mapping for both claim and release: both only ever
+/// produce [ClaimCode.done] / `.conflict` / `.notFound`, and both mean the
+/// same thing on the wire (a plain `{"status": "ok"}` on success, 409 when
+/// held by someone else, 404 when gone/cross-org).
+Response _claimResponse(ClaimCode code) => switch (code) {
+  ClaimCode.done => _json({'status': 'ok'}),
+  ClaimCode.conflict => throw ApiException(
+    ApiErrorCode.conflictStaleVersion,
+    message: 'This case is being reviewed by someone else; reload the queue.',
+  ),
+  ClaimCode.notFound => throw ApiException(ApiErrorCode.notFound),
+};
