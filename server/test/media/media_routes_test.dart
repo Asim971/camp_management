@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:campaign_service/src/app.dart';
 import 'package:campaign_service/src/auth/tokens.dart';
 import 'package:campaign_service/src/config.dart';
 import 'package:campaign_service/src/db/migrator.dart';
 import 'package:campaign_service/src/db/pool.dart';
+import 'package:campaign_service/src/media/signed_url.dart';
 import 'package:shelf/shelf.dart';
 import 'package:test/test.dart';
 
@@ -105,6 +107,43 @@ void main() {
         ),
       );
       expect(rejected.statusCode, 403);
+    },
+  );
+
+  test(
+    'signed GET /media/<id> serves the bytes; bad signature 403; unknown 404',
+    () async {
+      await db.execute(
+        "INSERT INTO media_objects (id, content_type, bytes) VALUES ('read-1','image/png',@b)",
+        params: {
+          'b': Uint8List.fromList(const [9, 8, 7]),
+        },
+      );
+      final url = await signReadUrl(
+        baseUrl: 'http://10.0.2.2:8080',
+        id: 'read-1',
+        signingKey: config.uploadSigningKey,
+        now: DateTime.now(),
+      );
+      final ok = await handler(Request('GET', Uri.parse(url)));
+      expect(ok.statusCode, 200);
+      expect((await ok.read().expand((x) => x).toList()), const [9, 8, 7]);
+
+      final signed = Uri.parse(url);
+      final bad = signed.replace(
+        queryParameters: {...signed.queryParameters, 'sig': 'forged'},
+      );
+      expect((await handler(Request('GET', bad))).statusCode, 403);
+
+      final missing = Uri.parse(
+        await signReadUrl(
+          baseUrl: 'http://h',
+          id: 'nope',
+          signingKey: config.uploadSigningKey,
+          now: DateTime.now(),
+        ),
+      );
+      expect((await handler(Request('GET', missing))).statusCode, 404);
     },
   );
 }

@@ -84,5 +84,30 @@ Router mediaRouter({required Db db, required String signingKey}) {
     return Response.ok('');
   });
 
+  router.get('/media/<id>', (Request request, String id) async {
+    final exp = int.tryParse(request.url.queryParameters['exp'] ?? '');
+    final sig = request.url.queryParameters['sig'];
+    if (exp == null ||
+        sig == null ||
+        !await verifyUploadSignature(
+          id: id,
+          exp: exp,
+          sig: sig,
+          signingKey: signingKey,
+          now: DateTime.now(),
+        )) {
+      throw ApiException(
+        ApiErrorCode.forbidden,
+        message: 'Invalid or expired media URL.',
+      );
+    }
+    final media = await repo.get(id);
+    if (media == null) throw ApiException(ApiErrorCode.notFound);
+    return Response.ok(
+      media.bytes,
+      headers: {'content-type': media.contentType},
+    );
+  });
+
   return router;
 }

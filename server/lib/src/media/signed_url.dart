@@ -32,6 +32,21 @@ Future<String> signUploadUrl({
   return '$baseUrl/media/upload/$id?exp=$exp&sig=${Uri.encodeQueryComponent(sig)}';
 }
 
+/// Signs a short-lived READ URL for a media object: `<base>/media/<id>?exp&sig`.
+/// The signature is the same `id.exp` HMAC as the upload URL (verified by
+/// [verifyUploadSignature]); only the path differs.
+Future<String> signReadUrl({
+  required String baseUrl,
+  required String id,
+  required String signingKey,
+  required DateTime now,
+  Duration ttl = const Duration(minutes: 15),
+}) async {
+  final exp = now.add(ttl).millisecondsSinceEpoch ~/ 1000;
+  final sig = await _sign(id, exp, signingKey);
+  return '$baseUrl/media/$id?exp=$exp&sig=${Uri.encodeQueryComponent(sig)}';
+}
+
 Future<bool> verifyUploadSignature({
   required String id,
   required int exp,
