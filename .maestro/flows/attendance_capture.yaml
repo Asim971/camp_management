@@ -107,13 +107,22 @@ tags:
     id: "dev_open_queue"
 - assertVisible: ".*Status: Pending sync.*"
 
-# Now authenticated + online, the queued item drains through the REAL sync
-# engine: presign -> PUT -> confirm against campaign_service. "Match processing"
-# (offline_queue_screen.dart's `matchProcessing` status label) only appears once
-# that confirm returns 200 with status MATCH_PROCESSING — the round-trip's proof,
-# not a client-side guess. Assert "Status: Match processing" (the exact prefixed
-# label field_offline_capture.yaml uses); the queue row is one merged node, so
-# wrap in `.*...*`. Generous timeout: the drain is background work post-login.
+# The sync engine auto-drains only on a connectivity-REGAINED event (see the
+# connectivity stream that "drives an automatic queue drain"); a fresh
+# post-login start never emits one, so the item sits at Pending sync forever
+# (round 2 confirmed: zero presign/confirm reached the server in 30s). Trigger
+# the drain explicitly via the queue row's Retry action — the same control
+# offline_queue_retry.yaml drives — instead of waiting on a connectivity toggle.
+- tapOn:
+    id: "queue_item_menu"
+    index: 0
+- tapOn: "Retry"
+
+# Retry drives the REAL round-trip: presign -> PUT -> confirm against
+# campaign_service. "Status: Match processing" (offline_queue_screen.dart's
+# `matchProcessing` label) only appears once that confirm returns 200 with
+# status MATCH_PROCESSING — the round-trip's proof, not a client-side guess.
+# The queue row is one merged node, so wrap in `.*...*`.
 - extendedWaitUntil:
     visible: ".*Status: Match processing.*"
     timeout: 30000
