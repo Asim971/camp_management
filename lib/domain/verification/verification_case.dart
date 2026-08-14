@@ -36,5 +36,6 @@ class VerificationQueueItem with _$VerificationQueueItem {
     required MatchBand band,
     required ReferenceSource referenceSource,
     String? assigneeId,
+    DateTime? escalatedAt, // set when escalated (5b); null otherwise
   }) = _VerificationQueueItem;
 }

@@ -4,11 +4,11 @@ import 'package:acsl_campaign/core/auth/session.dart';
 import 'package:acsl_campaign/core/auth/session_manager.dart';
 import 'package:acsl_campaign/core/result/result.dart';
 import 'package:acsl_campaign/core/trace/trace_id.dart';
-import 'package:acsl_campaign/domain/common/status.dart';
 import 'package:acsl_campaign/domain/verification/verification.dart';
 import 'package:acsl_campaign/domain/verification/verification_case.dart';
 import 'package:acsl_campaign/domain/verification/verification_repository.dart';
 import 'package:acsl_campaign/features/crm_case/presentation/crm_case_screen.dart';
+import 'package:campaign_contracts/campaign_contracts.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -58,7 +58,16 @@ class _FakeVerificationRepository implements VerificationRepository {
   VerificationDecision? lastDecision;
 
   @override
-  Future<Result<List<VerificationQueueItem>>> queue({String? assigneeId}) =>
+  Future<Result<List<VerificationQueueItem>>> queue({
+    required QueueFilter filter,
+  }) => throw UnimplementedError('not used by CrmCaseScreen');
+
+  @override
+  Future<Result<void>> claim(String attendanceId) =>
+      throw UnimplementedError('not used by CrmCaseScreen');
+
+  @override
+  Future<Result<void>> release(String attendanceId) =>
       throw UnimplementedError('not used by CrmCaseScreen');
 
   @override

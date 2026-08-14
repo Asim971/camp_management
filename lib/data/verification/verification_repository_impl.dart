@@ -1,3 +1,4 @@
+import 'package:campaign_contracts/campaign_contracts.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
@@ -5,7 +6,6 @@ import '../../core/network/dio_client.dart';
 import '../../core/network/trace_options.dart';
 import '../../core/result/result.dart';
 import '../../core/trace/trace_id.dart';
-import '../../domain/common/status.dart';
 import '../../domain/verification/verification.dart';
 import '../../domain/verification/verification_case.dart';
 import '../../domain/verification/verification_repository.dart';
@@ -28,17 +28,37 @@ class VerificationRepositoryImpl implements VerificationRepository {
 
   @override
   Future<Result<List<VerificationQueueItem>>> queue({
-    String? assigneeId,
+    required QueueFilter filter,
   }) async {
     try {
       final res = await _dio.get<Map<String, dynamic>>(
         '/verification/queue',
-        queryParameters: {if (assigneeId != null) 'assignee': assigneeId},
+        queryParameters: {'filter': filter.wireValue},
       );
       final items = (res.data!['items'] as List)
           .map((e) => _queueItem(e as Map<String, dynamic>))
           .toList();
       return Ok(items);
+    } catch (e) {
+      return Err(mapDioError(e));
+    }
+  }
+
+  @override
+  Future<Result<void>> claim(String attendanceId) async {
+    try {
+      await _dio.post<void>('/verification/cases/$attendanceId/claim');
+      return const Ok(null);
+    } catch (e) {
+      return Err(mapDioError(e)); // 409 -> conflict
+    }
+  }
+
+  @override
+  Future<Result<void>> release(String attendanceId) async {
+    try {
+      await _dio.post<void>('/verification/cases/$attendanceId/release');
+      return const Ok(null);
     } catch (e) {
       return Err(mapDioError(e));
     }
@@ -89,6 +109,9 @@ class VerificationRepositoryImpl implements VerificationRepository {
         band: _band(j['band'] as String?),
         referenceSource: _refSource(j['referenceSource'] as String?),
         assigneeId: j['assigneeId'] as String?,
+        escalatedAt: j['escalatedAt'] == null
+            ? null
+            : DateTime.parse(j['escalatedAt'] as String),
       );
 
   VerificationCase _case(Map<String, dynamic> j) => VerificationCase(

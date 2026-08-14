@@ -1,3 +1,5 @@
+import 'package:campaign_contracts/campaign_contracts.dart';
+
 import '../../core/result/result.dart';
 import '../../core/trace/trace_id.dart';
 import 'verification.dart';
@@ -6,7 +8,16 @@ import 'verification_case.dart';
 /// CRM verification data access. Decisions are the authoritative human outcome
 /// (FR-011); the machine result is advisory only.
 abstract interface class VerificationRepository {
-  Future<Result<List<VerificationQueueItem>>> queue({String? assigneeId});
+  Future<Result<List<VerificationQueueItem>>> queue({
+    required QueueFilter filter,
+  });
+
+  /// Claims an unassigned (or previously released) case for the current
+  /// verifier. A 409 (already claimed) maps to [FailureKind.conflict].
+  Future<Result<void>> claim(String attendanceId);
+
+  /// Releases a case the current verifier previously claimed.
+  Future<Result<void>> release(String attendanceId);
 
   Future<Result<VerificationCase>> getCase(String attendanceId);
 
