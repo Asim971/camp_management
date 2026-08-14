@@ -440,6 +440,64 @@ void main() {
         expect(committed.body['status'], 'COMPLETED');
       },
     );
+
+    // Task 7 (3a): the mock's session fixture was modernised to the ratified
+    // SCREAMING_SNAKE wire (UPCOMING, zeroed activity counts) to match the
+    // real service exactly -- this pins that neither backend drifts back to
+    // the old camelCase/non-zero fixture. The real side is seeded with its
+    // own campaign+session (buildTargets' fixture campaigns don't carry
+    // sessions), while the mock answers from its own fixed 'CAMP-1' session
+    // -- what's compared is the SHAPE and VOCABULARY both return, not a
+    // shared row.
+    test('$targetName: session list returns {items} whose entries carry the '
+        'ratified SessionStatus vocabulary and key set', () async {
+      final targets = await buildTargets(campaignCount: 0);
+      await seedCampaign(
+        targets.realDb,
+        id: 'parity-session-camp',
+        status: CampaignStatus.approved,
+      );
+      await seedCampaignSession(
+        targets.realDb,
+        id: 'parity-session-0',
+        campaignId: 'parity-session-camp',
+        venue: 'Hall A',
+        startAt: DateTime.utc(2026, 9, 1, 9),
+        capacity: 60,
+      );
+
+      final path = targetName == 'real'
+          ? '/campaigns/parity-session-camp/sessions'
+          : '/campaigns/CAMP-1/sessions';
+      final target = targetName == 'real' ? targets.real : targets.mock;
+
+      final body = await target.getJson(path);
+      expect(body.keys, contains('items'));
+      final items = (body['items']! as List).cast<Map<String, Object?>>();
+      expect(items, isNotEmpty);
+      for (final item in items) {
+        expect(item.keys.toSet(), <String>{
+          'id',
+          'campaignId',
+          'venue',
+          'status',
+          'startAt',
+          'endAt',
+          'capacity',
+          'registeredCount',
+          'pendingSyncCount',
+          'reviewCount',
+          'approvedCount',
+          'readinessOk',
+        });
+        final status = item['status']! as String;
+        expect(
+          SessionStatus.tryParseWire(status),
+          isNotNull,
+          reason: '$status is not in the shared SessionStatus vocabulary',
+        );
+      }
+    });
   }
 }
 

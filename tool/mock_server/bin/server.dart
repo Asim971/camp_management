@@ -616,14 +616,14 @@ class _Store {
         'id': '$campaignId#1',
         'campaignId': campaignId,
         'venue': 'BMD Training Center, Hall A',
-        'status': 'upcoming',
+        'status': 'UPCOMING',
         'startAt': '2026-08-01T09:00:00.000',
         'endAt': '2026-08-01T13:00:00.000',
         'capacity': 60,
-        'registeredCount': 42,
-        'pendingSyncCount': 3,
-        'reviewCount': 5,
-        'approvedCount': 30,
+        'registeredCount': 0,
+        'pendingSyncCount': 0,
+        'reviewCount': 0,
+        'approvedCount': 0,
         'readinessOk': true,
       };
     }
@@ -636,9 +636,9 @@ class _Store {
     final s = _sessions[id];
     if (s == null) return null;
     s['status'] = switch (action) {
-      'start' => 'active',
-      'close' => 'captureClosed',
-      'pause' => 'paused',
+      'start' => 'ACTIVE',
+      'close' => 'CAPTURE_CLOSED',
+      'pause' => 'PAUSED',
       _ => s['status'],
     };
     return s;
