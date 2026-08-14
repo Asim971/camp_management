@@ -82,24 +82,38 @@ tags:
     id: "capture_done"
 
 # `capture_done` is `Navigator.maybePop()` (capture_flow_screen.dart:417), so
-# it pops ONE route back to the search screen, NOT to /dev
-# (field_offline_capture.yaml verified this from a failure screenshot).
-# Relaunching (no clearState) lands on /dev deterministically and keeps the
-# queued item, exactly as that flow and offline_queue_retry.yaml do.
+# it pops ONE route back to the search screen, NOT to /dev. Relaunching (no
+# clearState) keeps the durable queued item — but UNLIKE the FakeAuth
+# field_offline_capture flow (which lands on /dev), this flow runs under
+# E2E_REAL_AUTH, so the relaunch's auto sign-in is 401'd by the real
+# authenticate() and RouteGuards redirect to /login. We must sign in AGAIN to
+# reach /dev — and re-authenticating is also what lets the sync engine drain
+# the queued attendance (a signed-out app has no token to presign/confirm with).
 - launchApp
+- assertVisible:
+    id: "login_username"
+- tapOn:
+    id: "login_username"
+- inputText: "field_user"
+- tapOn:
+    id: "login_password"
+- inputText: "Test1234!"
+- hideKeyboard
+- tapOn:
+    id: "login_submit"
 - assertVisible:
     id: "dev_launcher"
 - tapOn:
     id: "dev_open_queue"
+- assertVisible: ".*Status: Pending sync.*"
 
-# The queued item now drains through the REAL sync engine: presign -> PUT ->
-# confirm against campaign_service. "Match processing"
-# (offline_queue_screen.dart's `matchProcessing` status label) only ever
-# appears once that confirm call has actually returned 200 with status
-# MATCH_PROCESSING - it is the round-trip's proof, not a client-side guess.
-# The queue row is one merged accessibility node (Carpenter/Session/Status
-# lines combined), so the pattern is wrapped in `.*...*` per the convention in
-# offline_queue_retry.yaml/field_offline_capture.yaml.
+# Now authenticated + online, the queued item drains through the REAL sync
+# engine: presign -> PUT -> confirm against campaign_service. "Match processing"
+# (offline_queue_screen.dart's `matchProcessing` status label) only appears once
+# that confirm returns 200 with status MATCH_PROCESSING — the round-trip's proof,
+# not a client-side guess. Assert "Status: Match processing" (the exact prefixed
+# label field_offline_capture.yaml uses); the queue row is one merged node, so
+# wrap in `.*...*`. Generous timeout: the drain is background work post-login.
 - extendedWaitUntil:
-    visible: ".*Match processing.*"
-    timeout: 20000
+    visible: ".*Status: Match processing.*"
+    timeout: 30000
