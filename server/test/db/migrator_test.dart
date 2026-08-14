@@ -278,4 +278,19 @@ void main() {
     final names = cols.map((r) => row(r)['column_name']! as String).toSet();
     expect(names, containsAll(<String>['escalated_at', 'escalated_by']));
   });
+
+  test('010 adds the queue filter indexes', () async {
+    await Migrator(db).applyPending();
+    final idx = await db.execute(
+      "SELECT indexname FROM pg_indexes WHERE tablename = 'attendance'",
+    );
+    final names = idx.map((r) => row(r)['indexname']! as String).toSet();
+    expect(
+      names,
+      containsAll(<String>[
+        'attendance_assignee_idx',
+        'attendance_escalated_idx',
+      ]),
+    );
+  });
 }

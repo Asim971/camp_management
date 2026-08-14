@@ -49,27 +49,42 @@ class VerificationRepo {
   final AuditWriter _audit;
   final String _signingKey;
 
-  /// The CRM_REVIEW worklist for [organizationId], worst band first
-  /// (`NO_REFERENCE` > `LOW` > `MEDIUM` > `HIGH`), then oldest-captured
-  /// first within a band.
+  /// The CRM_REVIEW worklist for [organizationId]: escalated cases first,
+  /// then worst band (`NO_REFERENCE` > `LOW` > `MEDIUM` > `HIGH`), then
+  /// oldest-captured first within a band. [filter] narrows the WHERE
+  /// (`mine`/`unassigned`/`escalated`); [callerUserId] is bound as `@caller`
+  /// only for the `mine` clause — the postgres driver rejects a bound
+  /// parameter the query text never references, so it is added to the params
+  /// map conditionally rather than unconditionally as originally sketched.
   Future<List<Map<String, Object?>>> queue({
     required String organizationId,
+    required QueueFilter filter,
+    required String callerUserId,
   }) async {
+    final filterClause = switch (filter) {
+      QueueFilter.all => '',
+      QueueFilter.mine => 'AND a.assignee_id = @caller ',
+      QueueFilter.unassigned => 'AND a.assignee_id IS NULL ',
+      QueueFilter.escalated => 'AND a.escalated_at IS NOT NULL ',
+    };
     final res = await _db.execute(
       'SELECT a.id, a.machine_band, a.machine_reference_src, a.assignee_id, '
-      '       a.captured_at, cr.full_name AS carpenter_name, '
+      '       a.captured_at, a.escalated_at, cr.full_name AS carpenter_name, '
       '       c.name AS campaign_name '
       'FROM attendance a '
       'JOIN campaigns c ON c.id = a.campaign_id '
       'JOIN carpenters cr ON cr.id = a.carpenter_id '
       "WHERE a.organization_id = @org AND a.status = 'CRM_REVIEW' "
-      'ORDER BY CASE a.machine_band '
-      "         WHEN 'NO_REFERENCE' THEN 0 "
-      "         WHEN 'LOW' THEN 1 "
-      "         WHEN 'MEDIUM' THEN 2 "
-      '         ELSE 3 END, '
-      '       a.captured_at',
-      params: {'org': organizationId},
+      '$filterClause'
+      'ORDER BY (a.escalated_at IS NOT NULL) DESC, '
+      '         CASE a.machine_band '
+      "           WHEN 'NO_REFERENCE' THEN 0 WHEN 'LOW' THEN 1 "
+      "           WHEN 'MEDIUM' THEN 2 ELSE 3 END, "
+      '         a.captured_at',
+      params: {
+        'org': organizationId,
+        if (filter == QueueFilter.mine) 'caller': callerUserId,
+      },
     );
     final now = DateTime.now().toUtc();
     return [for (final r in res) _queueItemWire(row(r), now)];
@@ -85,6 +100,9 @@ class VerificationRepo {
       'band': r['machine_band'],
       'referenceSource': r['machine_reference_src'],
       'assigneeId': r['assignee_id'],
+      'escalatedAt': (r['escalated_at'] as DateTime?)
+          ?.toUtc()
+          .toIso8601String(),
     };
   }
 
@@ -319,4 +337,81 @@ class VerificationRepo {
       );
     });
   }
+
+  /// Assigns [attendanceId] to [userId], or [release]s that assignment —
+  /// version-free self-claim/release for the queue's "work this case"
+  /// workflow (sub-project 5c). Deliberately does NOT touch `version`: a
+  /// claim is a workflow-visibility change, not a decision, so a pending
+  /// [decide] presenting the pre-claim version must still succeed.
+  ///
+  /// Modeled on [decide]'s atomic-CAS + zero-rows re-check, but as a single
+  /// `_db.execute` rather than a `tx`: there is exactly one UPDATE here (no
+  /// companion insert), so it is already atomic on its own, and the audit
+  /// write is a best-effort follow-on rather than something that must share
+  /// the UPDATE's atomicity.
+  Future<ClaimCode> claim({
+    required String attendanceId,
+    required String organizationId,
+    required String userId,
+    String? correlationId,
+  }) async {
+    final res = await _db.execute(
+      'UPDATE attendance SET assignee_id = @me '
+      'WHERE id = @id AND organization_id = @org '
+      "  AND status = 'CRM_REVIEW' "
+      '  AND (assignee_id IS NULL OR assignee_id = @me) '
+      'RETURNING id',
+      params: {'me': userId, 'id': attendanceId, 'org': organizationId},
+    );
+    if (res.affectedRows == 0) {
+      final exists = await _db.execute(
+        'SELECT 1 FROM attendance WHERE id = @id AND organization_id = @org',
+        params: {'id': attendanceId, 'org': organizationId},
+      );
+      return exists.isEmpty ? ClaimCode.notFound : ClaimCode.conflict;
+    }
+    await _audit.write(
+      action: 'verification.claimed',
+      resourceType: 'attendance',
+      resourceId: attendanceId,
+      actorId: userId,
+      correlationId: correlationId,
+    );
+    return ClaimCode.done;
+  }
+
+  /// Clears [attendanceId]'s assignment — only if [userId] is the current
+  /// assignee. Releasing a case assigned to someone else is
+  /// [ClaimCode.conflict], same shape as a lost claim race.
+  Future<ClaimCode> release({
+    required String attendanceId,
+    required String organizationId,
+    required String userId,
+    String? correlationId,
+  }) async {
+    final res = await _db.execute(
+      'UPDATE attendance SET assignee_id = NULL '
+      'WHERE id = @id AND organization_id = @org AND assignee_id = @me '
+      'RETURNING id',
+      params: {'me': userId, 'id': attendanceId, 'org': organizationId},
+    );
+    if (res.affectedRows == 0) {
+      final exists = await _db.execute(
+        'SELECT 1 FROM attendance WHERE id = @id AND organization_id = @org',
+        params: {'id': attendanceId, 'org': organizationId},
+      );
+      return exists.isEmpty ? ClaimCode.notFound : ClaimCode.conflict;
+    }
+    await _audit.write(
+      action: 'verification.released',
+      resourceType: 'attendance',
+      resourceId: attendanceId,
+      actorId: userId,
+      correlationId: correlationId,
+    );
+    return ClaimCode.done;
+  }
 }
+
+/// Outcome of [VerificationRepo.claim] / [VerificationRepo.release].
+enum ClaimCode { done, conflict, notFound }

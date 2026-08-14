@@ -231,8 +231,52 @@ Router _buildRouter(_Store store) {
   });
 
   // ---- Verification -------------------------------------------------------
+  //
+  // `filter` matches the real service's QueueFilter wire vocabulary
+  // (verification_routes.dart / packages/campaign_contracts/queue_filter.dart)
+  // exactly: ALL/MINE/UNASSIGNED/ESCALATED, defaulting to ALL, with anything
+  // else answering the same BAD_REQUEST envelope shape the rest of this file
+  // uses. MINE/UNASSIGNED read the mutable `store.assignees` map (below)
+  // rather than each item's static `assigneeId` field, so a case claimed via
+  // POST .../claim shows up under MINE without a server restart.
   r.get('/verification/queue', (Request req) {
-    return _json({'items': store.verificationQueue});
+    final filterWire = req.url.queryParameters['filter'] ?? 'ALL';
+    Iterable<Map<String, dynamic>> items = store.verificationQueue;
+    switch (filterWire) {
+      case 'ALL':
+        break;
+      case 'MINE':
+        items = items.where(
+          (i) =>
+              store.assigneeOf(i['attendanceId'] as String) ==
+              _Store.mockUserId,
+        );
+        break;
+      case 'UNASSIGNED':
+        items = items.where(
+          (i) => store.assigneeOf(i['attendanceId'] as String) == null,
+        );
+        break;
+      case 'ESCALATED':
+        // The real service additionally 403s this filter for a caller
+        // lacking `verification_override` (verification_routes.dart). This
+        // mock has no per-request RBAC model at all -- no roles/permissions
+        // are threaded through requests -- so that 403 stays a
+        // REAL-SERVICE-ONLY assertion, same as 5a documented for
+        // `sensitive_media_view`.
+        items = items.where((i) => i['escalatedAt'] != null);
+        break;
+      default:
+        return _json({
+          'error': {
+            'code': 'BAD_REQUEST',
+            'message': 'Unknown queue filter "$filterWire".',
+          },
+        }, status: 400);
+    }
+    return _json({
+      'items': [for (final i in items) store.queueItemWire(i)],
+    });
   });
 
   r.get('/verification/cases/<id>', (Request req, String id) {
@@ -301,6 +345,62 @@ Router _buildRouter(_Store store) {
     // are threaded through requests -- so that 403 stays a REAL-SERVICE-ONLY
     // assertion, same as 5a documented for `sensitive_media_view`.
     return _json({'status': mappedStatus});
+  });
+
+  // Claim/release (sub-project 5c): single-assignee workflow state, modeled
+  // on the real service's `VerificationRepo.claim`/`.release` (same 409-when-
+  // held-by-another rule) but acting as one fixed identity (`_Store.
+  // mockUserId`) rather than a real per-request caller, since this mock has
+  // no auth threaded through its handlers at all. Deliberately does NOT
+  // touch a case's decision `version` -- same as the real repo -- so a
+  // pending /decision call presenting the pre-claim version still succeeds.
+  r.post('/verification/cases/<id>/claim', (Request req, String id) async {
+    await req.read().drain<void>(); // no body is read
+    if (!store.verificationQueue.any((i) => i['attendanceId'] == id)) {
+      return _json({
+        'error': {
+          'code': 'NOT_FOUND',
+          'message': 'The requested resource was not found.',
+        },
+      }, status: 404);
+    }
+    final current = store.assigneeOf(id);
+    if (current != null && current != _Store.mockUserId) {
+      return _json({
+        'error': {
+          'code': 'CONFLICT_STALE_VERSION',
+          'message':
+              'This case is being reviewed by someone else; reload the '
+              'queue.',
+        },
+      }, status: 409);
+    }
+    store.assignees[id] = _Store.mockUserId;
+    return _json({'status': 'ok'});
+  });
+
+  r.post('/verification/cases/<id>/release', (Request req, String id) async {
+    await req.read().drain<void>(); // no body is read
+    if (!store.verificationQueue.any((i) => i['attendanceId'] == id)) {
+      return _json({
+        'error': {
+          'code': 'NOT_FOUND',
+          'message': 'The requested resource was not found.',
+        },
+      }, status: 404);
+    }
+    if (store.assigneeOf(id) != _Store.mockUserId) {
+      return _json({
+        'error': {
+          'code': 'CONFLICT_STALE_VERSION',
+          'message':
+              'This case is being reviewed by someone else; reload the '
+              'queue.',
+        },
+      }, status: 409);
+    }
+    store.assignees[id] = null;
+    return _json({'status': 'ok'});
   });
 
   // ---- Audit (🔒 contract-pending shape) ----------------------------------
@@ -563,6 +663,18 @@ class _Store {
       target: 40,
       verified: 0,
     );
+    // Seeded from verificationQueue's own initial `assigneeId`s -- a field
+    // initializer can't reference another instance member (only the
+    // constructor body can), which is why this lives here rather than
+    // alongside `assignees`'s declaration below.
+    assignees.addEntries(
+      verificationQueue.map(
+        (item) => MapEntry(
+          item['attendanceId'] as String,
+          item['assigneeId'] as String?,
+        ),
+      ),
+    );
   }
 
   final Map<String, Map<String, dynamic>> campaigns = {};
@@ -597,8 +709,16 @@ class _Store {
     },
   ];
 
+  /// The fixed identity `claim`/`release` act "as" (sub-project 5c) — this
+  /// mock has no per-request auth threaded through its handlers, so every
+  /// claim always assigns to this one id rather than a real caller's.
+  static const mockUserId = 'seed-crm_verifier';
+
   final List<Map<String, dynamic>> verificationQueue = [
     {
+      // Kept unassigned with a null escalatedAt: the e2e/parity flow (and
+      // Task 7 (5a)'s decision-shape parity case above) depend on this exact
+      // id staying open and unclaimed.
       'attendanceId': 'CASE_E2E',
       'carpenterName': 'Md. Karim',
       'campaignName': 'ACSL Pilot Carpenter Drive',
@@ -606,8 +726,63 @@ class _Store {
       'band': 'MEDIUM',
       'referenceSource': 'VERIFIED_PROFILE_PHOTO',
       'assigneeId': null,
+      'escalatedAt': null,
+    },
+    {
+      // Pre-assigned to `mockUserId` itself, so filter=MINE has something to
+      // return even before any claim call is made in a given process.
+      'attendanceId': 'CASE_ASSIGNED',
+      'carpenterName': 'Karim Uddin',
+      'campaignName': 'ACSL Pilot Carpenter Drive',
+      'ageSeconds': 1800,
+      'band': 'HIGH',
+      'referenceSource': 'VERIFIED_PROFILE_PHOTO',
+      'assigneeId': mockUserId,
+      'escalatedAt': null,
+    },
+    {
+      'attendanceId': 'CASE_ESCALATED',
+      'carpenterName': 'Abdul Jabbar',
+      'campaignName': 'Chattogram Contractor Meet',
+      'ageSeconds': 7200,
+      'band': 'NO_REFERENCE',
+      'referenceSource': 'UNAVAILABLE',
+      'assigneeId': null,
+      'escalatedAt': '2026-08-10T09:00:00.000Z',
+    },
+    {
+      // Pre-assigned to someone OTHER than `mockUserId`. This mock has no
+      // real per-request identity to claim "as" a second, different
+      // principal, so this fixture item stands in for "already held by
+      // someone else" when exercising the claim route's 409 conflict path
+      // (parity_test.dart's Task 7 (5c) case).
+      'attendanceId': 'CASE_HELD_BY_OTHER',
+      'carpenterName': 'Nasima Begum',
+      'campaignName': 'Rajshahi Carpenter Drive',
+      'ageSeconds': 900,
+      'band': 'LOW',
+      'referenceSource': 'APPROVED_BASELINE_PHOTO',
+      'assigneeId': 'seed-other-verifier',
+      'escalatedAt': null,
     },
   ];
+
+  /// case id -> current assignee, mutated only by the claim/release routes.
+  /// Kept separate from [verificationQueue]'s own (initial) `assigneeId`
+  /// field so the queue filter and claim/release handlers share one mutable
+  /// source of truth for "who holds this case now" -- mirrors how
+  /// `_sessions` below is the one place session state lives. Populated in
+  /// the constructor above (see its comment for why).
+  final Map<String, String?> assignees = {};
+
+  String? assigneeOf(String attendanceId) => assignees[attendanceId];
+
+  /// The wire item for a queue [fixture] row, with its current mutable
+  /// assignee overlaid onto the otherwise-static fixture fields.
+  Map<String, dynamic> queueItemWire(Map<String, dynamic> fixture) => {
+    ...fixture,
+    'assigneeId': assignees[fixture['attendanceId']],
+  };
 
   Map<String, dynamic> _campaign({
     required String id,

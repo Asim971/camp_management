@@ -1,0 +1,105 @@
+# 5c.D4/D6: the C-01 verification queue's claim/release is a version-free
+# assignment change, not a decision -- claiming an unassigned CRM_REVIEW case
+# assigns it to the caller (it now appears under the Mine tab), and releasing
+# clears that assignment (it drops back out of Mine). Neither call touches
+# the case's decision `version` -- see verification_repo.dart's claim/release
+# and the queue's `assigneeId`-based Mine/Unassigned filters (queue_filter.dart,
+# verification_repo.dart's `queue`).
+#
+# Prereq: POST /__test__/reset seeds CASE_E2E (CRM_REVIEW, version 1, MEDIUM
+# band, assignee_id null) on the real service -- see
+# server/lib/src/seed/seed_routes.dart's `_seedVerificationFixture`.
+#
+# Requires the `crm3` matrix APK (--dart-define=E2E_REAL_AUTH=true
+# --dart-define=ROLE=crm_verifier, useMock 0): RouteGuards redirect an
+# unauthenticated session to /login, so this signs in for real as
+# crm_verifier (who holds verification_decide + sensitive_media_view) rather
+# than using ../subflows/launch_as_crm.yaml (that subflow is FakeAuth-only
+# and skips /login entirely; with the default field_user the session has no
+# verificationDecide and the route redirects to /forbidden). See
+# ci.yml's e2e matrix, `crm3` entry -- its OWN matrix key, not appended to
+# `crm`/`crm2` (which already run 2 Decision-card flows each on one boot):
+# the api-34 swiftshader emulator's graphics buffers degrade after ~2 such
+# flows (`Failed to find ColorBuffer` in the CI log), and this flow adds its
+# own screen churn (queue list -> claim -> tab switch -> release) on top.
+appId: ${APP_ID}
+tags:
+  - crm
+  - critical
+  - android
+  - pr-smoke
+---
+- clearState
+- launchApp
+
+- assertVisible:
+    id: "login_username"
+- tapOn:
+    id: "login_username"
+- inputText: "crm_verifier"
+- tapOn:
+    id: "login_password"
+- inputText: "Test1234!"
+- hideKeyboard
+- tapOn:
+    id: "login_submit"
+
+- assertVisible:
+    id: "dev_launcher"
+- tapOn:
+    id: "dev_open_verification_queue" # opens /verification
+- assertVisible: "Verification queue"
+
+# Default filter is All (VerificationQueueScreen's initial `_filter`).
+# CASE_E2E is unassigned after reset, so it is already in this list -- but
+# the Decision-card-style below-the-fold rule applies to lists too: the
+# queue's ListView can push a row (and its Claim button) past the visible
+# viewport on CI's api-34 emulator even though it fits on a larger local
+# device, so this is scrollUntilVisible (a viewport-independent assertion),
+# not a bare assertVisible/tapOn -- same rationale as
+# crm_case_decision.yaml's advisory-block comment.
+- scrollUntilVisible:
+    element:
+      id: "queue_item_CASE_E2E"
+    direction: DOWN
+    waitToSettleTimeoutMs: 1000
+
+- scrollUntilVisible:
+    element:
+      id: "queue_claim_CASE_E2E"
+    direction: DOWN
+    waitToSettleTimeoutMs: 1000
+    visibilityPercentage: 40
+- tapOn:
+    id: "queue_claim_CASE_E2E"
+
+# Claim is an async round trip (POST .../claim); the tile's own
+# `ref.invalidateSelf()` on success (verification_queue_screen.dart's `_act`)
+# refreshes the All-tab list in place, so switching tabs next starts the
+# Mine query fresh rather than racing a stale response.
+- tapOn:
+    id: "queue_tab_mine"
+- scrollUntilVisible:
+    element:
+      id: "queue_item_CASE_E2E"
+    direction: DOWN
+    waitToSettleTimeoutMs: 1000
+
+- scrollUntilVisible:
+    element:
+      id: "queue_release_CASE_E2E"
+    direction: DOWN
+    waitToSettleTimeoutMs: 1000
+    visibilityPercentage: 40
+- tapOn:
+    id: "queue_release_CASE_E2E"
+
+# Release clears the assignment, so CASE_E2E no longer matches
+# `assignee_id = @caller` and drops out of the still-selected Mine tab.
+# extendedWaitUntil rather than a bare assertNotVisible: the release POST +
+# list refresh is itself an async round trip, the same idiom this repo
+# already uses for post-action assertions (session_ops.yaml, bulk_import.yaml).
+- extendedWaitUntil:
+    notVisible:
+      id: "queue_item_CASE_E2E"
+    timeout: 15000

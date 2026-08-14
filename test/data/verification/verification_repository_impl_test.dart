@@ -3,8 +3,8 @@ import 'dart:typed_data';
 
 import 'package:acsl_campaign/core/result/result.dart';
 import 'package:acsl_campaign/data/verification/verification_repository_impl.dart';
-import 'package:acsl_campaign/domain/common/status.dart';
 import 'package:acsl_campaign/domain/verification/verification.dart';
+import 'package:campaign_contracts/campaign_contracts.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -69,7 +69,7 @@ void main() {
           ],
         }),
       );
-      final res = await repo.queue();
+      final res = await repo.queue(filter: QueueFilter.all);
       final items = res.fold((v) => v, (f) => fail('expected Ok: $f'));
       expect(items.single.band, MatchBand.medium);
       expect(
@@ -124,7 +124,7 @@ void main() {
         ],
       }),
     );
-    final res = await repo.queue();
+    final res = await repo.queue(filter: QueueFilter.all);
     final items = res.fold((v) => v, (f) => fail('expected Ok: $f'));
     expect(items.single.band, MatchBand.noReference);
   });
@@ -233,4 +233,70 @@ void main() {
       expect((req.data as Map)['supervisorOverride'], true);
     },
   );
+
+  test('queue sends ?filter=MINE', () async {
+    repo = build((_) => _jsonBody({'items': <Object?>[]}));
+    await repo.queue(filter: QueueFilter.mine);
+    expect(adapter.requests.single.uri.queryParameters['filter'], 'MINE');
+  });
+
+  test('queue parses escalatedAt (and null)', () async {
+    repo = build(
+      (_) => _jsonBody({
+        'items': [
+          {
+            'attendanceId': 'esc',
+            'carpenterName': 'Karim Uddin',
+            'campaignName': 'Test Campaign',
+            'ageSeconds': 120,
+            'band': 'MEDIUM',
+            'referenceSource': 'APPROVED_BASELINE_PHOTO',
+            'assigneeId': null,
+            'escalatedAt': '2026-08-01T10:00:00.000Z',
+          },
+          {
+            'attendanceId': 'plain',
+            'carpenterName': 'Karim Uddin',
+            'campaignName': 'Test Campaign',
+            'ageSeconds': 60,
+            'band': 'MEDIUM',
+            'referenceSource': 'APPROVED_BASELINE_PHOTO',
+            'assigneeId': null,
+            'escalatedAt': null,
+          },
+        ],
+      }),
+    );
+    final res = await repo.queue(filter: QueueFilter.all);
+    final items = res.fold((v) => v, (f) => fail('expected Ok: $f'));
+    expect(
+      items.firstWhere((i) => i.attendanceId == 'esc').escalatedAt,
+      isNotNull,
+    );
+    expect(
+      items.firstWhere((i) => i.attendanceId == 'plain').escalatedAt,
+      isNull,
+    );
+  });
+
+  test('claim POSTs to the claim endpoint', () async {
+    repo = build((_) => _jsonBody(null, status: 204));
+    final res = await repo.claim('att-1');
+    res.fold((_) {}, (f) => fail('expected Ok: $f'));
+
+    final req = adapter.requests.single;
+    expect(req.method, 'POST');
+    expect(req.path, '/verification/cases/att-1/claim');
+  });
+
+  test('a 409 on claim maps to conflict', () async {
+    repo = build(
+      (_) => _jsonBody({
+        'error': {'message': 'already claimed'},
+      }, status: 409),
+    );
+    final res = await repo.claim('att-1');
+    final failure = res.fold((_) => fail('expected Err'), (f) => f);
+    expect(failure.kind, FailureKind.conflict);
+  });
 }
