@@ -80,7 +80,11 @@ tags:
     waitToSettleTimeoutMs: 1000
 - tapOn:
     id: "crm_reason"
-- inputText: "Supervisor override — re-review found a mismatch."
+# Plain ASCII only: an em-dash (or any char off the soft keyboard) goes in via
+# a Unicode input path that corrupts the swiftshader render surface on CI
+# (`Failed to find ColorBuffer`), after which the next scrollUntilVisible can't
+# find crm_submit at all. The passing flows (decision/conflict) use ASCII too.
+- inputText: "Supervisor override, re-review found a mismatch."
 # The keyboard raised by inputText can cover the button on a short viewport, so
 # scroll again rather than assuming the earlier scroll still holds.
 - hideKeyboard
