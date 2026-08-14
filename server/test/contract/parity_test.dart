@@ -863,6 +863,200 @@ void main() {
         }
       },
     );
+
+    // Task 7 (5b): the mock's decision handler now honours the full
+    // four-outcome map (previously it just echoed `outcome` back verbatim
+    // as `status`) and the reason-422, and its case fixture now carries a
+    // `status` key it previously omitted entirely. This pins all three on
+    // both backends: RETURN_FOR_RECAPTURE maps to the exact literal
+    // RETURNED, a blank reason on that same reject/return/escalate family
+    // 422s as DECISION_REASON_REQUIRED, and the case wire's `status` is
+    // always a value AttendanceStatus.tryParseWire accepts.
+    //
+    // supervisorOverride's permission gate (403 without
+    // verification_override) is REAL-SERVICE-ONLY, same as
+    // sensitive_media_view (5a) and the RBAC 403s already noted above: the
+    // mock has no per-request permission model to 403 against, so it is not
+    // asserted here on either backend.
+    test('$targetName: RETURN_FOR_RECAPTURE decision maps to RETURNED, a blank '
+        'reason on it 422s DECISION_REASON_REQUIRED, and the case wire\'s '
+        'status is a valid AttendanceStatus wire value', () async {
+      final targets = await buildTargets(campaignCount: 0);
+
+      late final String attendanceId;
+      late final Map<String, Object?> caseView;
+      String verifierBearer = '';
+      Handler? realHandler;
+
+      Future<Map<String, Object?>> getReal(String path) async {
+        final res = await realHandler!(
+          Request(
+            'GET',
+            Uri.parse('http://localhost$path'),
+            headers: {'authorization': 'Bearer $verifierBearer'},
+          ),
+        );
+        return jsonDecode(await res.readAsString()) as Map<String, Object?>;
+      }
+
+      Future<({int status, Map<String, Object?> body})> decideReal(
+        String id, {
+        required String ifMatch,
+        required Map<String, Object?> body,
+      }) async {
+        final res = await realHandler!(
+          Request(
+            'POST',
+            Uri.parse('http://localhost/verification/cases/$id/decision'),
+            headers: {
+              'authorization': 'Bearer $verifierBearer',
+              'if-match': ifMatch,
+              'content-type': 'application/json',
+            },
+            body: jsonEncode(body),
+          ),
+        );
+        final decoded =
+            jsonDecode(await res.readAsString()) as Map<String, Object?>;
+        return (status: res.statusCode, body: decoded);
+      }
+
+      if (targetName == 'real') {
+        attendanceId = 'parity-decision-att';
+        await seedOrganizationWithUser(
+          targets.realDb,
+          userId: 'parity-decision-verifier',
+          username: 'parity-decision-verifier',
+          roles: const ['crm_verifier'],
+        );
+        await seedCampaign(
+          targets.realDb,
+          id: 'parity-decision-camp',
+          status: CampaignStatus.approved,
+        );
+        await seedCampaignSession(
+          targets.realDb,
+          id: 'parity-decision-sess',
+          campaignId: 'parity-decision-camp',
+          venue: 'Hall A',
+        );
+        await seedCarpenter(targets.realDb, id: 'parity-decision-carp');
+        await targets.realDb.execute(
+          'INSERT INTO attendance '
+          '(id, organization_id, campaign_id, session_id, carpenter_id, '
+          ' media_ref, status, captured_by, captured_at, machine_band, '
+          ' machine_reference_src, machine_reasons, version) '
+          "VALUES (@id, 'org-1', 'parity-decision-camp', "
+          "'parity-decision-sess', 'parity-decision-carp', @id, "
+          "'CRM_REVIEW', 'parity-decision-verifier', now(), 'MEDIUM', "
+          "'APPROVED_BASELINE_PHOTO', @reasons::jsonb, 1)",
+          params: {
+            'id': attendanceId,
+            'reasons': jsonEncode(const [
+              'Landmark alignment within tolerance',
+            ]),
+          },
+        );
+        await targets.realDb.execute(
+          "INSERT INTO media_objects (id, content_type, bytes) "
+          "VALUES (@id, 'image/png', @bytes)",
+          params: {
+            'id': attendanceId,
+            'bytes': Uint8List.fromList(const [1, 2, 3, 4]),
+          },
+        );
+
+        final config = ServerConfig.fromEnvironment({
+          'DATABASE_URL': testDatabaseUrl,
+          'JWT_SECRET': 'a-secret-at-least-32-characters-long!!',
+        });
+        verifierBearer = (await TokenService(
+          db: targets.realDb,
+          config: config,
+        ).issueFor('parity-decision-verifier')).accessToken;
+        realHandler = buildApp(db: targets.realDb, config: config);
+
+        caseView = await getReal('/verification/cases/$attendanceId');
+      } else {
+        attendanceId = 'CASE_E2E';
+        caseView = await targets.mock.getJson(
+          '/verification/cases/$attendanceId',
+        );
+      }
+
+      // (a) The case wire always carries a `status` in the shared
+      // AttendanceStatus vocabulary.
+      expect(
+        caseView.keys,
+        contains('status'),
+        reason: 'the case view must carry a status key',
+      );
+      expect(
+        AttendanceStatus.tryParseWire(caseView['status']! as String),
+        isNotNull,
+        reason:
+            '${caseView['status']} is not in the shared AttendanceStatus '
+            'vocabulary',
+      );
+
+      // (b) A blank reason on RETURN_FOR_RECAPTURE (part of the
+      // reject/return/escalate family that requires one) 422s without
+      // mutating the case -- so the very same case can go on to (c) below.
+      if (targetName == 'real') {
+        final blank = await decideReal(
+          attendanceId,
+          ifMatch: '1',
+          body: const {'outcome': 'RETURN_FOR_RECAPTURE', 'reason': '   '},
+        );
+        expect(blank.status, 422);
+        expect(
+          (blank.body['error']! as Map)['code'],
+          'DECISION_REASON_REQUIRED',
+        );
+      } else {
+        final blank = await _httpPostWithIfMatch(
+          Uri.parse(
+            'http://127.0.0.1:$_mockPort/verification/cases/'
+            '$attendanceId/decision',
+          ),
+          const {'outcome': 'RETURN_FOR_RECAPTURE', 'reason': '   '},
+          ifMatch: '1',
+        );
+        expect(blank.status, 422);
+        final decoded = jsonDecode(blank.body) as Map<String, Object?>;
+        expect((decoded['error']! as Map)['code'], 'DECISION_REASON_REQUIRED');
+      }
+
+      // (c) The same decision with a real reason maps to the exact
+      // literal RETURNED on both backends.
+      if (targetName == 'real') {
+        final decided = await decideReal(
+          attendanceId,
+          ifMatch: '1',
+          body: const {
+            'outcome': 'RETURN_FOR_RECAPTURE',
+            'reason': 'Face not clearly visible; recapture in better light.',
+          },
+        );
+        expect(decided.status, 200);
+        expect(decided.body['status'], 'RETURNED');
+      } else {
+        final decided = await _httpPostWithIfMatch(
+          Uri.parse(
+            'http://127.0.0.1:$_mockPort/verification/cases/'
+            '$attendanceId/decision',
+          ),
+          const {
+            'outcome': 'RETURN_FOR_RECAPTURE',
+            'reason': 'Face not clearly visible; recapture in better light.',
+          },
+          ifMatch: '1',
+        );
+        expect(decided.status, 200);
+        final decoded = jsonDecode(decided.body) as Map<String, Object?>;
+        expect(decoded['status'], 'RETURNED');
+      }
+    });
   }
 }
 
