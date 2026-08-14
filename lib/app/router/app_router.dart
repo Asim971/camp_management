@@ -17,6 +17,7 @@ import '../../features/gallery/presentation/gallery_screen.dart';
 import '../../features/offline_queue/presentation/offline_queue_screen.dart';
 import '../../features/registration/presentation/registration_workspace_screen.dart';
 import '../../features/settings/presentation/language_screen.dart';
+import '../../features/verification_queue/presentation/verification_queue_screen.dart';
 import '../di/providers.dart';
 import 'route_guards.dart';
 
@@ -101,11 +102,7 @@ List<RouteBase> _appRoutes({required bool devRoutesEnabled}) => [
   ),
   GoRoute(
     path: '/verification',
-    builder: (_, __) => const PlaceholderScreen(
-      title: 'Verification Queue',
-      screenId: 'C-01',
-      prdRefs: ['CM-FR-060, 067'],
-    ),
+    builder: (_, __) => const VerificationQueueScreen(),
     routes: [
       GoRoute(
         path: 'cases/:id',

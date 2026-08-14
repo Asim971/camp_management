@@ -1,14 +1,49 @@
 import 'package:acsl_campaign/app/app.dart';
 import 'package:acsl_campaign/app/di/providers.dart';
 import 'package:acsl_campaign/app/router/app_router.dart';
-import 'package:acsl_campaign/core/design_system/placeholder_screen.dart';
 import 'package:acsl_campaign/core/result/result.dart';
+import 'package:acsl_campaign/core/trace/trace_id.dart';
+import 'package:acsl_campaign/domain/verification/verification.dart';
+import 'package:acsl_campaign/domain/verification/verification_case.dart';
+import 'package:acsl_campaign/domain/verification/verification_repository.dart';
 import 'package:acsl_campaign/features/auth/presentation/login_screen.dart';
+import 'package:acsl_campaign/features/verification_queue/presentation/verification_queue_screen.dart';
+import 'package:campaign_contracts/campaign_contracts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/fake_auth.dart';
 import '../../support/harness.dart';
+
+/// [VerificationQueueScreen] now renders at `/verification`; this in-memory
+/// stand-in keeps the deep-link round trip from making a real network call
+/// through the un-overridden [dioProvider] (this test is about routing, not
+/// the queue's data).
+class _EmptyVerificationRepository implements VerificationRepository {
+  @override
+  Future<Result<List<VerificationQueueItem>>> queue({
+    required QueueFilter filter,
+  }) async => const Ok(<VerificationQueueItem>[]);
+
+  @override
+  Future<Result<void>> claim(String attendanceId) =>
+      throw UnimplementedError('not used by this routing test');
+
+  @override
+  Future<Result<void>> release(String attendanceId) =>
+      throw UnimplementedError('not used by this routing test');
+
+  @override
+  Future<Result<VerificationCase>> getCase(String attendanceId) =>
+      throw UnimplementedError('not used by this routing test');
+
+  @override
+  Future<Result<void>> decide(
+    VerificationDecision decision, {
+    required int expectedVersion,
+    TraceId? trace,
+  }) => throw UnimplementedError('not used by this routing test');
+}
 
 /// I3: [RouteGuards.evaluate] carried a [location] parameter its doc comment
 /// claimed preserved the intended destination, but nothing ever built the
@@ -38,7 +73,12 @@ void main() {
       );
 
       final container = buildTestContainer(
-        overrides: [authServiceProvider.overrideWithValue(service)],
+        overrides: [
+          authServiceProvider.overrideWithValue(service),
+          verificationRepositoryProvider.overrideWithValue(
+            _EmptyVerificationRepository(),
+          ),
+        ],
       );
 
       await container.read(sessionManagerProvider).restore();
@@ -73,7 +113,7 @@ void main() {
         router.routerDelegate.currentConfiguration.uri.toString(),
         '/verification',
       );
-      expect(find.byType(PlaceholderScreen), findsOneWidget);
+      expect(find.byType(VerificationQueueScreen), findsOneWidget);
     },
   );
 }

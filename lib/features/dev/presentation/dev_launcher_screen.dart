@@ -24,6 +24,11 @@ class DevLauncherScreen extends StatelessWidget {
     ),
     (id: 'dev_open_queue', label: 'Sync queue', route: '/queue'),
     (
+      id: 'dev_open_verification_queue',
+      label: 'Verification queue',
+      route: '/verification',
+    ),
+    (
       id: 'dev_open_crm_case',
       label: 'CRM case',
       route: '/verification/cases/CASE_E2E',
