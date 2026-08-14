@@ -20,6 +20,7 @@ import 'media/media_routes.dart';
 import 'participant/participant_repo.dart';
 import 'participant/participant_routes.dart';
 import 'seed/seed_routes.dart';
+import 'verification/verification_routes.dart';
 
 /// Assembles the full request-handling pipeline: `/health`, `/auth/*`,
 /// `/campaigns` (behind `authenticate`), and — ONLY when
@@ -134,6 +135,14 @@ Handler buildApp({required Db db, required ServerConfig config}) {
       )
       .addHandler(attendanceRouter(db: db).call);
 
+  final verificationHandler = const Pipeline()
+      .addMiddleware(
+        _authenticateUnder(const {'verification'}, db: db, tokens: tokens),
+      )
+      .addHandler(
+        verificationRouter(db: db, signingKey: config.uploadSigningKey).call,
+      );
+
   var cascade = Cascade()
       .add(publicRouter.call)
       .add(authHandler)
@@ -143,7 +152,8 @@ Handler buildApp({required Db db, required ServerConfig config}) {
       .add(sessionHandler)
       .add(mediaHandler)
       .add(consentHandler)
-      .add(attendanceHandler);
+      .add(attendanceHandler)
+      .add(verificationHandler);
 
   // Seed routes are ABSENT, not registered-and-guarded, when seeding is
   // disabled: there is no route at all for a probe to find (spec §9; Task 11

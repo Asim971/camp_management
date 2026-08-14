@@ -7,6 +7,7 @@ const Map<String, String> embeddedMigrations = {
   '005_imports': _imports,
   '006_session_status': _sessionStatus,
   '007_attendance': _attendance,
+  '008_verification': _verification,
 };
 
 const String _foundation = r'''
@@ -334,4 +335,27 @@ CREATE TABLE consent_records (
   shown_at       TIMESTAMPTZ NOT NULL,
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+''';
+
+const String _verification = r'''
+ALTER TABLE attendance ADD COLUMN version               INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE attendance ADD COLUMN assignee_id           TEXT REFERENCES staff_users(id);
+ALTER TABLE attendance ADD COLUMN machine_band          TEXT;   -- MatchBand wire; null before the machine check
+ALTER TABLE attendance ADD COLUMN machine_reference_src TEXT;   -- ReferenceSource wire
+ALTER TABLE attendance ADD COLUMN machine_reasons       JSONB NOT NULL DEFAULT '[]'::jsonb;
+
+CREATE INDEX attendance_status_idx ON attendance(organization_id, status);
+
+CREATE TABLE verification_decisions (
+  id                   TEXT PRIMARY KEY,
+  attendance_id        TEXT        NOT NULL REFERENCES attendance(id) ON DELETE CASCADE,
+  verifier_id          TEXT        NOT NULL REFERENCES staff_users(id),
+  outcome              TEXT        NOT NULL,
+  reason               TEXT,
+  supervisor_override  BOOLEAN     NOT NULL DEFAULT FALSE,
+  version_at_decision  INTEGER     NOT NULL,
+  correlation_id       TEXT,
+  decided_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX verification_decisions_attendance_idx ON verification_decisions(attendance_id);
 ''';

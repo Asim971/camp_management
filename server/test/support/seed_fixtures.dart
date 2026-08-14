@@ -223,12 +223,14 @@ Future<void> seedCarpenter(
   String source = 'SEED',
   String syncStatus = 'LOCAL_ONLY',
   bool eligible = true,
+  String? thumbnailUrl,
 }) => db.execute(
   'INSERT INTO carpenters '
   '(id, organization_id, full_name, phone, nid, territory_id, '
-  ' dealer_context, display_code, source, sync_status, eligible) '
+  ' dealer_context, display_code, source, sync_status, eligible, '
+  ' thumbnail_url) '
   'VALUES (@id, @org, @name, @phone, @nid, @territory, @dealer, @code, '
-  '        @source, @sync, @eligible)',
+  '        @source, @sync, @eligible, @thumb)',
   params: {
     'id': id,
     'org': organizationId,
@@ -241,6 +243,7 @@ Future<void> seedCarpenter(
     'source': source,
     'sync': syncStatus,
     'eligible': eligible,
+    'thumb': thumbnailUrl,
   },
 );
 

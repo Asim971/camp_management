@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:campaign_service/src/app.dart';
+import 'package:campaign_service/src/auth/tokens.dart';
 import 'package:campaign_service/src/config.dart';
 import 'package:campaign_service/src/db/migrator.dart';
 import 'package:campaign_service/src/db/pool.dart';
@@ -349,5 +350,99 @@ void main() {
     );
     expect(byLanguage['en']!['version'], 1);
     expect(byLanguage['bn']!['version'], 1);
+  });
+
+  // Task 8 (5a): the two CRM verification cases `.maestro/flows/
+  // crm_case_decision.yaml` and `crm_case_conflict.yaml` drive against the
+  // real service now that they sign in for real as crm_verifier instead of
+  // FakeAuth's launch_as_crm.yaml.
+  group('reset seeds the CRM verification cases (Task 8, 5a)', () {
+    test('CASE_E2E is an open CRM_REVIEW case with evidence and a reference '
+        'photo', () async {
+      final config = configWithSeeding(true);
+      final handler = buildApp(db: db, config: config);
+      await _post(handler, '/__test__/reset');
+
+      final statusRow = row(
+        (await db.execute(
+          'SELECT status, version FROM attendance WHERE id = @id',
+          params: {'id': 'CASE_E2E'},
+        )).single,
+      );
+      expect(statusRow['status'], 'CRM_REVIEW');
+      expect(statusRow['version'], 1);
+
+      final tokens = TokenService(db: db, config: config);
+      final token = (await tokens.issueFor(
+        seedUserId('crm_verifier'),
+      )).accessToken;
+
+      final res = await handler(
+        Request(
+          'GET',
+          Uri.parse('http://localhost/verification/cases/CASE_E2E'),
+          headers: {'authorization': 'Bearer $token'},
+        ),
+      );
+      expect(res.statusCode, 200);
+      final body = jsonDecode(await res.readAsString()) as Map<String, Object?>;
+      expect(body['carpenterName'], 'Md. Karim');
+      expect(body['band'], 'MEDIUM');
+      expect(body['referenceSource'], 'APPROVED_BASELINE_PHOTO');
+      expect(body['referenceImageUrl'], 'thumb://carp-e2e');
+      final capturedImageUrl = body['capturedImageUrl']! as String;
+      expect(capturedImageUrl, contains('/media/CASE_E2E?'));
+      expect(capturedImageUrl, contains('sig='));
+
+      final auditRes = await db.execute(
+        "SELECT actor_id FROM audit_events "
+        "WHERE action = 'verification.case_viewed' AND resource_id = "
+        "'CASE_E2E'",
+      );
+      expect(auditRes, hasLength(1));
+    });
+
+    test('CASE_CONFLICT is already decided, so a decision on it with its own '
+        'current version still 412s', () async {
+      final config = configWithSeeding(true);
+      final handler = buildApp(db: db, config: config);
+      await _post(handler, '/__test__/reset');
+
+      final statusRow = row(
+        (await db.execute(
+          'SELECT status, version FROM attendance WHERE id = @id',
+          params: {'id': 'CASE_CONFLICT'},
+        )).single,
+      );
+      expect(statusRow['status'], 'APPROVED');
+      expect(statusRow['version'], 2);
+
+      final tokens = TokenService(db: db, config: config);
+      final token = (await tokens.issueFor(
+        seedUserId('crm_verifier'),
+      )).accessToken;
+
+      final res = await handler(
+        Request(
+          'POST',
+          Uri.parse(
+            'http://localhost/verification/cases/CASE_CONFLICT/decision',
+          ),
+          headers: {
+            'authorization': 'Bearer $token',
+            'if-match': '2', // the version a fresh GET would present
+            'content-type': 'application/json',
+          },
+          body: jsonEncode({'outcome': 'APPROVED'}),
+        ),
+      );
+      expect(res.statusCode, 412);
+      expect(
+        ((jsonDecode(await res.readAsString())
+                as Map<String, Object?>)['error']!
+            as Map)['code'],
+        'PRECONDITION_FAILED',
+      );
+    });
   });
 }

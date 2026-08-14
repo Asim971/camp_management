@@ -211,8 +211,8 @@ jobs:
       # for bisecting a red run without editing this file. Kept as a flag
       # rather than deleted the moment the cut-over landed -- the mock is
       # still the harness two epics of E2E coverage were built against, and
-      # `crm`/`field` depend on it for real in this staged plan, not just as
-      # a fallback.
+      # `field` depends on it for real in this staged plan, not just as a
+      # fallback (`crm` cut over to the real service in sub-project 5a).
       USE_MOCK: ${{ vars.E2E_USE_MOCK || matrix.config.useMock }}
     strategy:
       # One red configuration must not mask the state of the other four.
@@ -245,11 +245,13 @@ jobs:
               .maestro/flows/carpenter_search_confirm.yaml
               .maestro/flows/field_online_capture.yaml
               .maestro/flows/field_offline_capture.yaml
+          # 5a: real-auth crm_verifier signs in for real, opens the seeded
+          # CASE_E2E/CASE_CONFLICT cases, and drives approve / conflict
+          # (412 on an already-decided case) against the real
+          # campaign_service. Acceptance proof for sub-project 5a.
           - key: crm
-            defines: '--dart-define=ROLE=crm_verifier'
-            useMock: '1' # both flows read/decide /verification/cases/* --
-            # endpoints belong to sub-project 4/5; move off USE_MOCK when
-            # they land.
+            defines: '--dart-define=E2E_REAL_AUTH=true --dart-define=ROLE=crm_verifier'
+            useMock: '0'
             flows: >-
               .maestro/flows/crm_case_decision.yaml
               .maestro/flows/crm_case_conflict.yaml

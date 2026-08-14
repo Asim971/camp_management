@@ -1,4 +1,8 @@
+import 'package:campaign_contracts/campaign_contracts.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
+
+export 'package:campaign_contracts/campaign_contracts.dart'
+    show MatchBand, ReferenceSource, VerificationOutcome;
 
 part 'verification.freezed.dart';
 
@@ -16,15 +20,6 @@ class MachineResult with _$MachineResult {
   }) = _MachineResult;
 }
 
-enum MatchBand { high, medium, low, noReference }
-
-enum ReferenceSource {
-  verifiedProfilePhoto,
-  authorizedNidPhoto,
-  approvedBaselinePhoto,
-  unavailable,
-}
-
 /// The authoritative human decision (FR-011). Reason is mandatory for
 /// reject/return; overrides require explicit explanation (§2 human-in-the-loop).
 @freezed
@@ -38,5 +33,3 @@ class VerificationDecision with _$VerificationDecision {
     @Default(false) bool supervisorOverride,
   }) = _VerificationDecision;
 }
-
-enum VerificationOutcome { approved, rejected, returnForRecapture, escalated }

@@ -243,4 +243,29 @@ void main() {
       ]),
     );
   });
+
+  test('008 adds the verification columns and decisions table', () async {
+    await Migrator(db).applyPending();
+    final cols = await db.execute(
+      "SELECT column_name FROM information_schema.columns WHERE table_name = 'attendance'",
+    );
+    final names = cols.map((r) => row(r)['column_name']! as String).toSet();
+    expect(
+      names,
+      containsAll(<String>[
+        'version',
+        'assignee_id',
+        'machine_band',
+        'machine_reference_src',
+        'machine_reasons',
+      ]),
+    );
+    final tables = await db.execute(
+      "SELECT tablename FROM pg_tables WHERE schemaname = 'public'",
+    );
+    expect(
+      tables.map((r) => row(r)['tablename']),
+      contains('verification_decisions'),
+    );
+  });
 }

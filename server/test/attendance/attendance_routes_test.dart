@@ -103,22 +103,26 @@ void main() {
       startAt: DateTime.utc(2026, 9, 1, 9),
       capacity: 60,
     );
-    await seedCarpenter(db, id: 'carp-1');
+    await seedCarpenter(
+      db,
+      id: 'carp-1',
+      thumbnailUrl: 'https://example.com/carp-1-thumb.jpg',
+    );
   });
   tearDown(() async => db.close());
 
   test('happy path: persists attendance + consent_records + an audit row, '
-      'returns MATCH_PROCESSING', () async {
+      'returns CRM_REVIEW with a MEDIUM machine band', () async {
     await seedEvidence('K');
     final res = await confirm('K', bearer: fieldToken, idempotencyKey: 'K');
     expect(res.statusCode, 200);
     final body = await decode(res);
-    expect(body['status'], 'MATCH_PROCESSING');
+    expect(body['status'], 'CRM_REVIEW');
     expect(body['id'], 'K');
 
     final attendance = await db.execute(
       'SELECT organization_id, campaign_id, session_id, carpenter_id, '
-      '  status, captured_by '
+      '  status, captured_by, machine_band '
       'FROM attendance WHERE id = @id',
       params: {'id': 'K'},
     );
@@ -128,7 +132,8 @@ void main() {
     expect(a['campaign_id'], 'camp-1');
     expect(a['session_id'], 'sess-1');
     expect(a['carpenter_id'], 'carp-1');
-    expect(a['status'], 'MATCH_PROCESSING');
+    expect(a['status'], 'CRM_REVIEW');
+    expect(a['machine_band'], 'MEDIUM');
     // The server trusts auth.userId, not the payload's capturedBy.
     expect(a['captured_by'], 'user-f');
 
@@ -151,6 +156,36 @@ void main() {
     final auditRow = row(audit.single);
     expect(auditRow['actor_id'], 'user-f');
     expect(auditRow['resource_id'], 'K');
+  });
+
+  test('carpenter without a reference photo -> CRM_REVIEW with a NO_REFERENCE '
+      'machine band', () async {
+    await seedCarpenter(
+      db,
+      id: 'carp-no-thumb',
+      phone: '+8801700004822',
+      displayCode: 'CARP-00004822',
+    );
+    await seedEvidence('K');
+    final body = confirmBody()..['carpenterId'] = 'carp-no-thumb';
+    final res = await confirm(
+      'K',
+      bearer: fieldToken,
+      body: body,
+      idempotencyKey: 'K',
+    );
+    expect(res.statusCode, 200);
+    final decoded = await decode(res);
+    expect(decoded['status'], 'CRM_REVIEW');
+
+    final attendance = await db.execute(
+      'SELECT status, machine_band FROM attendance WHERE id = @id',
+      params: {'id': 'K'},
+    );
+    expect(attendance.length, 1);
+    final a = row(attendance.single);
+    expect(a['status'], 'CRM_REVIEW');
+    expect(a['machine_band'], 'NO_REFERENCE');
   });
 
   test('idempotent replay: same key + same body twice -> 200 both times, '

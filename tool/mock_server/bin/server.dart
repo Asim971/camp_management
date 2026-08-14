@@ -240,12 +240,26 @@ Router _buildRouter(_Store store) {
   });
 
   r.post('/verification/cases/<id>/decision', (Request req, String id) async {
-    await _body(req);
-    // Concurrency fixture: this case was "already decided" by another reviewer.
-    if (id == 'CASE_CONFLICT') {
-      return _json({'error': 'already decided'}, status: 409);
+    final b = await _body(req);
+    // Version-aware, matching the real service (verification_routes.dart):
+    // the caller presents the version it last saw via If-Match, and a value
+    // that doesn't match the case's current version yields 412, not a
+    // hardcoded 409. CASE_CONFLICT's fixture version is ahead of what the
+    // e2e/parity flow sends (2 vs. an `If-Match: 1` client), so it always
+    // reads as stale; CASE_E2E is at version 1, so `If-Match: 1` matches.
+    final ifMatch = int.tryParse(req.headers['if-match'] ?? '');
+    if (ifMatch != store.caseVersion(id)) {
+      return _json({
+        'error': {
+          'code': 'PRECONDITION_FAILED',
+          'message': 'This case was decided by someone else; reload it.',
+        },
+      }, status: 412);
     }
-    return _json({'ok': true});
+    // SCREAMING_SNAKE outcome (APPROVED/REJECTED), matching the real wire —
+    // the mock doesn't deeply validate it, just echoes it back as `status`.
+    final outcome = (b['outcome'] as String?) ?? 'APPROVED';
+    return _json({'status': outcome});
   });
 
   // ---- Audit (🔒 contract-pending shape) ----------------------------------
@@ -347,7 +361,7 @@ Router _buildRouter(_Store store) {
 
   r.post('/attendance/<id>/confirm', (Request req, String id) async {
     await _body(req);
-    return _json({'status': 'MATCH_PROCESSING'});
+    return _json({'status': 'CRM_REVIEW'});
   });
 
   // ---- Consent --------------------------------------------------------
@@ -548,8 +562,8 @@ class _Store {
       'carpenterName': 'Md. Karim',
       'campaignName': 'ACSL Pilot Carpenter Drive',
       'ageSeconds': 3600,
-      'band': 'medium',
-      'referenceSource': 'verifiedProfilePhoto',
+      'band': 'MEDIUM',
+      'referenceSource': 'VERIFIED_PROFILE_PHOTO',
       'assigneeId': null,
     },
   ];
@@ -668,11 +682,16 @@ class _Store {
     return s;
   }
 
+  /// CASE_CONFLICT's version is ahead of the fixed `If-Match: 1` the
+  /// e2e/parity flow sends, so a decision against it always reads as stale
+  /// (412); CASE_E2E stays at version 1, so `If-Match: 1` matches (200).
+  int caseVersion(String id) => id == 'CASE_CONFLICT' ? 2 : 1;
+
   Map<String, dynamic> verificationCase(String id, Uri origin) {
     final img = origin.replace(path: '/media/fixtures/face.png').toString();
     return {
       'attendanceId': id,
-      'version': 1,
+      'version': caseVersion(id),
       'carpenterName': 'Md. Karim',
       'carpenterIdMasked': 'CARP-••4821',
       'campaignName': 'ACSL Pilot Carpenter Drive',
@@ -680,8 +699,8 @@ class _Store {
       'capturedAt': '2026-08-01T10:15:00.000',
       'capturedImageUrl': img,
       'referenceImageUrl': img,
-      'band': 'medium',
-      'referenceSource': 'verifiedProfilePhoto',
+      'band': 'MEDIUM',
+      'referenceSource': 'VERIFIED_PROFILE_PHOTO',
       'padReview': false,
       'lowQuality': false,
       'reasons': ['Landmark alignment within tolerance'],

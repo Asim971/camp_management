@@ -70,6 +70,7 @@ Failure mapDioError(Object error) {
       403 => FailureKind.forbidden,
       404 => FailureKind.notFound,
       409 => FailureKind.conflict,
+      412 => FailureKind.conflict,
       422 => FailureKind.validation,
       // 429 is "the service is busy, try again" - the same corrective action
       // as a 5xx, and RetryInterceptor has already spent its budget retrying
