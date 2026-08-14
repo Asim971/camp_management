@@ -56,7 +56,8 @@ Router mediaRouter({required Db db, required String signingKey}) {
     final sig = request.url.queryParameters['sig'];
     if (exp == null ||
         sig == null ||
-        !await verifyUploadSignature(
+        !await verifySignedUrl(
+          op: 'upload',
           id: id,
           exp: exp,
           sig: sig,
@@ -89,7 +90,8 @@ Router mediaRouter({required Db db, required String signingKey}) {
     final sig = request.url.queryParameters['sig'];
     if (exp == null ||
         sig == null ||
-        !await verifyUploadSignature(
+        !await verifySignedUrl(
+          op: 'read',
           id: id,
           exp: exp,
           sig: sig,

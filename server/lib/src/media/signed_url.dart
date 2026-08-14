@@ -2,19 +2,27 @@ import 'dart:convert';
 
 import 'package:cryptography/cryptography.dart';
 
-/// Signs and verifies short-lived upload capability URLs (sub-project 4a.D3).
+/// Signs and verifies short-lived media capability URLs (sub-project 4a.D3).
 ///
-/// The upload PUT is bearer-less (the client uses a fresh Dio), so the URL
-/// itself is the authorization: an HMAC-SHA256 over "<id>.<exp>" keyed by a
-/// server-held secret, with a short expiry. This is minted only by the
-/// authenticated presign endpoint and expires; an unauthenticated upload
-/// guarded only by an unguessable id would be a storage-exhaustion / pollution
-/// vector (spec §6a).
+/// Both the upload PUT and the read GET are bearer-less (the upload client
+/// uses a fresh Dio; the read URL is handed to the CRM/`<img>` and must work
+/// without a session), so the URL itself is the authorization: an
+/// HMAC-SHA256 over "<op>.<id>.<exp>" keyed by a server-held secret, with a
+/// short expiry. The `op` ('upload' or 'read') is bound into the signed
+/// payload so the two capabilities are operation-scoped — a read URL minted
+/// by [signReadUrl] (which may leak into logs, proxies, or browser history
+/// via the `<img>` it's embedded in) is NOT a valid signature for the upload
+/// route, and vice versa. Without that binding, a leaked read URL could be
+/// replayed against `PUT /media/upload/<id>` to overwrite the evidence blob
+/// under adjudication. This is minted only by the authenticated presign
+/// endpoint and expires; an unauthenticated upload guarded only by an
+/// unguessable id would be a storage-exhaustion / pollution vector (spec
+/// §6a).
 final _hmac = Hmac.sha256();
 
-Future<String> _sign(String id, int exp, String signingKey) async {
+Future<String> _sign(String op, String id, int exp, String signingKey) async {
   final mac = await _hmac.calculateMac(
-    utf8.encode('$id.$exp'),
+    utf8.encode('$op.$id.$exp'),
     secretKey: SecretKey(utf8.encode(signingKey)),
   );
   return base64Url.encode(mac.bytes);
@@ -28,13 +36,14 @@ Future<String> signUploadUrl({
   Duration ttl = const Duration(minutes: 15),
 }) async {
   final exp = now.add(ttl).millisecondsSinceEpoch ~/ 1000;
-  final sig = await _sign(id, exp, signingKey);
+  final sig = await _sign('upload', id, exp, signingKey);
   return '$baseUrl/media/upload/$id?exp=$exp&sig=${Uri.encodeQueryComponent(sig)}';
 }
 
 /// Signs a short-lived READ URL for a media object: `<base>/media/<id>?exp&sig`.
-/// The signature is the same `id.exp` HMAC as the upload URL (verified by
-/// [verifyUploadSignature]); only the path differs.
+/// Signed with the `'read'` operation scope (see [verifySignedUrl]), so this
+/// capability cannot be replayed against the upload route even though only
+/// the path differs.
 Future<String> signReadUrl({
   required String baseUrl,
   required String id,
@@ -43,11 +52,17 @@ Future<String> signReadUrl({
   Duration ttl = const Duration(minutes: 15),
 }) async {
   final exp = now.add(ttl).millisecondsSinceEpoch ~/ 1000;
-  final sig = await _sign(id, exp, signingKey);
+  final sig = await _sign('read', id, exp, signingKey);
   return '$baseUrl/media/$id?exp=$exp&sig=${Uri.encodeQueryComponent(sig)}';
 }
 
-Future<bool> verifyUploadSignature({
+/// Verifies a signed media URL's signature and expiry for a given
+/// operation scope (`'upload'` or `'read'`). The caller must pass the `op`
+/// matching its own route — a signature minted for one operation will not
+/// verify for the other, so a read capability cannot be used to authorize a
+/// write and vice versa.
+Future<bool> verifySignedUrl({
+  required String op,
   required String id,
   required int exp,
   required String sig,
@@ -55,7 +70,7 @@ Future<bool> verifyUploadSignature({
   required DateTime now,
 }) async {
   if (now.millisecondsSinceEpoch ~/ 1000 > exp) return false;
-  final expected = await _sign(id, exp, signingKey);
+  final expected = await _sign(op, id, exp, signingKey);
   return _constantTimeEquals(expected, sig);
 }
 

@@ -146,4 +146,65 @@ void main() {
       expect((await handler(Request('GET', missing))).statusCode, 404);
     },
   );
+
+  test('a read capability cannot be replayed to overwrite the upload route '
+      '(and an upload capability cannot be replayed to read)', () async {
+    await db.execute(
+      "INSERT INTO media_objects (id, content_type, bytes) VALUES "
+      "('evidence-1','image/png',@b)",
+      params: {
+        'b': Uint8List.fromList(const [1, 2, 3]),
+      },
+    );
+
+    // A URL minted by signReadUrl (the one handed to the CRM/<img>) must
+    // NOT authorize overwriting the evidence blob via the upload route.
+    final readUrl = await signReadUrl(
+      baseUrl: 'http://10.0.2.2:8080',
+      id: 'evidence-1',
+      signingKey: config.uploadSigningKey,
+      now: DateTime.now(),
+    );
+    final readSigned = Uri.parse(readUrl);
+    final uploadAttempt = readSigned.replace(path: '/media/upload/evidence-1');
+    final rejectedUpload = await handler(
+      Request(
+        'PUT',
+        uploadAttempt,
+        body: const [9, 9, 9],
+        headers: {'content-type': 'application/octet-stream'},
+      ),
+    );
+    expect(rejectedUpload.statusCode, 403);
+
+    // The evidence blob must be untouched by the rejected replay.
+    final stillOriginal = await handler(Request('GET', readSigned));
+    expect(stillOriginal.statusCode, 200);
+    expect((await stillOriginal.read().expand((x) => x).toList()), const [
+      1,
+      2,
+      3,
+    ]);
+
+    // And, symmetrically: an upload capability must not be replayable
+    // against the read route.
+    final uploadUrl =
+        ((await body(await presign('att-replay', bearer: fieldToken)))['url']!)
+            as String;
+    final uploadSigned = Uri.parse(uploadUrl);
+    final readAttempt = uploadSigned.replace(path: '/media/att-replay');
+    final rejectedRead = await handler(Request('GET', readAttempt));
+    expect(rejectedRead.statusCode, 403);
+
+    // The genuine upload capability still works as an upload, though.
+    final okUpload = await handler(
+      Request(
+        'PUT',
+        uploadSigned,
+        body: const [4, 5, 6],
+        headers: {'content-type': 'application/octet-stream'},
+      ),
+    );
+    expect(okUpload.statusCode, 200);
+  });
 }
