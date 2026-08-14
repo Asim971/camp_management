@@ -10,8 +10,9 @@ import '../infra/correlation.dart';
 import '../infra/error_envelope.dart';
 import 'verification_repo.dart';
 
-/// `/verification/*` — the CRM verification queue, case view, and
-/// approve/reject decision (sub-project 5a). Every route requires
+/// `/verification/*` — the CRM verification queue, case view, and decision
+/// (approve/reject/return-for-recapture/escalate; sub-project 5a/5b). Every
+/// route requires
 /// `verification_decide`; the case view additionally requires
 /// `sensitive_media_view` since it mints a signed URL onto the raw capture
 /// and reads NID-adjacent identity data.
@@ -91,13 +92,12 @@ Router verificationRouter({required Db db, required String signingKey}) {
             case VerificationDecisionCode.reasonRequired:
               throw ApiException(
                 ApiErrorCode.decisionReasonRequired,
-                message: 'A reason is required to reject.',
+                message: 'A reason is required for this decision.',
               );
             case VerificationDecisionCode.unsupportedOutcome:
               throw ApiException(
                 ApiErrorCode.verificationOutcomeUnsupported,
-                message:
-                    'Only approve and reject are supported in this release.',
+                message: 'Unrecognised or unsupported outcome.',
               );
           }
         }),

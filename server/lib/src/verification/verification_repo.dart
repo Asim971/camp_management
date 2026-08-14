@@ -11,10 +11,11 @@ import '../media/signed_url.dart';
 const Uuid _uuid = Uuid();
 
 /// The outcome of [VerificationRepo.decide]. [finalStatus] is set only for
-/// [VerificationDecisionCode.applied] — `'APPROVED'`/`'REJECTED'` — so the
-/// route can answer `{'status': finalStatus}` without a second
-/// [VerificationRepo.loadCase] call (which would write a second, spurious
-/// audit-on-view row for the same request).
+/// [VerificationDecisionCode.applied] — `'APPROVED'`/`'REJECTED'`/
+/// `'RETURNED'`/`'CRM_REVIEW'` — so the route can answer
+/// `{'status': finalStatus}` without a second [VerificationRepo.loadCase]
+/// call (which would write a second, spurious audit-on-view row for the same
+/// request).
 enum VerificationDecisionCode {
   applied,
   notFound,
@@ -162,16 +163,19 @@ class VerificationRepo {
     return const [];
   }
 
-  /// Approve or reject [attendanceId] with optimistic-concurrency control:
-  /// the caller must present the version it last saw ([ifMatchVersion]); a
-  /// stale value yields [VerificationDecisionCode.versionConflict] (412)
-  /// rather than silently clobbering a decision made in the meantime.
+  /// Decide [attendanceId] with optimistic-concurrency control: the caller
+  /// must present the version it last saw ([ifMatchVersion]); a stale value
+  /// yields [VerificationDecisionCode.versionConflict] (412) rather than
+  /// silently clobbering a decision made in the meantime.
   ///
-  /// Only `approved`/`rejected` are supported in this release — recapture,
-  /// escalation, and any supervisor override yield
-  /// [VerificationDecisionCode.unsupportedOutcome] (422). Rejecting without a
-  /// non-blank [reason] yields [VerificationDecisionCode.reasonRequired]
-  /// (422).
+  /// Supports `approved` (-> `APPROVED`), `rejected` (-> `REJECTED`),
+  /// `returnForRecapture` (-> `RETURNED`), and `escalated` (stays
+  /// `CRM_REVIEW`, stamps `escalated_at`/`escalated_by` so a supervisor can
+  /// pick it up). Any unrecognised outcome, or a supervisor override
+  /// (override lands in a later task), yields
+  /// [VerificationDecisionCode.unsupportedOutcome] (422). Rejecting,
+  /// returning for recapture, or escalating without a non-blank [reason]
+  /// yields [VerificationDecisionCode.reasonRequired] (422).
   Future<VerificationDecisionResult> decide({
     required String attendanceId,
     required String organizationId,
@@ -195,22 +199,32 @@ class VerificationRepo {
     }
 
     final outcome = VerificationOutcome.tryParseWire(outcomeWire);
-    final supported =
-        outcome == VerificationOutcome.approved ||
-        outcome == VerificationOutcome.rejected;
-    if (!supported || supervisorOverride) {
+    if (outcome == null || supervisorOverride) {
+      // Unknown wire, or override (override lands in Task 4). Both -> 422.
       return const VerificationDecisionResult(
         VerificationDecisionCode.unsupportedOutcome,
       );
     }
-    if (outcome == VerificationOutcome.rejected &&
-        (reason == null || reason.trim().isEmpty)) {
+
+    const statusForOutcome = {
+      VerificationOutcome.approved: 'APPROVED',
+      VerificationOutcome.rejected: 'REJECTED',
+      VerificationOutcome.returnForRecapture: 'RETURNED',
+      VerificationOutcome.escalated: 'CRM_REVIEW', // stays open; marker below
+    };
+    final newStatus = statusForOutcome[outcome]!;
+
+    final reasonRequired =
+        outcome == VerificationOutcome.rejected ||
+        outcome == VerificationOutcome.returnForRecapture ||
+        outcome == VerificationOutcome.escalated;
+    if (reasonRequired && (reason == null || reason.trim().isEmpty)) {
       return const VerificationDecisionResult(
         VerificationDecisionCode.reasonRequired,
       );
     }
 
-    final newStatus = outcome!.wireValue; // 'APPROVED' or 'REJECTED'
+    final escalating = outcome == VerificationOutcome.escalated;
 
     return _db.tx((tx) async {
       // The CAS: zero affected rows means either the version the caller
@@ -226,13 +240,16 @@ class VerificationRepo {
       // closed case, without inventing a new outcome/branch for it.
       final casResult = await tx.execute(
         Sql.named(
-          'UPDATE attendance SET status = @status, version = version + 1 '
+          'UPDATE attendance SET status = @status, version = version + 1, '
+          '  escalated_at = @escAt, escalated_by = @escBy '
           'WHERE id = @id AND version = @ifMatch AND organization_id = @org '
           "  AND status = 'CRM_REVIEW' "
           'RETURNING version',
         ),
         parameters: {
           'status': newStatus,
+          'escAt': escalating ? DateTime.now().toUtc() : null,
+          'escBy': escalating ? verifierId : null,
           'id': attendanceId,
           'ifMatch': ifMatchVersion,
           'org': organizationId,
@@ -264,7 +281,7 @@ class VerificationRepo {
           'id': _uuid.v4(),
           'att': attendanceId,
           'verifier': verifierId,
-          'outcome': newStatus,
+          'outcome': outcome.wireValue,
           'reason': reason,
           'override': supervisorOverride,
           'versionAtDecision': ifMatchVersion,
@@ -278,7 +295,11 @@ class VerificationRepo {
         resourceId: attendanceId,
         actorId: verifierId,
         correlationId: correlationId,
-        payload: {'outcome': newStatus, 'reason': reason},
+        payload: {
+          'outcome': outcome.wireValue,
+          'status': newStatus,
+          'reason': reason,
+        },
       );
 
       return VerificationDecisionResult(

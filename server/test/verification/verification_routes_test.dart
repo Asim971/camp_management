@@ -445,25 +445,97 @@ void main() {
       },
     );
 
-    for (final outcome in ['RETURN_FOR_RECAPTURE', 'ESCALATED']) {
-      test(
-        'outcome $outcome -> 422 VERIFICATION_OUTCOME_UNSUPPORTED',
-        () async {
-          final res = await decide(
-            'att-1',
-            bearer: verifierToken,
-            ifMatch: '1',
-            body: {'outcome': outcome},
-          );
-          expect(res.statusCode, 422);
-          expect(
-            ((await decode(res))['error']! as Map)['code'],
-            'VERIFICATION_OUTCOME_UNSUPPORTED',
-          );
-          expect(await attendanceStatus('att-1'), 'CRM_REVIEW');
+    test('return-for-recapture moves the case to RETURNED', () async {
+      final res = await decide(
+        'att-1',
+        bearer: verifierToken,
+        ifMatch: '1',
+        body: const {
+          'outcome': 'RETURN_FOR_RECAPTURE',
+          'reason': 'Face not clearly visible; recapture in better light.',
         },
       );
-    }
+      expect(res.statusCode, 200);
+      expect((await decode(res))['status'], 'RETURNED');
+      expect(await attendanceStatus('att-1'), 'RETURNED');
+      expect(await attendanceVersion('att-1'), 2);
+
+      final decisionRes = await db.execute(
+        'SELECT outcome, reason FROM verification_decisions '
+        'WHERE attendance_id = @id',
+        params: {'id': 'att-1'},
+      );
+      final decisionRow = row(decisionRes.single);
+      expect(decisionRow['outcome'], 'RETURN_FOR_RECAPTURE');
+      expect(
+        decisionRow['reason'],
+        'Face not clearly visible; recapture in better light.',
+      );
+    });
+
+    test('return-for-recapture requires a reason', () async {
+      final res = await decide(
+        'att-1',
+        bearer: verifierToken,
+        ifMatch: '1',
+        body: const {'outcome': 'RETURN_FOR_RECAPTURE', 'reason': '  '},
+      );
+      expect(res.statusCode, 422);
+      expect(
+        ((await decode(res))['error']! as Map)['code'],
+        'DECISION_REASON_REQUIRED',
+      );
+      expect(await attendanceStatus('att-1'), 'CRM_REVIEW');
+    });
+
+    test(
+      'escalate keeps CRM_REVIEW and stamps the escalation marker',
+      () async {
+        final res = await decide(
+          'att-1',
+          bearer: verifierToken,
+          ifMatch: '1',
+          body: const {
+            'outcome': 'ESCALATED',
+            'reason': 'Ambiguous match; needs supervisor eyes.',
+          },
+        );
+        expect(res.statusCode, 200);
+        expect((await decode(res))['status'], 'CRM_REVIEW');
+        expect(await attendanceStatus('att-1'), 'CRM_REVIEW');
+        expect(await attendanceVersion('att-1'), 2);
+
+        final attendanceRes = await db.execute(
+          'SELECT escalated_at, escalated_by FROM attendance WHERE id = @id',
+          params: {'id': 'att-1'},
+        );
+        final attendanceRow = row(attendanceRes.single);
+        expect(attendanceRow['escalated_at'], isNotNull);
+        expect(attendanceRow['escalated_by'], 'user-1');
+
+        final decisionRes = await db.execute(
+          'SELECT outcome, reason FROM verification_decisions '
+          'WHERE attendance_id = @id',
+          params: {'id': 'att-1'},
+        );
+        expect(row(decisionRes.single)['outcome'], 'ESCALATED');
+      },
+    );
+
+    test('escalate requires a reason', () async {
+      final res = await decide(
+        'att-1',
+        bearer: verifierToken,
+        ifMatch: '1',
+        body: const {'outcome': 'ESCALATED'},
+      );
+      expect(res.statusCode, 422);
+      expect(
+        ((await decode(res))['error']! as Map)['code'],
+        'DECISION_REASON_REQUIRED',
+      );
+      expect(await attendanceStatus('att-1'), 'CRM_REVIEW');
+    });
 
     test(
       'supervisorOverride:true -> 422 VERIFICATION_OUTCOME_UNSUPPORTED',
