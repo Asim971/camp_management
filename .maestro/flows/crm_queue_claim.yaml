@@ -24,6 +24,7 @@
 # own screen churn (queue list -> claim -> tab switch -> release) on top.
 appId: ${APP_ID}
 tags:
+  - cloud_queue
   - crm
   - critical
   - android

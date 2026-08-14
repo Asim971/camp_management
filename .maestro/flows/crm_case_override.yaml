@@ -18,6 +18,7 @@
 # define does not matter here because this flow logs in explicitly.
 appId: ${APP_ID}
 tags:
+  - cloud_override
   - crm
   - critical
   - android
