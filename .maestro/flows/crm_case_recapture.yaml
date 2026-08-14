@@ -46,10 +46,17 @@ tags:
 # The Decision card sits BELOW THE FOLD on CI's api-34 emulator (see
 # crm_case_decision.yaml's comment on the same shape), so every control is
 # reached with scrollUntilVisible rather than a bare tapOn/assertVisible.
+# waitToSettleTimeoutMs on every scroll: this flow runs 3rd on the shared
+# api-34 emulator (ci.yml's `crm` matrix runs 4 flows sequentially on one
+# device), and by the 3rd/4th flow the emulator's rendering has visibly
+# degraded (`ColorBuffer` allocation errors in the CI log) — a scroll can
+# land before the frame has actually settled, which the plain form of this
+# step does not tolerate.
 - scrollUntilVisible:
     element:
       id: "crm_outcome_returnForRecapture"
     direction: DOWN
+    waitToSettleTimeoutMs: 1000
 - tapOn:
     id: "crm_outcome_returnForRecapture" # radio "Return for recapture"
 
@@ -61,6 +68,8 @@ tags:
     element:
       id: "crm_submit"
     direction: DOWN
+    waitToSettleTimeoutMs: 1000
+    visibilityPercentage: 40
 - assertVisible:
     id: "crm_submit"
     enabled: false
@@ -69,16 +78,25 @@ tags:
     element:
       id: "crm_reason"
     direction: UP
+    waitToSettleTimeoutMs: 1000
 - tapOn:
     id: "crm_reason"
 - inputText: "Photo is blurry — carpenter needs to be recaptured."
 # The keyboard raised by inputText can cover the button on a short viewport, so
 # scroll again rather than assuming the earlier scroll still holds.
 - hideKeyboard
+# The button sits at the very bottom of the scroll view here, and this is
+# the step that actually failed in CI: the default 100% visibility
+# requirement is unreachable once the emulator's rendering has degraded
+# this far into the shared run, so this final scroll relaxes to a
+# mostly-visible 40% (Maestro's own log hint pointed at
+# waitToSettleTimeoutMs for the same failure).
 - scrollUntilVisible:
     element:
       id: "crm_submit"
     direction: DOWN
+    waitToSettleTimeoutMs: 1000
+    visibilityPercentage: 40
 - assertVisible:
     id: "crm_submit"
     enabled: true
