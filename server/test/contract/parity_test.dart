@@ -1057,6 +1057,229 @@ void main() {
         expect(decoded['status'], 'RETURNED');
       }
     });
+
+    // Task 7 (5c): the mock's `/verification/queue` now honours `?filter=`
+    // (it previously ignored the parameter and returned every fixture item
+    // unconditionally), and it gained claim/release routes carrying the same
+    // single-assignee conflict rule as the real service's
+    // `VerificationRepo.claim`/`.release`. This pins three things identically
+    // on both backends: `filter=UNASSIGNED` excludes every item that already
+    // carries a non-null `assigneeId`; claiming an unassigned case succeeds
+    // (200) while claiming one already held by a different principal
+    // conflicts (409); and every queue item carries an `escalatedAt` key
+    // that parses as either null or an ISO-8601 timestamp.
+    //
+    // `filter=ESCALATED`'s additional `verification_override` gate (403
+    // without it, verification_routes.dart) is REAL-SERVICE-ONLY, same as
+    // 5a documented for `sensitive_media_view` and the RBAC notes on the
+    // decision route above: this mock has no per-request permission model to
+    // 403 against, so it is not asserted here on either backend.
+    test(
+      '$targetName: filter=UNASSIGNED excludes assigned items, claim/release '
+      'follow the single-assignee conflict rule, and every queue item '
+      'carries a parseable escalatedAt',
+      () async {
+        final targets = await buildTargets(campaignCount: 0);
+
+        late final List<Map<String, Object?>> unassignedItems;
+        late final List<Map<String, Object?>> allItems;
+        late final int claimStatus;
+        late final int secondClaimStatus;
+
+        if (targetName == 'real') {
+          // Two distinct crm_verifier users, so the "second claim" below is
+          // genuinely a different principal from the first, mirroring
+          // verification_routes_test.dart's "claiming a case held by
+          // another is 409" case.
+          await seedOrganizationWithUser(
+            targets.realDb,
+            userId: 'parity-queue-verifier-a',
+            username: 'parity-queue-verifier-a',
+            roles: const ['crm_verifier'],
+          );
+          await seedOrganizationWithUser(
+            targets.realDb,
+            userId: 'parity-queue-verifier-b',
+            username: 'parity-queue-verifier-b',
+            roles: const ['crm_verifier'],
+          );
+          await seedCampaign(
+            targets.realDb,
+            id: 'parity-queue-camp',
+            status: CampaignStatus.approved,
+          );
+          await seedCampaignSession(
+            targets.realDb,
+            id: 'parity-queue-sess',
+            campaignId: 'parity-queue-camp',
+            venue: 'Hall A',
+          );
+          await seedCarpenter(targets.realDb, id: 'parity-queue-carp-1');
+          await seedCarpenter(
+            targets.realDb,
+            id: 'parity-queue-carp-2',
+            name: 'Held Elsewhere',
+            phone: '+8801700009999',
+            displayCode: 'CARP-00009999',
+          );
+          const unassignedId = 'parity-queue-unassigned';
+          const assignedId = 'parity-queue-assigned';
+          final reasons = jsonEncode(const [
+            'Landmark alignment within tolerance',
+          ]);
+          await targets.realDb.execute(
+            'INSERT INTO attendance '
+            '(id, organization_id, campaign_id, session_id, carpenter_id, '
+            ' media_ref, status, captured_by, captured_at, machine_band, '
+            ' machine_reference_src, machine_reasons, version) '
+            "VALUES (@id, 'org-1', 'parity-queue-camp', 'parity-queue-sess', "
+            "'parity-queue-carp-1', @id, 'CRM_REVIEW', "
+            "'parity-queue-verifier-a', now(), 'MEDIUM', "
+            "'APPROVED_BASELINE_PHOTO', @reasons::jsonb, 1)",
+            params: {'id': unassignedId, 'reasons': reasons},
+          );
+          // Pre-assigned to verifier-b, so verifier-a's claim below hits the
+          // conflict path without needing a prior claim call.
+          await targets.realDb.execute(
+            'INSERT INTO attendance '
+            '(id, organization_id, campaign_id, session_id, carpenter_id, '
+            ' media_ref, status, captured_by, captured_at, machine_band, '
+            ' machine_reference_src, machine_reasons, assignee_id, version) '
+            "VALUES (@id, 'org-1', 'parity-queue-camp', 'parity-queue-sess', "
+            "'parity-queue-carp-2', @id, 'CRM_REVIEW', "
+            "'parity-queue-verifier-a', now(), 'LOW', "
+            "'APPROVED_BASELINE_PHOTO', @reasons::jsonb, "
+            "'parity-queue-verifier-b', 1)",
+            params: {'id': assignedId, 'reasons': reasons},
+          );
+
+          final config = ServerConfig.fromEnvironment({
+            'DATABASE_URL': testDatabaseUrl,
+            'JWT_SECRET': 'a-secret-at-least-32-characters-long!!',
+          });
+          final tokens = TokenService(db: targets.realDb, config: config);
+          final bearerA = (await tokens.issueFor(
+            'parity-queue-verifier-a',
+          )).accessToken;
+          // verifier-b only needs to exist as the FK target for the
+          // pre-assigned row above -- it never authenticates, so no token is
+          // minted for it.
+          final handler = buildApp(db: targets.realDb, config: config);
+
+          Future<Map<String, Object?>> getAs(String bearer, String path) async {
+            final res = await handler(
+              Request(
+                'GET',
+                Uri.parse('http://localhost$path'),
+                headers: {'authorization': 'Bearer $bearer'},
+              ),
+            );
+            return jsonDecode(await res.readAsString()) as Map<String, Object?>;
+          }
+
+          Future<int> claimAs(String bearer, String id) async {
+            final res = await handler(
+              Request(
+                'POST',
+                Uri.parse('http://localhost/verification/cases/$id/claim'),
+                headers: {'authorization': 'Bearer $bearer'},
+              ),
+            );
+            return res.statusCode;
+          }
+
+          final unassignedBody = await getAs(
+            bearerA,
+            '/verification/queue?filter=UNASSIGNED',
+          );
+          unassignedItems = (unassignedBody['items']! as List)
+              .cast<Map<String, Object?>>();
+          final allBody = await getAs(bearerA, '/verification/queue');
+          allItems = (allBody['items']! as List).cast<Map<String, Object?>>();
+
+          claimStatus = await claimAs(bearerA, unassignedId);
+          secondClaimStatus = await claimAs(bearerA, assignedId);
+        } else {
+          final unassignedBody = await targets.mock.getJson(
+            '/verification/queue?filter=UNASSIGNED',
+          );
+          unassignedItems = (unassignedBody['items']! as List)
+              .cast<Map<String, Object?>>();
+          final allBody = await targets.mock.getJson('/verification/queue');
+          allItems = (allBody['items']! as List).cast<Map<String, Object?>>();
+
+          // The mock has no per-request identity to claim "as" a second,
+          // different principal, so CASE_HELD_BY_OTHER (pre-assigned in the
+          // mock's own fixture to someone other than its one fixed claiming
+          // identity) stands in for that second, conflicting principal —
+          // see tool/mock_server/bin/server.dart's comment on that fixture
+          // item.
+          final claimed = await targets.mock.postJson(
+            '/verification/cases/CASE_E2E/claim',
+            const {},
+          );
+          claimStatus = claimed.status;
+          final secondClaimed = await targets.mock.postJson(
+            '/verification/cases/CASE_HELD_BY_OTHER/claim',
+            const {},
+          );
+          secondClaimStatus = secondClaimed.status;
+
+          // The mock subprocess (and its in-memory state) is shared across
+          // every test in this file via setUpAll -- unlike the real target's
+          // freshDb() per test -- so the claim above must be undone, or
+          // CASE_E2E would stay permanently assigned for any test appended
+          // after this one.
+          await targets.mock.postJson(
+            '/verification/cases/CASE_E2E/release',
+            const {},
+          );
+        }
+
+        // (a) filter=UNASSIGNED excludes every assigned item, and the
+        // unfiltered queue actually contains at least one assigned item (or
+        // the exclusion above would be vacuously true).
+        expect(unassignedItems, isNotEmpty);
+        for (final item in unassignedItems) {
+          expect(
+            item['assigneeId'],
+            isNull,
+            reason:
+                'filter=UNASSIGNED must never return an item that already '
+                'carries an assigneeId',
+          );
+        }
+        expect(
+          allItems.any((i) => i['assigneeId'] != null),
+          isTrue,
+          reason:
+              'the unfiltered queue must contain at least one assigned '
+              'item, or the exclusion assertion above could never fail',
+        );
+
+        // (b) claim's single-assignee conflict rule: an unassigned case can
+        // be claimed (200); a case already held by a different principal
+        // cannot (409).
+        expect(claimStatus, 200);
+        expect(secondClaimStatus, 409);
+
+        // (c) every queue item's escalatedAt parses as null or an ISO
+        // timestamp on both backends.
+        for (final item in allItems) {
+          expect(item.containsKey('escalatedAt'), isTrue);
+          final escalatedAt = item['escalatedAt'];
+          if (escalatedAt != null) {
+            expect(
+              DateTime.tryParse(escalatedAt as String),
+              isNotNull,
+              reason:
+                  '$escalatedAt is neither null nor a parseable ISO '
+                  'timestamp',
+            );
+          }
+        }
+      },
+    );
   }
 }
 
