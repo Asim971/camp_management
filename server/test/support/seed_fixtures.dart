@@ -113,6 +113,8 @@ Future<void> seedCampaign(
 /// Inserts one `campaign_sessions` row directly, bypassing every route and
 /// validator. [id] defaults to something unique enough for a handful of
 /// sessions per test; pass an explicit one if a test needs to name it.
+/// [status] is a `SessionStatus` wire value; it defaults to the column's own
+/// DEFAULT (`'UPCOMING'`, migration 006) so existing callers are unaffected.
 Future<void> seedCampaignSession(
   Db db, {
   required String id,
@@ -121,10 +123,11 @@ Future<void> seedCampaignSession(
   int? capacity,
   DateTime? startAt,
   DateTime? endAt,
+  String status = 'UPCOMING',
 }) => db.execute(
   'INSERT INTO campaign_sessions '
-  '(id, campaign_id, venue, capacity, start_at, end_at) '
-  'VALUES (@id, @campaign, @venue, @capacity, @startAt, @endAt)',
+  '(id, campaign_id, venue, capacity, start_at, end_at, status) '
+  'VALUES (@id, @campaign, @venue, @capacity, @startAt, @endAt, @status)',
   params: {
     'id': id,
     'campaign': campaignId,
@@ -132,6 +135,7 @@ Future<void> seedCampaignSession(
     'capacity': capacity,
     'startAt': startAt,
     'endAt': endAt,
+    'status': status,
   },
 );
 
