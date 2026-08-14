@@ -254,12 +254,25 @@ jobs:
           # crm_case_override signs in as crm_supervisor and re-decides the
           # already-APPROVED CASE_CONFLICT via the supervisor-override CAS.
           # Acceptance proof for sub-project 5b.
+          #
+          # Split into `crm` + `crm2` (two flows each on their OWN emulator)
+          # deliberately: the api-34 swiftshader emulator's graphics buffers
+          # degrade after ~2 Decision-card flows in one boot (`Failed to find
+          # ColorBuffer` in the logs), and the 3rd/4th flow's post-reason
+          # `scrollUntilVisible crm_submit` then times out even though the same
+          # step passes as flow 1/2. Two-per-emulator keeps every flow within
+          # the stable window. Both entries share the crm_verifier APK; the
+          # override flow logs in for real as crm_supervisor regardless.
           - key: crm
             defines: '--dart-define=E2E_REAL_AUTH=true --dart-define=ROLE=crm_verifier'
             useMock: '0'
             flows: >-
               .maestro/flows/crm_case_decision.yaml
               .maestro/flows/crm_case_conflict.yaml
+          - key: crm2
+            defines: '--dart-define=E2E_REAL_AUTH=true --dart-define=ROLE=crm_verifier'
+            useMock: '0'
+            flows: >-
               .maestro/flows/crm_case_recapture.yaml
               .maestro/flows/crm_case_override.yaml
           # failFirst is process-wide, so this cannot share an APK with a flow
