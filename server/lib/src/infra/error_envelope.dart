@@ -45,6 +45,8 @@ class ApiException implements Exception {
     ApiErrorCode.sessionInvalidTransition => 409,
     ApiErrorCode.sessionNotReady => 422,
     ApiErrorCode.attendanceEvidenceMissing => 422,
+    ApiErrorCode.preconditionFailed => 412,
+    ApiErrorCode.verificationOutcomeUnsupported => 422,
     ApiErrorCode.internal => 500,
   };
 

@@ -26,7 +26,10 @@ enum ApiErrorCode {
   sessionInvalidTransition,
   sessionNotReady,
   // attendance & evidence (sub-project 4a)
-  attendanceEvidenceMissing;
+  attendanceEvidenceMissing,
+  // verification (sub-project 5a)
+  preconditionFailed,
+  verificationOutcomeUnsupported;
 
   String get wireValue => switch (this) {
     badRequest => 'BAD_REQUEST',
@@ -48,6 +51,8 @@ enum ApiErrorCode {
     sessionInvalidTransition => 'SESSION_INVALID_TRANSITION',
     sessionNotReady => 'SESSION_NOT_READY',
     attendanceEvidenceMissing => 'ATTENDANCE_EVIDENCE_MISSING',
+    preconditionFailed => 'PRECONDITION_FAILED',
+    verificationOutcomeUnsupported => 'VERIFICATION_OUTCOME_UNSUPPORTED',
   };
 
   static ApiErrorCode? tryParseWire(String wire) {
