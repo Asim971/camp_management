@@ -13,6 +13,7 @@ import '../../features/campaign_list/presentation/campaign_list_screen.dart';
 import '../../features/campaign_wizard/presentation/campaign_wizard_screen.dart';
 import '../../features/carpenter_search/presentation/carpenter_search_screen.dart';
 import '../../features/crm_case/presentation/crm_case_screen.dart';
+import '../../features/dashboard/presentation/dashboard_screen.dart';
 import '../../features/dev/presentation/dev_launcher_screen.dart';
 import '../../features/gallery/presentation/gallery_screen.dart';
 import '../../features/offline_queue/presentation/offline_queue_screen.dart';
@@ -78,14 +79,8 @@ List<RouteBase> _appRoutes({required bool devRoutesEnabled}) => [
   ],
   GoRoute(
     path: '/',
-    pageBuilder: (_, state) => fadeThroughPage(
-      key: state.pageKey,
-      child: const PlaceholderScreen(
-        title: 'Campaign Dashboard',
-        screenId: 'W-01',
-        prdRefs: ['CM-FR-080..087'],
-      ),
-    ),
+    pageBuilder: (_, state) =>
+        fadeThroughPage(key: state.pageKey, child: const DashboardScreen()),
   ),
   GoRoute(
     path: '/campaigns',
