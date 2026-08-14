@@ -597,6 +597,19 @@ void main() {
       expect(await attendanceStatus('att-1'), 'CRM_REVIEW');
     });
 
+    // An unrecognised outcome wire (not the override path) still 422s.
+    test('unknown outcome -> 422 VERIFICATION_OUTCOME_UNSUPPORTED', () async {
+      final res = await decide(
+        'att-1',
+        bearer: verifierToken,
+        ifMatch: '1',
+        body: const {'outcome': 'NOT_A_REAL_OUTCOME', 'reason': 'x'},
+      );
+      expect(res.statusCode, 422);
+      expect(await errorCode(res), 'VERIFICATION_OUTCOME_UNSUPPORTED');
+      expect(await attendanceStatus('att-1'), 'CRM_REVIEW'); // unchanged
+    });
+
     // A supervisor can re-decide a closed case; the override is recorded.
     test('supervisor override re-decides a closed case', () async {
       await seedCrmReviewAttendance(
