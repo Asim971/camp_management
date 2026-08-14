@@ -26,7 +26,28 @@ Router verificationRouter({required Db db, required String signingKey}) {
         .addMiddleware(requirePermission('verification_decide'))
         .addHandler((Request request) async {
           final auth = authOf(request);
-          final items = await repo.queue(organizationId: auth.organizationId);
+          final filterWire = request.url.queryParameters['filter'] ?? 'ALL';
+          final filter = QueueFilter.tryParseWire(filterWire);
+          if (filter == null) {
+            throw ApiException(
+              ApiErrorCode.badRequest,
+              message: 'Unknown queue filter "$filterWire".',
+            );
+          }
+          if (filter == QueueFilter.escalated &&
+              !auth.can('verification_override')) {
+            throw ApiException(
+              ApiErrorCode.forbidden,
+              message:
+                  'The escalated queue requires the verification_override '
+                  'permission.',
+            );
+          }
+          final items = await repo.queue(
+            organizationId: auth.organizationId,
+            filter: filter,
+            callerUserId: auth.userId,
+          );
           return _json({'items': items});
         }),
   );

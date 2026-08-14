@@ -192,6 +192,20 @@ void main() {
     ),
   );
 
+  Future<Response> getQueue(String? bearer, {String? filter}) => get(
+    '/verification/queue${filter == null ? '' : '?filter=$filter'}',
+    bearer: bearer,
+  );
+
+  Future<List<Map<String, Object?>>> queueItems(
+    String? bearer, {
+    String? filter,
+  }) async {
+    final res = await getQueue(bearer, filter: filter);
+    expect(res.statusCode, 200);
+    return ((await decode(res))['items']! as List).cast<Map<String, Object?>>();
+  }
+
   Future<Response> decide(
     String id, {
     String? bearer,
@@ -338,6 +352,157 @@ void main() {
         'LOW',
         'MEDIUM',
       ], reason: 'severity order: NO_REFERENCE < LOW < MEDIUM < HIGH');
+    });
+
+    test('queue orders escalated-first, then band, then age', () async {
+      // Data OPPOSES each tier so only a correct
+      // `escalated DESC, band severity, captured_at` sort passes:
+      //   att-1 = MEDIUM, backdated to 30 minutes old, never escalated.
+      //   att-b = HIGH (mildest band), captured 1 minute ago (newest),
+      //           but escalated — must still sort first.
+      //   att-c = NO_REFERENCE (worst band), captured 5 minutes ago, never
+      //           escalated — beats att-1 on band despite being younger.
+      final now = DateTime.now().toUtc();
+      await db.execute(
+        'UPDATE attendance SET captured_at = @at WHERE id = @id',
+        params: {
+          'id': 'att-1',
+          'at': now.subtract(const Duration(minutes: 30)),
+        },
+      );
+      await seedCrmReviewAttendance(
+        db,
+        id: 'att-b',
+        organizationId: 'org-1',
+        campaignId: 'camp-1',
+        sessionId: 'sess-1',
+        carpenterId: 'c-1',
+        machineBand: 'HIGH',
+        capturedAt: now.subtract(const Duration(minutes: 1)),
+      );
+      await db.execute(
+        'UPDATE attendance SET escalated_at = now() WHERE id = @id',
+        params: {'id': 'att-b'},
+      );
+      await seedCrmReviewAttendance(
+        db,
+        id: 'att-c',
+        organizationId: 'org-1',
+        campaignId: 'camp-1',
+        sessionId: 'sess-1',
+        carpenterId: 'c-1',
+        machineBand: 'NO_REFERENCE',
+        capturedAt: now.subtract(const Duration(minutes: 5)),
+      );
+
+      final items = await queueItems(verifierToken);
+      expect(
+        items.map((i) => i['attendanceId']),
+        ['att-b', 'att-c', 'att-1'],
+        reason:
+            'att-b escalated first; then att-c (worst band); then att-1 '
+            '(oldest non-escalated)',
+      );
+    });
+
+    test('the queue item wire carries escalatedAt', () async {
+      await seedCrmReviewAttendance(
+        db,
+        id: 'att-b',
+        organizationId: 'org-1',
+        campaignId: 'camp-1',
+        sessionId: 'sess-1',
+        carpenterId: 'c-1',
+        machineBand: 'HIGH',
+      );
+      await db.execute(
+        'UPDATE attendance SET escalated_at = now() WHERE id = @id',
+        params: {'id': 'att-b'},
+      );
+
+      final items = await queueItems(verifierToken);
+      final b = items.firstWhere((i) => i['attendanceId'] == 'att-b');
+      expect(b['escalatedAt'], isNotNull);
+      final a = items.firstWhere((i) => i['attendanceId'] == 'att-1');
+      expect(a['escalatedAt'], isNull);
+    });
+
+    test('filter=mine returns only the callers assigned cases', () async {
+      await db.execute(
+        'UPDATE attendance SET assignee_id = @u WHERE id = @id',
+        params: {'id': 'att-1', 'u': 'user-1'},
+      );
+      await seedCrmReviewAttendance(
+        db,
+        id: 'att-b',
+        organizationId: 'org-1',
+        campaignId: 'camp-1',
+        sessionId: 'sess-1',
+        carpenterId: 'c-1',
+      );
+      await db.execute(
+        'UPDATE attendance SET assignee_id = @u WHERE id = @id',
+        params: {'id': 'att-b', 'u': 'user-4'},
+      );
+
+      final mine = await queueItems(verifierToken, filter: 'MINE');
+      expect(mine.map((i) => i['attendanceId']), contains('att-1'));
+      expect(mine.map((i) => i['attendanceId']), isNot(contains('att-b')));
+    });
+
+    test('filter=unassigned returns only null-assignee cases', () async {
+      await seedCrmReviewAttendance(
+        db,
+        id: 'att-b',
+        organizationId: 'org-1',
+        campaignId: 'camp-1',
+        sessionId: 'sess-1',
+        carpenterId: 'c-1',
+      );
+      await db.execute(
+        'UPDATE attendance SET assignee_id = @u WHERE id = @id',
+        params: {'id': 'att-b', 'u': 'user-4'},
+      );
+
+      final un = await queueItems(verifierToken, filter: 'UNASSIGNED');
+      expect(un.every((i) => i['assigneeId'] == null), isTrue);
+      expect(un.map((i) => i['attendanceId']), contains('att-1'));
+      expect(un.map((i) => i['attendanceId']), isNot(contains('att-b')));
+    });
+
+    test('filter=escalated requires verification_override', () async {
+      await seedCrmReviewAttendance(
+        db,
+        id: 'att-b',
+        organizationId: 'org-1',
+        campaignId: 'camp-1',
+        sessionId: 'sess-1',
+        carpenterId: 'c-1',
+      );
+      await db.execute(
+        'UPDATE attendance SET escalated_at = now() WHERE id = @id',
+        params: {'id': 'att-b'},
+      );
+
+      final asVerifier = await getQueue(verifierToken, filter: 'ESCALATED');
+      expect(asVerifier.statusCode, 403);
+
+      final asSupervisor = await queueItems(
+        supervisorToken,
+        filter: 'ESCALATED',
+      );
+      expect(asSupervisor.every((i) => i['escalatedAt'] != null), isTrue);
+      expect(asSupervisor.map((i) => i['attendanceId']), contains('att-b'));
+      expect(
+        asSupervisor.map((i) => i['attendanceId']),
+        isNot(contains('att-1')),
+      );
+    });
+
+    test('an unknown filter is 400', () async {
+      final res = await getQueue(verifierToken, filter: 'WAT');
+      expect(res.statusCode, 400);
+      expect(await errorCode(res), 'BAD_REQUEST');
     });
   });
 

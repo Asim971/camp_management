@@ -49,27 +49,42 @@ class VerificationRepo {
   final AuditWriter _audit;
   final String _signingKey;
 
-  /// The CRM_REVIEW worklist for [organizationId], worst band first
-  /// (`NO_REFERENCE` > `LOW` > `MEDIUM` > `HIGH`), then oldest-captured
-  /// first within a band.
+  /// The CRM_REVIEW worklist for [organizationId]: escalated cases first,
+  /// then worst band (`NO_REFERENCE` > `LOW` > `MEDIUM` > `HIGH`), then
+  /// oldest-captured first within a band. [filter] narrows the WHERE
+  /// (`mine`/`unassigned`/`escalated`); [callerUserId] is bound as `@caller`
+  /// only for the `mine` clause — the postgres driver rejects a bound
+  /// parameter the query text never references, so it is added to the params
+  /// map conditionally rather than unconditionally as originally sketched.
   Future<List<Map<String, Object?>>> queue({
     required String organizationId,
+    required QueueFilter filter,
+    required String callerUserId,
   }) async {
+    final filterClause = switch (filter) {
+      QueueFilter.all => '',
+      QueueFilter.mine => 'AND a.assignee_id = @caller ',
+      QueueFilter.unassigned => 'AND a.assignee_id IS NULL ',
+      QueueFilter.escalated => 'AND a.escalated_at IS NOT NULL ',
+    };
     final res = await _db.execute(
       'SELECT a.id, a.machine_band, a.machine_reference_src, a.assignee_id, '
-      '       a.captured_at, cr.full_name AS carpenter_name, '
+      '       a.captured_at, a.escalated_at, cr.full_name AS carpenter_name, '
       '       c.name AS campaign_name '
       'FROM attendance a '
       'JOIN campaigns c ON c.id = a.campaign_id '
       'JOIN carpenters cr ON cr.id = a.carpenter_id '
       "WHERE a.organization_id = @org AND a.status = 'CRM_REVIEW' "
-      'ORDER BY CASE a.machine_band '
-      "         WHEN 'NO_REFERENCE' THEN 0 "
-      "         WHEN 'LOW' THEN 1 "
-      "         WHEN 'MEDIUM' THEN 2 "
-      '         ELSE 3 END, '
-      '       a.captured_at',
-      params: {'org': organizationId},
+      '$filterClause'
+      'ORDER BY (a.escalated_at IS NOT NULL) DESC, '
+      '         CASE a.machine_band '
+      "           WHEN 'NO_REFERENCE' THEN 0 WHEN 'LOW' THEN 1 "
+      "           WHEN 'MEDIUM' THEN 2 ELSE 3 END, "
+      '         a.captured_at',
+      params: {
+        'org': organizationId,
+        if (filter == QueueFilter.mine) 'caller': callerUserId,
+      },
     );
     final now = DateTime.now().toUtc();
     return [for (final r in res) _queueItemWire(row(r), now)];
@@ -85,6 +100,9 @@ class VerificationRepo {
       'band': r['machine_band'],
       'referenceSource': r['machine_reference_src'],
       'assigneeId': r['assignee_id'],
+      'escalatedAt': (r['escalated_at'] as DateTime?)
+          ?.toUtc()
+          .toIso8601String(),
     };
   }
 
