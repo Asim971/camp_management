@@ -104,7 +104,8 @@ class VerificationRepo {
     String? correlationId,
   }) async {
     final res = await _db.execute(
-      'SELECT a.version, a.media_ref, a.captured_at, a.machine_band, '
+      'SELECT a.version, a.status, a.media_ref, a.captured_at, '
+      '       a.machine_band, '
       '       a.machine_reference_src, a.machine_reasons, cr.full_name, '
       '       cr.display_code, cr.thumbnail_url, c.name AS campaign_name, '
       '       s.venue AS session_name '
@@ -139,6 +140,7 @@ class VerificationRepo {
     return {
       'attendanceId': attendanceId,
       'version': r['version'],
+      'status': r['status'],
       'carpenterName': r['full_name'],
       'carpenterIdMasked': r['display_code'],
       'campaignName': r['campaign_name'],

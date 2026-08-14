@@ -127,6 +127,11 @@ void main() {
       );
       final ok = await handler(Request('GET', Uri.parse(url)));
       expect(ok.statusCode, 200);
+      expect(
+        ok.headers['content-type'],
+        'image/png',
+        reason: 'the stored content_type must be served back, not defaulted',
+      );
       expect((await ok.read().expand((x) => x).toList()), const [9, 8, 7]);
 
       final signed = Uri.parse(url);

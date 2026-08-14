@@ -290,6 +290,45 @@ void main() {
       final res = await get('/verification/queue');
       expect(res.statusCode, 401);
     });
+
+    test('the queue orders worst band first, then oldest', () async {
+      // att-1 (seeded in setUp) is already MEDIUM; add a NO_REFERENCE and a
+      // LOW row sharing the same org/campaign/session/carpenter so only the
+      // machine_band severity distinguishes them.
+      await seedCrmReviewAttendance(
+        db,
+        id: 'att-band-no-ref',
+        organizationId: 'org-1',
+        campaignId: 'camp-1',
+        sessionId: 'sess-1',
+        carpenterId: 'c-1',
+        machineBand: 'NO_REFERENCE',
+        capturedAt: DateTime.now().toUtc().subtract(
+          const Duration(minutes: 10),
+        ),
+      );
+      await seedCrmReviewAttendance(
+        db,
+        id: 'att-band-low',
+        organizationId: 'org-1',
+        campaignId: 'camp-1',
+        sessionId: 'sess-1',
+        carpenterId: 'c-1',
+        machineBand: 'LOW',
+        capturedAt: DateTime.now().toUtc().subtract(const Duration(minutes: 8)),
+      );
+
+      final res = await get('/verification/queue', bearer: verifierToken);
+      expect(res.statusCode, 200);
+      final items = ((await decode(res))['items']! as List)
+          .cast<Map<String, Object?>>();
+      final bands = items.map((i) => i['band']).toList();
+      expect(bands, [
+        'NO_REFERENCE',
+        'LOW',
+        'MEDIUM',
+      ], reason: 'severity order: NO_REFERENCE < LOW < MEDIUM < HIGH');
+    });
   });
 
   group('GET /verification/cases/<id>', () {
@@ -319,6 +358,31 @@ void main() {
       );
       expect(auditRes, hasLength(1));
       expect(row(auditRes.single)['actor_id'], 'user-1');
+    });
+
+    test('the case wire carries the attendance status', () async {
+      await seedCrmReviewAttendance(
+        db,
+        id: 'att-decided-status',
+        organizationId: 'org-1',
+        campaignId: 'camp-1',
+        sessionId: 'sess-1',
+        carpenterId: 'c-1',
+        status: 'APPROVED',
+        version: 2,
+      );
+
+      final open = await get(
+        '/verification/cases/att-1',
+        bearer: verifierToken,
+      );
+      expect((await decode(open))['status'], 'CRM_REVIEW');
+
+      final closed = await get(
+        '/verification/cases/att-decided-status',
+        bearer: supervisorToken,
+      );
+      expect((await decode(closed))['status'], 'APPROVED');
     });
 
     test(
