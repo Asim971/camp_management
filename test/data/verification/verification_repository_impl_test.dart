@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:acsl_campaign/core/result/result.dart';
 import 'package:acsl_campaign/data/verification/verification_repository_impl.dart';
+import 'package:acsl_campaign/domain/common/status.dart';
 import 'package:acsl_campaign/domain/verification/verification.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -163,6 +164,73 @@ void main() {
       final res = await repo.decide(decision, expectedVersion: 3);
       final failure = res.fold((_) => fail('expected Err'), (f) => f);
       expect(failure.kind, FailureKind.conflict);
+    },
+  );
+
+  test('getCase parses the wire status', () async {
+    repo = build(
+      (_) => _jsonBody({
+        'attendanceId': 'ATT-1',
+        'version': 1,
+        'status': 'APPROVED',
+        'carpenterName': 'Karim Uddin',
+        'carpenterIdMasked': '••••1234',
+        'campaignName': 'Test Campaign',
+        'sessionName': 'Session A',
+        'capturedAt': '2026-07-30T00:00:00.000Z',
+        'capturedImageUrl': 'https://example.test/captured.png',
+        'referenceImageUrl': null,
+        'band': 'MEDIUM',
+        'referenceSource': 'APPROVED_BASELINE_PHOTO',
+      }),
+    );
+    final res = await repo.getCase('ATT-1');
+    final case_ = res.fold((v) => v, (f) => fail('expected Ok: $f'));
+    expect(case_.status, AttendanceStatus.approved);
+  });
+
+  test(
+    'an unknown wire status falls back visibly (crmReview), not a crash',
+    () async {
+      repo = build(
+        (_) => _jsonBody({
+          'attendanceId': 'ATT-1',
+          'version': 1,
+          'status': 'WAT',
+          'carpenterName': 'Karim Uddin',
+          'carpenterIdMasked': '••••1234',
+          'campaignName': 'Test Campaign',
+          'sessionName': 'Session A',
+          'capturedAt': '2026-07-30T00:00:00.000Z',
+          'capturedImageUrl': 'https://example.test/captured.png',
+          'referenceImageUrl': null,
+          'band': 'MEDIUM',
+          'referenceSource': 'APPROVED_BASELINE_PHOTO',
+        }),
+      );
+      final res = await repo.getCase('ATT-1');
+      final case_ = res.fold((v) => v, (f) => fail('expected Ok: $f'));
+      expect(case_.status, AttendanceStatus.crmReview);
+    },
+  );
+
+  test(
+    'decide sends RETURN_FOR_RECAPTURE and the supervisorOverride flag',
+    () async {
+      repo = build((_) => _jsonBody(null, status: 204));
+      const decision = VerificationDecision(
+        attendanceId: 'ATT-1',
+        verifierId: 'u-verifier',
+        outcome: VerificationOutcome.returnForRecapture,
+        reason: 'Needs a clearer photo.',
+        supervisorOverride: true,
+      );
+      final res = await repo.decide(decision, expectedVersion: 2);
+      res.fold((_) {}, (f) => fail('expected Ok: $f'));
+
+      final req = adapter.requests.last;
+      expect((req.data as Map)['outcome'], 'RETURN_FOR_RECAPTURE');
+      expect((req.data as Map)['supervisorOverride'], true);
     },
   );
 }

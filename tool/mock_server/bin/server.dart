@@ -256,10 +256,51 @@ Router _buildRouter(_Store store) {
         },
       }, status: 412);
     }
-    // SCREAMING_SNAKE outcome (APPROVED/REJECTED), matching the real wire —
-    // the mock doesn't deeply validate it, just echoes it back as `status`.
-    final outcome = (b['outcome'] as String?) ?? 'APPROVED';
-    return _json({'status': outcome});
+    // Outcome -> status, matching the real service's `statusForOutcome`
+    // table exactly (verification_repo.dart): APPROVED/REJECTED stay
+    // themselves, RETURN_FOR_RECAPTURE -> RETURNED, and ESCALATED stays
+    // open at CRM_REVIEW. Anything else is unsupported, same as the real
+    // service's `VerificationOutcome.tryParseWire` returning null.
+    final outcome = (b['outcome'] as String?) ?? '';
+    const statusForOutcome = {
+      'APPROVED': 'APPROVED',
+      'REJECTED': 'REJECTED',
+      'RETURN_FOR_RECAPTURE': 'RETURNED',
+      'ESCALATED': 'CRM_REVIEW',
+    };
+    final mappedStatus = statusForOutcome[outcome];
+    if (mappedStatus == null) {
+      return _json({
+        'error': {
+          'code': 'VERIFICATION_OUTCOME_UNSUPPORTED',
+          'message': 'Unrecognised or unsupported outcome.',
+        },
+      }, status: 422);
+    }
+    // Rejecting, returning, escalating, or overriding requires a non-blank
+    // reason -- same ordering and predicate as verification_repo.dart's
+    // `reasonRequired` (checked only once the outcome itself is known-good).
+    final supervisorOverride = b['supervisorOverride'] == true;
+    final reasonRequired =
+        supervisorOverride ||
+        outcome == 'REJECTED' ||
+        outcome == 'RETURN_FOR_RECAPTURE' ||
+        outcome == 'ESCALATED';
+    final reason = (b['reason'] as String?)?.trim();
+    if (reasonRequired && (reason == null || reason.isEmpty)) {
+      return _json({
+        'error': {
+          'code': 'DECISION_REASON_REQUIRED',
+          'message': 'A reason is required for this decision.',
+        },
+      }, status: 422);
+    }
+    // The real service additionally 403s a `supervisorOverride: true` decision
+    // from a verifier lacking `verification_override` (verification_routes.dart).
+    // This mock has no per-request RBAC model at all -- no roles/permissions
+    // are threaded through requests -- so that 403 stays a REAL-SERVICE-ONLY
+    // assertion, same as 5a documented for `sensitive_media_view`.
+    return _json({'status': mappedStatus});
   });
 
   // ---- Audit (🔒 contract-pending shape) ----------------------------------
@@ -692,6 +733,10 @@ class _Store {
     return {
       'attendanceId': id,
       'version': caseVersion(id),
+      // CASE_CONFLICT is the already-decided fixture (version 2, see
+      // caseVersion above) -- its status reflects that decision rather than
+      // still being open for one, matching the real wire (Task 5).
+      'status': id == 'CASE_CONFLICT' ? 'APPROVED' : 'CRM_REVIEW',
       'carpenterName': 'Md. Karim',
       'carpenterIdMasked': 'CARP-••4821',
       'campaignName': 'ACSL Pilot Carpenter Drive',

@@ -10,8 +10,9 @@ import '../infra/correlation.dart';
 import '../infra/error_envelope.dart';
 import 'verification_repo.dart';
 
-/// `/verification/*` — the CRM verification queue, case view, and
-/// approve/reject decision (sub-project 5a). Every route requires
+/// `/verification/*` — the CRM verification queue, case view, and decision
+/// (approve/reject/return-for-recapture/escalate; sub-project 5a/5b). Every
+/// route requires
 /// `verification_decide`; the case view additionally requires
 /// `sensitive_media_view` since it mints a signed URL onto the raw capture
 /// and reads NID-adjacent identity data.
@@ -63,15 +64,40 @@ Router verificationRouter({required Db db, required String signingKey}) {
               message: 'If-Match header is required.',
             );
           }
-          final body = (jsonDecode(await request.readAsString()) as Map)
-              .cast<String, Object?>();
+          final raw = await request.readAsString();
+          final Object? decoded;
+          try {
+            decoded = jsonDecode(raw);
+          } on FormatException {
+            throw ApiException(
+              ApiErrorCode.badRequest,
+              message: 'Request body must be a JSON object.',
+            );
+          }
+          if (decoded is! Map) {
+            throw ApiException(
+              ApiErrorCode.badRequest,
+              message: 'Request body must be a JSON object.',
+            );
+          }
+          final body = decoded.cast<String, Object?>();
+          final supervisorOverride =
+              (body['supervisorOverride'] as bool?) ?? false;
+          if (supervisorOverride && !auth.can('verification_override')) {
+            throw ApiException(
+              ApiErrorCode.forbidden,
+              message:
+                  'Supervisor override requires the verification_override '
+                  'permission.',
+            );
+          }
           final result = await repo.decide(
             attendanceId: request.params['id']!,
             organizationId: auth.organizationId,
             verifierId: auth.userId,
             outcomeWire: body['outcome'] as String? ?? '',
             reason: body['reason'] as String?,
-            supervisorOverride: (body['supervisorOverride'] as bool?) ?? false,
+            supervisorOverride: supervisorOverride,
             ifMatchVersion: ifMatch,
             correlationId: correlationOf(request),
           );
@@ -91,13 +117,12 @@ Router verificationRouter({required Db db, required String signingKey}) {
             case VerificationDecisionCode.reasonRequired:
               throw ApiException(
                 ApiErrorCode.decisionReasonRequired,
-                message: 'A reason is required to reject.',
+                message: 'A reason is required for this decision.',
               );
             case VerificationDecisionCode.unsupportedOutcome:
               throw ApiException(
                 ApiErrorCode.verificationOutcomeUnsupported,
-                message:
-                    'Only approve and reject are supported in this release.',
+                message: 'Unrecognised or unsupported outcome.',
               );
           }
         }),

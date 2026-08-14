@@ -268,4 +268,14 @@ void main() {
       contains('verification_decisions'),
     );
   });
+
+  test('009 adds the escalation marker columns', () async {
+    await Migrator(db).applyPending();
+    final cols = await db.execute(
+      "SELECT column_name FROM information_schema.columns "
+      "WHERE table_name = 'attendance'",
+    );
+    final names = cols.map((r) => row(r)['column_name']! as String).toSet();
+    expect(names, containsAll(<String>['escalated_at', 'escalated_by']));
+  });
 }

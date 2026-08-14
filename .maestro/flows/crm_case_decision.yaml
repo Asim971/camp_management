@@ -1,5 +1,8 @@
-# C-02: machine recommendation is shown as a separate advisory block, the
-# reason is mandatory, and a valid decision is recorded (part of P-06).
+# C-02: machine recommendation is shown as a separate advisory block, and a
+# valid decision is recorded (part of P-06). A reason is OPTIONAL for approve
+# (this flow fills one in anyway, to exercise crm_reason on the happy path)
+# but REQUIRED for reject/return/escalate — that reason-required gating is
+# covered by the widget tests and the recapture e2e flow, not here.
 # Prereq: POST /__test__/reset seeds CASE_E2E (CRM_REVIEW, MEDIUM band,
 # evidence + reference photo) on the real service -- see
 # server/lib/src/seed/seed_routes.dart's `_seedVerificationFixture`.
@@ -60,7 +63,9 @@ tags:
       text: ".*Machine recommendation \\(advisory\\).*"
     direction: DOWN
 
-# Reason is mandatory: Submit stays disabled until an outcome + reason are set.
+# Approve needs no reason at all — Submit goes enabled as soon as an outcome
+# is chosen (reason-required gating for reject/return/escalate is covered by
+# the widget tests and the recapture e2e flow, not here).
 #
 # The Decision card sits BELOW THE FOLD on a phone-profile emulator (the
 # failure screenshot shows it just cut off under the advisory block), and
@@ -73,17 +78,14 @@ tags:
     id: "crm_outcome_approved" # radio "Approve"
 # The Decision card runs radios -> reason -> submit (crm_case_screen.dart:296,
 # 308, 327) and is TALLER than CI's api-34 viewport, so each element needs its
-# own scroll. This assertion especially: on CI it failed after the full 18s
-# timeout because crm_submit was OFF-SCREEN, not because it was enabled — a
-# false red that reads exactly like a real state bug.
+# own scroll to reach it.
 - scrollUntilVisible:
     element:
       id: "crm_submit"
     direction: DOWN
-- assertVisible:
-    id: "crm_submit"
-    enabled: false
-# UP: the reason field sits ABOVE the button we just scrolled down to.
+# UP: the reason field sits ABOVE the button we just scrolled down to. A
+# reason is optional for approve, but entering one here still exercises the
+# field and matches what a verifier would typically do in practice.
 - scrollUntilVisible:
     element:
       id: "crm_reason"

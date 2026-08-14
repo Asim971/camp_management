@@ -106,6 +106,35 @@ void main() {
     }
   });
 
+  // Task 8 (5b): crm_supervisor is already one of `seedRoles` (seeded and
+  // asserted able to sign in by the loop above) — this test is the
+  // narrower claim `.maestro/flows/crm_case_override.yaml` actually
+  // depends on: that its token's claims carry `verification_override`, the
+  // permission `crm_case_screen.dart`'s `_canOverride` gates the
+  // "Supervisor override" switch on.
+  test(
+    'crm_supervisor signs in with a token carrying verification_override',
+    () async {
+      final handler = buildApp(db: db, config: configWithSeeding(true));
+      final resetRes = await _post(handler, '/__test__/reset');
+      expect(resetRes.statusCode, 204);
+
+      final res = await _post(
+        handler,
+        '/auth/login',
+        body: {'username': 'crm_supervisor', 'password': seedPassword},
+      );
+      expect(res.statusCode, 200);
+      final body = jsonDecode(await res.readAsString()) as Map<String, Object?>;
+      final claims = body['claims']! as Map<String, Object?>;
+      expect((claims['roles']! as List<Object?>), contains('crm_supervisor'));
+      expect(
+        (claims['permissions']! as List<Object?>),
+        contains('verification_override'),
+      );
+    },
+  );
+
   test('reset seeds the campaign rows locale_bengali.yaml and the real-auth '
       'flow depend on', () async {
     final handler = buildApp(db: db, config: configWithSeeding(true));

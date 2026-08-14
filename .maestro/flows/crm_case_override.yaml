@@ -1,0 +1,108 @@
+# 5b.D3/D4: a supervisor can re-decide an already-decided case. CASE_CONFLICT
+# is seeded APPROVED at version=2 (server/lib/src/seed/seed_routes.dart's
+# `_seedVerificationFixture`); crm_case_conflict.yaml proves a crm_verifier's
+# ordinary decision on it 412s (the CAS's status guard fails, not the
+# version). This flow proves the OTHER half of that CAS: a crm_supervisor
+# who holds verification_override sees the "Supervisor override" switch
+# (crm_case_screen.dart's `_canOverride`/`canOverride`), and with it set the
+# same CAS matches on version alone, dropping the status guard, so the
+# already-decided case can be re-decided — 200, not 412.
+# Prereq: POST /__test__/reset seeds CASE_CONFLICT (APPROVED, version 2).
+#
+# Requires the `crm` matrix APK (--dart-define=E2E_REAL_AUTH=true
+# --dart-define=ROLE=crm_verifier, useMock 0): RouteGuards redirect an
+# unauthenticated session to /login, so this signs in for real — as
+# crm_supervisor, not the APK's default ROLE — rather than using
+# ../subflows/launch_as_crm.yaml (that subflow is FakeAuth-only and skips
+# /login entirely). See ci.yml's e2e matrix, `crm` entry; ROLE in the APK
+# define does not matter here because this flow logs in explicitly.
+appId: ${APP_ID}
+tags:
+  - crm
+  - critical
+  - android
+  - pr-smoke
+---
+- clearState
+- launchApp
+
+- assertVisible:
+    id: "login_username"
+- tapOn:
+    id: "login_username"
+- inputText: "crm_supervisor"
+- tapOn:
+    id: "login_password"
+- inputText: "Test1234!"
+- hideKeyboard
+- tapOn:
+    id: "login_submit"
+
+- assertVisible:
+    id: "dev_launcher"
+- tapOn:
+    id: "dev_open_crm_case_conflict" # opens /verification/cases/CASE_CONFLICT
+- assertVisible: "Verification case"
+
+# The Decision card sits BELOW THE FOLD on CI's api-34 emulator (see
+# crm_case_decision.yaml's comment on the same shape), so every control is
+# reached with scrollUntilVisible rather than a bare tapOn/assertVisible.
+# The "Supervisor override" switch only renders at all when the signed-in
+# session holds verification_override (crm_supervisor does, crm_verifier
+# does not) — it is visible here because this flow signed in as
+# crm_supervisor.
+# waitToSettleTimeoutMs on every scroll: this flow runs 4th on the shared
+# api-34 emulator (ci.yml's `crm` matrix runs 4 flows sequentially on one
+# device), and by the 3rd/4th flow the emulator's rendering has visibly
+# degraded (`ColorBuffer` allocation errors in the CI log) — a scroll can
+# land before the frame has actually settled, which the plain form of this
+# step does not tolerate.
+- scrollUntilVisible:
+    element:
+      id: "crm_supervisor_override"
+    direction: DOWN
+    waitToSettleTimeoutMs: 1000
+- tapOn:
+    id: "crm_supervisor_override"
+
+- scrollUntilVisible:
+    element:
+      id: "crm_outcome_rejected"
+    direction: DOWN
+    waitToSettleTimeoutMs: 1000
+- tapOn:
+    id: "crm_outcome_rejected" # radio "Reject"
+
+- scrollUntilVisible:
+    element:
+      id: "crm_reason"
+    direction: UP
+    waitToSettleTimeoutMs: 1000
+- tapOn:
+    id: "crm_reason"
+# Plain ASCII only: an em-dash (or any char off the soft keyboard) goes in via
+# a Unicode input path that corrupts the swiftshader render surface on CI
+# (`Failed to find ColorBuffer`), after which the next scrollUntilVisible can't
+# find crm_submit at all. The passing flows (decision/conflict) use ASCII too.
+- inputText: "Supervisor override, re-review found a mismatch."
+# The keyboard raised by inputText can cover the button on a short viewport, so
+# scroll again rather than assuming the earlier scroll still holds.
+- hideKeyboard
+# The button sits at the very bottom of the scroll view here, and this is
+# the step that actually failed in CI: the default 100% visibility
+# requirement is unreachable once the emulator's rendering has degraded
+# this far into the shared run, so this final scroll relaxes to a
+# mostly-visible 40% (Maestro's own log hint pointed at
+# waitToSettleTimeoutMs for the same failure).
+- scrollUntilVisible:
+    element:
+      id: "crm_submit"
+    direction: DOWN
+    waitToSettleTimeoutMs: 1000
+    visibilityPercentage: 40
+- assertVisible:
+    id: "crm_submit"
+    enabled: true
+- tapOn:
+    id: "crm_submit"
+- assertVisible: "Decision recorded"

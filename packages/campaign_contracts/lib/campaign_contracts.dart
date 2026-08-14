@@ -6,6 +6,7 @@
 /// drag each side's incidental needs into the other.
 library;
 
+export 'src/attendance_status.dart';
 export 'src/campaign_decision.dart';
 export 'src/campaign_status.dart';
 export 'src/error_codes.dart';
