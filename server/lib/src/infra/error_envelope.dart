@@ -42,6 +42,8 @@ class ApiException implements Exception {
     ApiErrorCode.idempotencyKeyInFlight => 409,
     ApiErrorCode.unknownCarpenter => 422,
     ApiErrorCode.importFileInvalid => 422,
+    ApiErrorCode.sessionInvalidTransition => 409,
+    ApiErrorCode.sessionNotReady => 422,
     ApiErrorCode.internal => 500,
   };
 
