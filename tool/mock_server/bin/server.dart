@@ -347,7 +347,7 @@ Router _buildRouter(_Store store) {
 
   r.post('/attendance/<id>/confirm', (Request req, String id) async {
     await _body(req);
-    return _json({'status': 'MATCH_PROCESSING'});
+    return _json({'status': 'CRM_REVIEW'});
   });
 
   // ---- Consent --------------------------------------------------------

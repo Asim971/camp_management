@@ -535,10 +535,12 @@ void main() {
     });
 
     // Task 7 (4a): the mock's confirm status and consent shape were aligned
-    // to the real service's wire -- SCREAMING_SNAKE 'MATCH_PROCESSING'
-    // (previously camelCase 'matchProcessing') and a {'notices': [...]}
-    // envelope from a new GET /consent/notices route. This pins both so
-    // neither backend drifts back.
+    // to the real service's wire -- SCREAMING_SNAKE (previously camelCase
+    // 'matchProcessing') and a {'notices': [...]} envelope from a new GET
+    // /consent/notices route. Task 3 (5a) moved the confirm literal on:
+    // a captured attendance now lands straight in CRM_REVIEW so it flows
+    // into the verification queue, rather than sitting in MATCH_PROCESSING.
+    // This pins both so neither backend drifts back.
     //
     // GET /consent/notices only needs any authenticated org member, so
     // buildTargets' default user-1 token (via `target.getJson`) works
@@ -549,7 +551,7 @@ void main() {
     // and calls the app handler directly instead of going through
     // `real.postJson`, which always sends user-1's baked-in bearer.
     test('$targetName: consent notices carry version+language, and confirm '
-        'returns the exact literal MATCH_PROCESSING', () async {
+        'returns the exact literal CRM_REVIEW', () async {
       final targets = await buildTargets(campaignCount: 0);
       final target = targetName == 'real' ? targets.real : targets.mock;
 
@@ -654,7 +656,7 @@ void main() {
 
       expect(
         confirmed['status'],
-        'MATCH_PROCESSING',
+        'CRM_REVIEW',
         reason:
             '$targetName must return the exact literal, not a camelCase '
             'or otherwise-cased variant',
