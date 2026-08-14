@@ -226,4 +226,21 @@ void main() {
     );
     expect(row(planned.single)['n'], 0);
   });
+
+  test('007 creates the attendance and evidence tables', () async {
+    await Migrator(db).applyPending();
+    final res = await db.execute(
+      "SELECT tablename FROM pg_tables WHERE schemaname = 'public'",
+    );
+    final names = res.map((r) => row(r)['tablename']! as String).toSet();
+    expect(
+      names,
+      containsAll(<String>[
+        'consent_notices',
+        'media_objects',
+        'attendance',
+        'consent_records',
+      ]),
+    );
+  });
 }
