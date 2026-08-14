@@ -333,6 +333,23 @@ Future<void> _seedCampaignFixture(
       'VALUES (@campaign, @territory)',
       params: {'campaign': fixture.id, 'territory': fixture.territoryId},
     );
+    // One operable session, `seed-camp-1` only: it is the sole APPROVED
+    // fixture, so it is the only one a session can legally start on. Fixed
+    // id/venue/capacity/start_at so `.maestro/flows/session_ops.yaml` (Task
+    // 8) can hard-code exactly what `POST /__test__/reset` leaves behind.
+    if (fixture.id == 'seed-camp-1') {
+      await db.execute(
+        'INSERT INTO campaign_sessions '
+        '(id, campaign_id, venue, capacity, start_at, status) '
+        "VALUES (@id, @c, @v, 60, @s, 'UPCOMING')",
+        params: {
+          'id': 'seed-camp-1-session-1',
+          'c': fixture.id,
+          'v': 'BMD Training Center, Hall A',
+          's': DateTime.utc(2026, 9, 1, 9),
+        },
+      );
+    }
   }
 }
 

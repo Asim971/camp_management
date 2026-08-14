@@ -218,6 +218,79 @@ void main() {
     );
   });
 
+  test('reset seeds one operable session on seed-camp-1', () async {
+    final handler = buildApp(db: db, config: configWithSeeding(true));
+    await _post(handler, '/__test__/reset');
+
+    final loginRes = await _post(
+      handler,
+      '/auth/login',
+      body: {'username': 'campaign_creator', 'password': seedPassword},
+    );
+    final token =
+        (jsonDecode(await loginRes.readAsString())
+                as Map<String, Object?>)['accessToken']!
+            as String;
+
+    final res = await handler(
+      Request(
+        'GET',
+        Uri.parse('http://localhost/campaigns/seed-camp-1/sessions'),
+        headers: {'authorization': 'Bearer $token'},
+      ),
+    );
+    expect(res.statusCode, 200);
+    final body = jsonDecode(await res.readAsString()) as Map<String, Object?>;
+    final items = (body['items']! as List<Object?>)
+        .cast<Map<String, Object?>>();
+
+    expect(
+      items,
+      hasLength(1),
+      reason:
+          '.maestro/flows/session_ops.yaml needs exactly one seeded session '
+          'on seed-camp-1',
+    );
+    final session = items.single;
+    expect(session['id'], 'seed-camp-1-session-1');
+    expect(session['status'], 'UPCOMING');
+    expect(session['readinessOk'], true);
+  });
+
+  test('reset seeds no session for the other campaign fixtures', () async {
+    final handler = buildApp(db: db, config: configWithSeeding(true));
+    await _post(handler, '/__test__/reset');
+
+    final loginRes = await _post(
+      handler,
+      '/auth/login',
+      body: {'username': 'campaign_creator', 'password': seedPassword},
+    );
+    final token =
+        (jsonDecode(await loginRes.readAsString())
+                as Map<String, Object?>)['accessToken']!
+            as String;
+
+    for (final campaignId in ['seed-camp-2', 'seed-camp-3']) {
+      final res = await handler(
+        Request(
+          'GET',
+          Uri.parse('http://localhost/campaigns/$campaignId/sessions'),
+          headers: {'authorization': 'Bearer $token'},
+        ),
+      );
+      expect(res.statusCode, 200);
+      final body = jsonDecode(await res.readAsString()) as Map<String, Object?>;
+      expect(
+        body['items'],
+        isEmpty,
+        reason:
+            '$campaignId is not APPROVED and should get no seeded '
+            'session',
+      );
+    }
+  });
+
   test('reset seeds the two carpenter fixtures', () async {
     final handler = buildApp(db: db, config: configWithSeeding(true));
     await _post(handler, '/__test__/reset');
