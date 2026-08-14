@@ -4,7 +4,6 @@ import 'package:acsl_campaign/core/trace/trace_id.dart';
 import 'package:acsl_campaign/domain/campaign/campaign.dart';
 import 'package:acsl_campaign/domain/campaign/campaign_draft.dart';
 import 'package:acsl_campaign/domain/campaign/campaign_repository.dart';
-import 'package:acsl_campaign/domain/common/status.dart';
 import 'package:acsl_campaign/domain/verification/verification.dart';
 import 'package:acsl_campaign/domain/verification/verification_case.dart';
 import 'package:acsl_campaign/domain/verification/verification_repository.dart';
