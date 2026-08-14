@@ -19,6 +19,7 @@
 # matrix, `crm` entry.
 appId: ${APP_ID}
 tags:
+  - cloud_conflict
   - crm
   - android
 ---

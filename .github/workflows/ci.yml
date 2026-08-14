@@ -503,16 +503,42 @@ jobs:
   # publishes the runner's seeded service at a public HTTPS URL the device
   # reaches, and the APK is built to point API_BASE_URL at that URL.
   #
-  # continue-on-error: this is a PILOT. The emulator `e2e (bulkImport)` config
-  # above is the blocking acceptance gate for 2b; a Cloud hiccup (tunnel, quota,
-  # device availability) must not block merge while the approach is proven out.
-  # Flip to blocking and drop the emulator bulkImport entry once it's reliable.
+  # A per-flow matrix of the CRM/verification suite (+ bulkImport) on Maestro
+  # Cloud — real devices, which sidestep the swiftshader ColorBuffer/2-flows-
+  # per-boot flakiness the emulator crm/crm2/crm3 configs work around. Each flow
+  # gets its own device run (its own backend + tunnel + reset + APK), selected
+  # by a unique tag.
+  #
+  # continue-on-error: this stays a non-blocking PILOT. The emulator `e2e (*)`
+  # configs above are the blocking acceptance gates; a Cloud hiccup (tunnel,
+  # quota, device availability) must not block merge. Cloud device-minutes are
+  # finite, so this is scoped to the verification suite rather than every flow.
+  # Flip to blocking and thin the emulator matrix once Cloud is proven reliable.
   e2e-cloud:
-    name: e2e-cloud (bulkImport)
+    name: e2e-cloud (${{ matrix.flow.key }})
     runs-on: ubuntu-latest
     needs: gate
     continue-on-error: true
     timeout-minutes: 30
+    strategy:
+      # fail-fast off: each flow is an independent, non-blocking Cloud pilot —
+      # one flaky device/quota hiccup must not cancel the others.
+      fail-fast: false
+      matrix:
+        # One Cloud device run per flow. Each matrix entry is a FRESH job with
+        # its own backend + tunnel + reset + APK, so state-mutating flows
+        # (claim/decide) can't contaminate each other — the isolation the
+        # single-flow original relied on, now generalised. `tag` is the flow's
+        # unique include-tag (added to each flow's `tags:` block); the Cloud
+        # action selects a single flow by tag only (its `workspace` is a
+        # directory, not a file).
+        flow:
+          - { key: bulkImport,    tag: bulk_import }
+          - { key: crm_decision,  tag: cloud_decision }
+          - { key: crm_conflict,  tag: cloud_conflict }
+          - { key: crm_recapture, tag: cloud_recapture }
+          - { key: crm_override,  tag: cloud_override }
+          - { key: crm_queue,     tag: cloud_queue }
     services:
       postgres:
         image: postgres:16
@@ -581,9 +607,10 @@ jobs:
 
       - name: Seed fixtures through the tunnel
         run: |
-          # One reset is enough: bulk_import is a single flow, so there is no
-          # concurrent-flow-vs-one-backend contention the sequential emulator
-          # runner's per-flow reset guards against.
+          # One reset per matrix entry: each entry runs exactly one flow on its
+          # own dedicated backend, so a single reset before the Cloud run gives
+          # that flow the clean seeded state it expects — no cross-flow
+          # contention (each flow gets its own job).
           for i in $(seq 1 15); do
             if curl -fsS -X POST "$TUNNEL_URL/__test__/reset" > /dev/null; then
               echo "reset ok"; exit 0
@@ -592,26 +619,31 @@ jobs:
           done
           echo "reset via tunnel failed"; exit 1
 
-      - name: Build the bulkImport APK pointing at the tunnel
+      - name: Build the e2e APK pointing at the tunnel
         run: |
+          # All six Cloud flows share one build config: real-auth against the
+          # real service via the tunnel. The CRM flows log in explicitly in
+          # their prelude, so the APK's ROLE define is irrelevant to them (as
+          # the emulator crm matrix already relies on).
           flutter build apk --debug --flavor dev \
             --dart-define=E2E=true \
             --dart-define=E2E_REAL_AUTH=true \
             --dart-define=API_BASE_URL=$TUNNEL_URL
           ls -l build/app/outputs/flutter-apk/app-dev-debug.apk
 
-      - name: Run bulk_import on Maestro Cloud
+      - name: Run ${{ matrix.flow.key }} on Maestro Cloud
         uses: mobile-dev-inc/action-maestro-cloud@v2.0.2
         with:
           api-key: ${{ secrets.MAESTRO_API_KEY }}
           project-id: ${{ secrets.MAESTRO_PROJECT_ID }}
           app-file: build/app/outputs/flutter-apk/app-dev-debug.apk
           workspace: .maestro
-          include-tags: bulk_import
+          # Selects exactly this one flow — the action filters by tag only, and
+          # each flow carries a unique cloud_* tag (bulk_import for bulkImport).
+          include-tags: ${{ matrix.flow.tag }}
+          name: ${{ matrix.flow.key }}
           # The flow's `appId: ${APP_ID}` needs this at run time (the emulator
-          # path passes it via run_maestro_flows.sh --env). If v2.0.2 does not
-          # accept `env`, the first CI run reveals it and we hardcode the dev
-          # applicationId in a Cloud-specific flow copy instead.
+          # path passes it via run_maestro_flows.sh --env).
           env: |
             APP_ID=com.acsl.campaign.dev
 
@@ -619,7 +651,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-cloud-logs
+          # Unique per matrix entry — upload-artifact@v4 rejects duplicate names.
+          name: e2e-cloud-logs-${{ matrix.flow.key }}
           path: |
             ${{ runner.temp }}/tunnel.log
             ${{ runner.temp }}/backend.log

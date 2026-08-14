@@ -17,6 +17,7 @@
 # matrix, `crm` entry.
 appId: ${APP_ID}
 tags:
+  - cloud_decision
   - crm
   - critical
   - android
