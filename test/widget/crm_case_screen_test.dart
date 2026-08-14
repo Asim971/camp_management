@@ -102,9 +102,10 @@ Finder _byIdentifier(String id) => find.byWidgetPredicate(
 
 void main() {
   testWidgets(
-    'crm_case_screen: Submit stays disabled until BOTH an outcome is chosen '
-    'and a reason is entered, then decide() carries that outcome (T-0.1.3 '
-    'migration coverage for the RadioGroup/groupValue hand-migration)',
+    'crm_case_screen: Submit stays disabled until an outcome is chosen; a '
+    'plain approve needs no reason, and decide() carries that outcome '
+    '(T-0.1.3 migration coverage for the RadioGroup/groupValue '
+    'hand-migration)',
     (tester) async {
       // CrmCaseScreen only lays the decision panel out in a fixed (always
       // built) Row at desktop widths; below that it stacks everything in a
@@ -144,8 +145,8 @@ void main() {
 
       expect(
         tester.widget<FilledButton>(submitFinder).onPressed,
-        isNull,
-        reason: 'outcome chosen but reason is still empty',
+        isNotNull,
+        reason: 'a plain approve needs no reason',
       );
 
       await tester.enterText(find.byType(TextField), 'Matches profile photo.');
@@ -154,7 +155,7 @@ void main() {
       expect(
         tester.widget<FilledButton>(submitFinder).onPressed,
         isNotNull,
-        reason: 'both an outcome and a non-empty reason are now set',
+        reason: 'an outcome is set and the optional reason was filled in too',
       );
 
       await tester.tap(submitFinder);

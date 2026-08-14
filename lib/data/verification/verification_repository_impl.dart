@@ -94,7 +94,7 @@ class VerificationRepositoryImpl implements VerificationRepository {
   VerificationCase _case(Map<String, dynamic> j) => VerificationCase(
     attendanceId: j['attendanceId'] as String,
     version: j['version'] as int,
-    status: AttendanceStatus.crmReview,
+    status: _status(j['status'] as String?),
     carpenterName: j['carpenterName'] as String,
     carpenterIdMasked: j['carpenterIdMasked'] as String,
     campaignName: j['campaignName'] as String,
@@ -110,6 +110,15 @@ class VerificationRepositoryImpl implements VerificationRepository {
       reasons: ((j['reasons'] as List?) ?? []).cast<String>(),
     ),
   );
+
+  AttendanceStatus _status(String? s) {
+    final parsed = AttendanceStatus.tryParseWire(s ?? '');
+    if (parsed == null) {
+      debugPrint('VerificationRepositoryImpl: unrecognized status "$s"');
+      return AttendanceStatus.crmReview; // visible fallback, never silent
+    }
+    return parsed;
+  }
 
   MatchBand _band(String? s) {
     final parsed = MatchBand.tryParseWire(s ?? '');

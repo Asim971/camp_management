@@ -3,7 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/di/providers.dart';
 import '../../../app/shell/app_shell.dart';
+import '../../../core/auth/rbac.dart';
+import '../../../core/auth/session_manager.dart';
 import '../../../core/design_system/bmd_button.dart';
 import '../../../core/design_system/bmd_field.dart';
 import '../../../core/responsive/breakpoints.dart';
@@ -234,6 +237,7 @@ class _DecisionPanelState extends ConsumerState<_DecisionPanel> {
   VerificationOutcome? _outcome;
   final _reason = TextEditingController();
   bool _submitting = false;
+  bool _override = false;
 
   @override
   void dispose() {
@@ -241,14 +245,30 @@ class _DecisionPanelState extends ConsumerState<_DecisionPanel> {
     super.dispose();
   }
 
+  /// A reason is mandatory for anything that isn't a plain approve — reject,
+  /// return-for-recapture and escalate all need one for the audit log — and
+  /// for an override, since re-opening an already-decided case is itself
+  /// exceptional enough to demand an explanation.
+  bool get _reasonRequired =>
+      _override ||
+      _outcome == VerificationOutcome.rejected ||
+      _outcome == VerificationOutcome.returnForRecapture ||
+      _outcome == VerificationOutcome.escalated;
+
   bool get _canSubmit =>
-      _outcome != null && _reason.text.trim().isNotEmpty && !_submitting;
+      _outcome != null &&
+      (!_reasonRequired || _reason.text.trim().isNotEmpty) &&
+      !_submitting;
 
   Future<void> _submit() async {
     setState(() => _submitting = true);
     final result = await ref
         .read(crmCaseControllerProvider(widget.attendanceId).notifier)
-        .decide(outcome: _outcome!, reason: _reason.text.trim());
+        .decide(
+          outcome: _outcome!,
+          reason: _reason.text.trim(),
+          supervisorOverride: _override,
+        );
     if (!mounted) return;
     setState(() => _submitting = false);
 
@@ -274,8 +294,16 @@ class _DecisionPanelState extends ConsumerState<_DecisionPanel> {
     }
   }
 
+  bool get _canOverride => switch (ref.watch(authStateProvider)) {
+    AuthSignedIn(:final session) => session.scope.can(
+      Permission.verificationOverride,
+    ),
+    _ => false,
+  };
+
   @override
   Widget build(BuildContext context) {
+    final canOverride = _canOverride;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -307,13 +335,36 @@ class _DecisionPanelState extends ConsumerState<_DecisionPanel> {
             BmdField.multiline(
               identifier: 'crm_reason',
               label: 'Reason',
-              required: true,
+              required: _reasonRequired,
               controller: _reason,
               minLines: 2,
               maxLines: 4,
-              helper: 'Recorded with the decision and shown in the audit log.',
+              helper: _reasonRequired
+                  ? 'Recorded with the decision and shown in the audit log.'
+                  : 'Optional for a plain approve; recorded with the decision '
+                        'when provided.',
               onChanged: (_) => setState(() {}),
             ),
+            if (canOverride) ...[
+              const SizedBox(height: 8),
+              Semantics(
+                identifier: 'crm_supervisor_override',
+                child: SwitchListTile(
+                  dense: true,
+                  value: _override,
+                  onChanged: (v) => setState(() => _override = v),
+                  title: const Text('Supervisor override'),
+                ),
+              ),
+              if (_override)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    'This re-opens a case that has already been decided.',
+                    style: Theme.of(context).textTheme.labelMedium,
+                  ),
+                ),
+            ],
             const SizedBox(height: 12),
             // Confirm the downstream effect before committing (§8.13).
             Text(
