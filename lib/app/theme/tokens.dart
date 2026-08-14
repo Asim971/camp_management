@@ -68,6 +68,18 @@ abstract final class BmdColor {
   static const darkWarning = Color(0xFFFDBA4D);
   static const darkError = Color(0xFFFF8A80);
   static const darkInfo = Color(0xFF7DB0FF);
+
+  // --- Expressive accent (slice 1) ----------------------------------------
+  static const accentCyan = Color(0xFF22D3EE); // electric cyan (dark hero)
+  static const accentCyanDeep = Color(
+    0xFF0E7490,
+  ); // deeper cyan for AA on light
+  // Glass surfaces: translucent fill + a brighter hairline, layered over the
+  // tinted base. Dark uses white veils; light uses a navy-tinted veil.
+  static const glassFillDark = Color(0x14FFFFFF);
+  static const glassBorderDark = Color(0x24FFFFFF);
+  static const glassFillLight = Color(0xC2FFFFFF);
+  static const glassBorderLight = Color(0x1F2B3674);
 }
 
 /// 8px primary rhythm; 4px only for tightly related metadata (§4.4).
@@ -134,6 +146,33 @@ abstract final class BmdElevation {
   ];
 }
 
+/// Brand-derived gradients (spec RD.D1). Snap on a theme change rather than
+/// lerp (a gradient does not belong in ColorScheme); the two variants are
+/// tuned per brightness so neither sinks into its surface.
+abstract final class BmdGradient {
+  /// The hero mesh: red -> navy -> cyan, used behind hero headers/CTAs.
+  static LinearGradient heroMesh(bool isDark) => LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      BmdColor.primary600,
+      BmdColor.ink700,
+      isDark ? BmdColor.accentCyan : BmdColor.accentCyanDeep,
+    ],
+    stops: const [0.0, 0.55, 1.0],
+  );
+
+  /// A soft radial glow placed behind key elements.
+  static RadialGradient glow(bool isDark) => RadialGradient(
+    colors: [
+      (isDark ? BmdColor.accentCyan : BmdColor.accentCyanDeep).withValues(
+        alpha: isDark ? 0.22 : 0.14,
+      ),
+      const Color(0x00000000),
+    ],
+  );
+}
+
 /// Mode-dependent tokens that Material's [ColorScheme] has no slot for:
 /// the semantic quartet, chip tints, the validated data-series palette and the
 /// ordinal funnel ramp. Read with `Theme.of(context).bmd`.
@@ -159,6 +198,11 @@ class BmdTokens extends ThemeExtension<BmdTokens> {
     required this.borderStrong,
     required this.series,
     required this.funnel,
+    required this.accent,
+    required this.accentOn,
+    required this.glassFill,
+    required this.glassBorder,
+    required this.heroGlow,
   });
 
   final Color success;
@@ -197,6 +241,20 @@ class BmdTokens extends ThemeExtension<BmdTokens> {
   /// so no stage sinks into the surface.
   final List<Color> funnel;
 
+  /// Expressive accent (slice 1): electric cyan, tuned per brightness so it
+  /// clears contrast on its own surface rather than lerped between modes.
+  final Color accent;
+
+  /// Foreground drawn on top of a solid [accent] fill.
+  final Color accentOn;
+
+  /// Glass surfaces: translucent fill + a brighter hairline border.
+  final Color glassFill;
+  final Color glassBorder;
+
+  /// Tint for [BmdGradient.glow] and similar ambient effects.
+  final Color heroGlow;
+
   static const light = BmdTokens(
     success: BmdColor.success,
     warning: BmdColor.warning,
@@ -230,6 +288,11 @@ class BmdTokens extends ThemeExtension<BmdTokens> {
       Color(0xFF3B4A96),
       Color(0xFF2B3674),
     ],
+    accent: BmdColor.accentCyanDeep,
+    accentOn: Colors.white,
+    glassFill: BmdColor.glassFillLight,
+    glassBorder: BmdColor.glassBorderLight,
+    heroGlow: BmdColor.accentCyanDeep,
   );
 
   static const dark = BmdTokens(
@@ -265,6 +328,11 @@ class BmdTokens extends ThemeExtension<BmdTokens> {
       Color(0xFF5A6BC7),
       Color(0xFF4657AE),
     ],
+    accent: BmdColor.accentCyan,
+    accentOn: BmdColor.darkSurfaceBase,
+    glassFill: BmdColor.glassFillDark,
+    glassBorder: BmdColor.glassBorderDark,
+    heroGlow: BmdColor.accentCyan,
   );
 
   /// Categorical slots are assigned in fixed order and never cycled. Past the
@@ -293,6 +361,11 @@ class BmdTokens extends ThemeExtension<BmdTokens> {
     Color? borderStrong,
     List<Color>? series,
     List<Color>? funnel,
+    Color? accent,
+    Color? accentOn,
+    Color? glassFill,
+    Color? glassBorder,
+    Color? heroGlow,
   }) {
     return BmdTokens(
       success: success ?? this.success,
@@ -314,6 +387,11 @@ class BmdTokens extends ThemeExtension<BmdTokens> {
       borderStrong: borderStrong ?? this.borderStrong,
       series: series ?? this.series,
       funnel: funnel ?? this.funnel,
+      accent: accent ?? this.accent,
+      accentOn: accentOn ?? this.accentOn,
+      glassFill: glassFill ?? this.glassFill,
+      glassBorder: glassBorder ?? this.glassBorder,
+      heroGlow: heroGlow ?? this.heroGlow,
     );
   }
 
@@ -343,6 +421,11 @@ class BmdTokens extends ThemeExtension<BmdTokens> {
       borderStrong: Color.lerp(borderStrong, other.borderStrong, t)!,
       series: lerpAll(series, other.series),
       funnel: lerpAll(funnel, other.funnel),
+      accent: Color.lerp(accent, other.accent, t)!,
+      accentOn: Color.lerp(accentOn, other.accentOn, t)!,
+      glassFill: Color.lerp(glassFill, other.glassFill, t)!,
+      glassBorder: Color.lerp(glassBorder, other.glassBorder, t)!,
+      heroGlow: Color.lerp(heroGlow, other.heroGlow, t)!,
     );
   }
 }
