@@ -1,18 +1,44 @@
 # P-06 concurrency (§9.4): if another reviewer already decided, the server
-# returns 409 and the UI must surface it and reload — never silently overwrite.
-# Prereq: mock returns 409 for CASE_CONFLICT's decision endpoint.
+# returns 412 (a stale/closed If-Match) and the UI must surface it and
+# reload — never silently overwrite.
+# Prereq: POST /__test__/reset seeds CASE_CONFLICT already decided
+# (status=APPROVED, version=2) on the real service, so the CRM client's
+# decision -- sent with the version it just fetched via If-Match -- fails the
+# server's CAS (`... WHERE version = @ifMatch AND status = 'CRM_REVIEW'`) on
+# the status guard, not the version, and the route answers 412
+# PRECONDITION_FAILED. See server/lib/src/seed/seed_routes.dart's
+# `_seedVerificationFixture` and verification_repo.dart's `decide`.
 #
-# Requires the `crm` matrix APK (--dart-define=ROLE=crm_verifier) via
-# launch_as_crm.yaml. Maestro `arguments:` are Android intent extras and CANNOT
-# reach `const String.fromEnvironment`, so the role lives in the build; with the
-# default field_user the session has no `verificationDecide` and the route
-# redirects to /forbidden. See ci.yml's e2e matrix.
+# Requires the `crm` matrix APK (--dart-define=E2E_REAL_AUTH=true
+# --dart-define=ROLE=crm_verifier, useMock 0): RouteGuards redirect an
+# unauthenticated session to /login, so this signs in for real as
+# crm_verifier (who holds verification_decide + sensitive_media_view) rather
+# than using ../subflows/launch_as_crm.yaml (that subflow is FakeAuth-only
+# and skips /login entirely; with the default field_user the session has no
+# verificationDecide and the route redirects to /forbidden). See ci.yml's e2e
+# matrix, `crm` entry.
 appId: ${APP_ID}
 tags:
   - crm
   - android
 ---
-- runFlow: ../subflows/launch_as_crm.yaml
+- clearState
+- launchApp
+
+- assertVisible:
+    id: "login_username"
+- tapOn:
+    id: "login_username"
+- inputText: "crm_verifier"
+- tapOn:
+    id: "login_password"
+- inputText: "Test1234!"
+- hideKeyboard
+- tapOn:
+    id: "login_submit"
+
+- assertVisible:
+    id: "dev_launcher"
 - tapOn:
     id: "dev_open_crm_case_conflict" # opens /verification/cases/CASE_CONFLICT
 - assertVisible: "Verification case"
@@ -44,6 +70,9 @@ tags:
     id: "crm_submit"
 
 # Concurrent-decision handling: informative message + reload, no overwrite.
+# The client maps BOTH a 409 and this real service's 412 to the same conflict
+# banner, so the visible behaviour is unchanged from the mock-backed version
+# of this flow.
 # Wrapped in `.*`: Maestro anchors text patterns, and this message is rendered
 # inside a merged banner node rather than as a standalone text node.
 - assertVisible: ".*Another reviewer already decided. Reloaded..*"

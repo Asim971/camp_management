@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:campaign_contracts/campaign_contracts.dart';
 import 'package:shelf/shelf.dart';
@@ -163,6 +164,7 @@ Router seedRouter({
     await _seedCampaignFixture(db, _campaignFixtures);
     await _seedCarpenterFixture(db);
     await _seedConsentNotices(db);
+    await _seedVerificationFixture(db);
     return Response(204);
   });
 
@@ -204,6 +206,14 @@ const List<String> _allSeedableTables = [
   'import_jobs',
   'profile_requests',
   'registrations',
+  // verification_decisions/attendance would cascade from carpenters/campaigns
+  // anyway (both FK ON DELETE CASCADE onto attendance/carpenters/campaigns),
+  // but media_objects has NO foreign key back to either -- it must be listed
+  // explicitly or a reset would leave CASE_E2E/CASE_CONFLICT's old evidence
+  // blobs behind under a truncated-and-reused id.
+  'verification_decisions',
+  'attendance',
+  'media_objects',
   'carpenters',
   'campaign_decisions',
   'campaign_submissions',
@@ -397,6 +407,15 @@ Future<void> _seedCarpenterFixture(Db db) async {
       code: 'CARP-00004821',
       territory: seedTerritoryNorthId,
       dealer: 'Rahman Traders',
+      // Task 8 (5a): a thumbnail gives CASE_E2E/CASE_CONFLICT's carpenter a
+      // `referenceImageUrl` and makes the confirm's machine check see
+      // hasReference=true (-> MEDIUM band, not NO_REFERENCE). No seeded
+      // test or Maestro flow asserts CARP_E2E has NO thumbnail, and
+      // attendance_capture.yaml (which also captures against this
+      // carpenter) only asserts the client-local "Match processing" sync
+      // label, which does not depend on the band -- see that flow's own
+      // comment.
+      thumbnail: 'thumb://carp-e2e',
     ),
     (
       id: seedCarpenterUddinId,
@@ -405,15 +424,16 @@ Future<void> _seedCarpenterFixture(Db db) async {
       code: 'CARP-00007734',
       territory: seedTerritorySouthId,
       dealer: null,
+      thumbnail: null,
     ),
   ];
   for (final c in carpenters) {
     await db.execute(
       'INSERT INTO carpenters '
       '(id, organization_id, full_name, phone, territory_id, '
-      " dealer_context, display_code, source, sync_status) "
+      " dealer_context, display_code, source, sync_status, thumbnail_url) "
       "VALUES (@id, @org, @name, @phone, @territory, @dealer, @code, "
-      "        'SEED', 'LOCAL_ONLY')",
+      "        'SEED', 'LOCAL_ONLY', @thumb)",
       params: {
         'id': c.id,
         'org': seedOrganizationId,
@@ -422,6 +442,7 @@ Future<void> _seedCarpenterFixture(Db db) async {
         'territory': c.territory,
         'dealer': c.dealer,
         'code': c.code,
+        'thumb': c.thumbnail,
       },
     );
   }
@@ -442,6 +463,83 @@ Future<void> _seedConsentNotices(Db db) async {
     " 'যাচাইয়ের জন্য আপনার ছবি ও উপস্থিতি সংরক্ষণ করা হয়।', 'seed-bn-v1') "
     "ON CONFLICT (version, language) DO NOTHING",
   );
+}
+
+/// Seeds the two CRM verification cases `.maestro/flows/crm_case_decision.yaml`
+/// and `crm_case_conflict.yaml` (Task 8, sub-project 5a) drive against the
+/// real service, plus the dev launcher's `dev_open_crm_case`/
+/// `dev_open_crm_case_conflict` entries. Both live on `seed-camp-1` (the sole
+/// APPROVED campaign fixture) and its `seed-camp-1-session-1` session, and
+/// both reference `CARP_E2E` (seeded with a thumbnail above, so `loadCase`
+/// returns a `referenceImageUrl` and the confirm-time machine check would see
+/// hasReference=true) -- see [_seedCarpenterFixture]'s comment. Must run
+/// after both [_seedCampaignFixture] (campaign/session FKs) and
+/// [_seedCarpenterFixture] (carpenter FK) and [_seedBaseline] (captured_by's
+/// staff_users FK).
+///
+/// - `CASE_E2E`: open, in `CRM_REVIEW` at `version=1` -- the case
+///   `crm_case_decision.yaml` opens and approves.
+/// - `CASE_CONFLICT`: already decided (`APPROVED`, `version=2`) -- the CRM
+///   client hard-codes an optimistic `If-Match` from whatever version it just
+///   fetched (2), and the decision CAS
+///   (`... WHERE version = @ifMatch AND status = 'CRM_REVIEW'`) matches zero
+///   rows because the status guard fails, not the version -- so this closed
+///   case can never be re-decided, and the route's re-check (row still
+///   exists) reports it as the same 412 `PRECONDITION_FAILED` a genuine
+///   stale-version race would produce. `crm_case_conflict.yaml` asserts
+///   exactly that surfaces as the client's conflict/reload message.
+///
+/// Each case also gets a matching `media_objects` row (the evidence blob) so
+/// its signed `capturedImageUrl` resolves through `GET /media/<id>`.
+Future<void> _seedVerificationFixture(Db db) async {
+  const campaignId = 'seed-camp-1';
+  const sessionId = 'seed-camp-1-session-1';
+  final capturedBy = seedUserId('field_user');
+  final capturedAt = DateTime.utc(2026, 8, 1, 9, 30);
+  final reasons = jsonEncode([
+    'Face comparison inconclusive — manual review required.',
+  ]);
+
+  Future<void> seedCase({
+    required String id,
+    required String status,
+    required int version,
+  }) async {
+    await db.execute(
+      "INSERT INTO media_objects (id, content_type, bytes) "
+      "VALUES (@id, 'image/png', @bytes)",
+      params: {
+        'id': id,
+        // A tiny, deliberately fixed byte string -- the test/flow only
+        // needs the evidence blob to exist and round-trip, not to decode as
+        // a real image.
+        'bytes': Uint8List.fromList(const [0x89, 0x50, 0x4e, 0x47]),
+      },
+    );
+    await db.execute(
+      'INSERT INTO attendance '
+      '(id, organization_id, campaign_id, session_id, carpenter_id, '
+      ' media_ref, status, captured_by, captured_at, machine_band, '
+      ' machine_reference_src, machine_reasons, version) '
+      "VALUES (@id, @org, @camp, @sess, @carp, @id, @status, @by, @at, "
+      "        'MEDIUM', 'APPROVED_BASELINE_PHOTO', @reasons::jsonb, @v)",
+      params: {
+        'id': id,
+        'org': seedOrganizationId,
+        'camp': campaignId,
+        'sess': sessionId,
+        'carp': seedCarpenterKarimId,
+        'status': status,
+        'by': capturedBy,
+        'at': capturedAt,
+        'reasons': reasons,
+        'v': version,
+      },
+    );
+  }
+
+  await seedCase(id: 'CASE_E2E', status: 'CRM_REVIEW', version: 1);
+  await seedCase(id: 'CASE_CONFLICT', status: 'APPROVED', version: 2);
 }
 
 Future<Map<String, Object?>> _readJsonBody(Request request) async {

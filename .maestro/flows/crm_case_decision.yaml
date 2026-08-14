@@ -1,12 +1,17 @@
 # C-02: machine recommendation is shown as a separate advisory block, the
 # reason is mandatory, and a valid decision is recorded (part of P-06).
-# Prereq: mock /verification/cases/CASE_E2E + fixture images.
+# Prereq: POST /__test__/reset seeds CASE_E2E (CRM_REVIEW, MEDIUM band,
+# evidence + reference photo) on the real service -- see
+# server/lib/src/seed/seed_routes.dart's `_seedVerificationFixture`.
 #
-# Requires the `crm` matrix APK (--dart-define=ROLE=crm_verifier) via
-# launch_as_crm.yaml. Maestro `arguments:` are Android intent extras and CANNOT
-# reach `const String.fromEnvironment`, so the role lives in the build; with the
-# default field_user the session has no `verificationDecide` and the route
-# redirects to /forbidden. See ci.yml's e2e matrix.
+# Requires the `crm` matrix APK (--dart-define=E2E_REAL_AUTH=true
+# --dart-define=ROLE=crm_verifier, useMock 0): RouteGuards redirect an
+# unauthenticated session to /login, so this signs in for real as
+# crm_verifier (who holds verification_decide + sensitive_media_view) rather
+# than using ../subflows/launch_as_crm.yaml (that subflow is FakeAuth-only
+# and skips /login entirely; with the default field_user the session has no
+# verificationDecide and the route redirects to /forbidden). See ci.yml's e2e
+# matrix, `crm` entry.
 appId: ${APP_ID}
 tags:
   - crm
@@ -14,7 +19,23 @@ tags:
   - android
   - pr-smoke
 ---
-- runFlow: ../subflows/launch_as_crm.yaml
+- clearState
+- launchApp
+
+- assertVisible:
+    id: "login_username"
+- tapOn:
+    id: "login_username"
+- inputText: "crm_verifier"
+- tapOn:
+    id: "login_password"
+- inputText: "Test1234!"
+- hideKeyboard
+- tapOn:
+    id: "login_submit"
+
+- assertVisible:
+    id: "dev_launcher"
 - tapOn:
     id: "dev_open_crm_case" # opens /verification/cases/CASE_E2E
 - assertVisible: "Verification case"
