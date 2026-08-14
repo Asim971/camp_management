@@ -611,9 +611,15 @@ class _Store {
   final Map<String, Map<String, dynamic>> _sessions = {};
 
   List<Map<String, dynamic>> sessionsFor(String campaignId) {
-    if (!_sessions.containsKey('$campaignId#1')) {
-      _sessions['$campaignId#1'] = {
-        'id': '$campaignId#1',
+    // '-S1', not '#1': '#' is the URI fragment delimiter, so any client that
+    // builds this id into a request path via the normal Uri APIs (as the
+    // parity suite's POST /sessions/<id>/start does) would have it truncated
+    // client-side or split off server-side by dart:io's own request-target
+    // parsing -- '#1/start' never reaches this router at all. No real
+    // client (Flutter app, Maestro flows) depended on the old delimiter.
+    if (!_sessions.containsKey('$campaignId-S1')) {
+      _sessions['$campaignId-S1'] = {
+        'id': '$campaignId-S1',
         'campaignId': campaignId,
         'venue': 'BMD Training Center, Hall A',
         'status': 'UPCOMING',

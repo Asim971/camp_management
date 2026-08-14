@@ -450,7 +450,8 @@ void main() {
     // -- what's compared is the SHAPE and VOCABULARY both return, not a
     // shared row.
     test('$targetName: session list returns {items} whose entries carry the '
-        'ratified SessionStatus vocabulary and key set', () async {
+        'ratified SessionStatus vocabulary and key set, and POST start '
+        'transitions to ACTIVE', () async {
       final targets = await buildTargets(campaignCount: 0);
       await seedCampaign(
         targets.realDb,
@@ -497,6 +498,39 @@ void main() {
           reason: '$status is not in the shared SessionStatus vocabulary',
         );
       }
+
+      // The GET assertions above only ever observe the seeded UPCOMING
+      // status, so they never exercise `sessionAction`'s SCREAMING_SNAKE
+      // action map (Task 7) -- a regression back to lowercase 'active'
+      // there would go uncaught. Starting the session on both targets and
+      // asserting the returned status is exactly 'ACTIVE' is what actually
+      // pins that map. Real POST requires `campaign_create`, which is the
+      // default role `seedOrganizationWithUser` grants `user-1` -- the same
+      // user `buildTargets` already mints the bearer token for above.
+      final sessionId = targetName == 'real'
+          ? 'parity-session-0'
+          : (items.first['id']! as String);
+      // Uri.encodeComponent defensively: neither id is expected to carry
+      // reserved characters, but a session id built into a path segment
+      // should always be encoded rather than assumed safe.
+      final started = await target.postJson(
+        '/sessions/${Uri.encodeComponent(sessionId)}/start',
+        const {},
+      );
+      expect(started.status, 200);
+      final startedStatus = started.body['status']! as String;
+      expect(
+        SessionStatus.tryParseWire(startedStatus),
+        isNotNull,
+        reason: '$startedStatus is not in the shared SessionStatus vocabulary',
+      );
+      expect(
+        startedStatus,
+        'ACTIVE',
+        reason:
+            'a regression to the mock\'s old lowercase action map ("active") '
+            'must fail this, not just fail SessionStatus.tryParseWire',
+      );
     });
   }
 }
