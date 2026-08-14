@@ -8,6 +8,7 @@ const Map<String, String> embeddedMigrations = {
   '006_session_status': _sessionStatus,
   '007_attendance': _attendance,
   '008_verification': _verification,
+  '009_escalation': _escalation,
 };
 
 const String _foundation = r'''
@@ -358,4 +359,9 @@ CREATE TABLE verification_decisions (
   decided_at           TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX verification_decisions_attendance_idx ON verification_decisions(attendance_id);
+''';
+
+const String _escalation = r'''
+ALTER TABLE attendance ADD COLUMN escalated_at TIMESTAMPTZ;
+ALTER TABLE attendance ADD COLUMN escalated_by TEXT REFERENCES staff_users(id);
 ''';
