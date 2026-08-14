@@ -26,8 +26,16 @@ Router attendanceRouter({required Db db}) {
         .addHandler((Request request) async {
           final auth = authOf(request);
           final key = request.params['key']!;
-          final decoded = jsonDecode(await request.readAsString());
-          final payload = (decoded as Map).cast<String, Object?>();
+          Map<String, Object?> payload;
+          try {
+            final decoded = jsonDecode(await request.readAsString());
+            payload = (decoded as Map).cast<String, Object?>();
+          } on Object {
+            throw ApiException(
+              ApiErrorCode.badRequest,
+              message: 'A JSON object body is required.',
+            );
+          }
           final result = await repo.confirm(
             attendanceId: key,
             organizationId: auth.organizationId,

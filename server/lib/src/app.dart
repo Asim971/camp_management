@@ -118,7 +118,9 @@ Handler buildApp({required Db db, required ServerConfig config}) {
           tokens: tokens,
         ),
       )
-      .addHandler(mediaRouter(db: db, signingKey: config.jwtSecret).call);
+      .addHandler(
+        mediaRouter(db: db, signingKey: config.uploadSigningKey).call,
+      );
 
   final consentHandler = const Pipeline()
       .addMiddleware(

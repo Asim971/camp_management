@@ -48,6 +48,7 @@ void main() {
     String key, {
     String? bearer,
     Map<String, Object?>? body,
+    String? rawBody,
     String? idempotencyKey,
   }) async => handler(
     Request(
@@ -58,7 +59,7 @@ void main() {
         if (idempotencyKey != null) 'Idempotency-Key': idempotencyKey,
         'content-type': 'application/json',
       },
-      body: jsonEncode(body ?? confirmBody()),
+      body: rawBody ?? jsonEncode(body ?? confirmBody()),
     ),
   );
 
@@ -229,5 +230,40 @@ void main() {
     await seedEvidence('K');
     final res = await confirm('K', idempotencyKey: 'K');
     expect(res.statusCode, 401);
+  });
+
+  // A non-object JSON body (a bare array or string) must be a clean 400, not
+  // a raw 500 from an unguarded `as Map` cast -- mirrors the presign handler.
+  test('non-object body -> 400, not 500', () async {
+    await seedEvidence('K');
+    final res = await confirm(
+      'K',
+      bearer: fieldToken,
+      idempotencyKey: 'K',
+      rawBody: '[]',
+    );
+    expect(res.statusCode, 400);
+  });
+
+  test('non-object body (bare string) -> 400, not 500', () async {
+    await seedEvidence('K');
+    final res = await confirm(
+      'K',
+      bearer: fieldToken,
+      idempotencyKey: 'K',
+      rawBody: '"x"',
+    );
+    expect(res.statusCode, 400);
+  });
+
+  test('malformed (non-JSON) body -> 400, not 500', () async {
+    await seedEvidence('K');
+    final res = await confirm(
+      'K',
+      bearer: fieldToken,
+      idempotencyKey: 'K',
+      rawBody: '{not json',
+    );
+    expect(res.statusCode, 400);
   });
 }

@@ -51,4 +51,14 @@ void main() {
       isTrue,
     );
   });
+
+  // 4a.D3 / spec §5: the upload-URL HMAC must never share a key with JWT
+  // signing. uploadSigningKey is derived (not equal to jwtSecret) and stable
+  // for a given config, so presign and verify agree without a raw-secret leak.
+  test('uploadSigningKey is derived, non-empty, and stable', () {
+    final c = ServerConfig.fromEnvironment(required);
+    expect(c.uploadSigningKey, isNotEmpty);
+    expect(c.uploadSigningKey, equals(c.uploadSigningKey));
+    expect(c.uploadSigningKey, isNot(equals(c.jwtSecret)));
+  });
 }
