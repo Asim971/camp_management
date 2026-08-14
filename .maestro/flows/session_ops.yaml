@@ -33,8 +33,13 @@ tags:
 - assertVisible: ".*ACSL Pilot Carpenter Drive.*"
 - tapOn: ".*ACSL Pilot Carpenter Drive.*"
 
-# Campaign detail: open the Sessions tab.
-- tapOn: "Sessions"
+# Campaign detail: open the Sessions tab. The tab's accessibility node is the
+# merged multi-line text "Sessions\nTab 2 of 6" (Flutter TabBar exposes the
+# position as a second line), so a bare "Sessions" text match fails — wrap it
+# in .*…*.* the same way the campaign-name and status asserts do for merged
+# nodes. Assert it first so the tap waits for the detail's TabBar to render.
+- assertVisible: ".*Sessions.*"
+- tapOn: ".*Sessions.*"
 
 # The seeded UPCOMING session's Start is enabled (readiness OK). Each action is
 # a real POST /sessions/<id>/<action> to the campaign_service; assert the
