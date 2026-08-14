@@ -80,40 +80,77 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = data.campaign;
+
+    // Contextual primary next action(s). Built once so both the presence
+    // check below and the Wrap's children list see the same list — a Row
+    // squeezed the Expanded(name) to near-zero on narrow viewports once a
+    // second button (Bulk import) joined "Add registrations" here; a Wrap
+    // lets these flow to a second line instead.
+    final actions = <Widget>[
+      if (c.status == CampaignStatus.pendingApproval)
+        PermissionGate.disabled(
+          Permission.campaignApprove,
+          reason: 'Only a Marketing Approver can approve this campaign.',
+          label: 'Review approval',
+          child: BmdButton(
+            label: 'Review approval',
+            onPressed: () => context.go('/campaigns/$campaignId/approve'),
+          ),
+        )
+      else if (c.status == CampaignStatus.approved ||
+          c.status == CampaignStatus.active) ...[
+        PermissionGate.disabled(
+          Permission.campaignCreate,
+          reason: 'Only a Campaign Creator can add registrations.',
+          label: 'Add registrations',
+          child: BmdButton(
+            label: 'Add registrations',
+            onPressed: () => context.go('/campaigns/$campaignId/register'),
+          ),
+        ),
+        // W-07: bulk import entry point (Permission.bulkImport, route
+        // '/campaigns/:id/import' — see route_table.dart). Same
+        // contextual-action pattern as "Add registrations" above.
+        PermissionGate.disabled(
+          Permission.bulkImport,
+          reason:
+              'Only a user with bulk import access can import participants.',
+          label: 'Bulk import',
+          child: BmdButton(
+            label: 'Bulk import',
+            variant: BmdButtonVariant.outlined,
+            onPressed: () => context.go('/campaigns/$campaignId/import'),
+          ),
+        ),
+      ],
+    ];
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Text(c.name, style: Theme.of(context).textTheme.titleLarge),
-          ),
-          StatusChip(
-            label: c.status.label(AppL10n.of(context)),
-            tone: StatusTone.info,
-          ),
-          const SizedBox(width: 12),
-          // Contextual primary next action.
-          if (c.status == CampaignStatus.pendingApproval)
-            PermissionGate.disabled(
-              Permission.campaignApprove,
-              reason: 'Only a Marketing Approver can approve this campaign.',
-              label: 'Review approval',
-              child: BmdButton(
-                label: 'Review approval',
-                onPressed: () => context.go('/campaigns/$campaignId/approve'),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  c.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
               ),
-            )
-          else if (c.status == CampaignStatus.approved ||
-              c.status == CampaignStatus.active)
-            PermissionGate.disabled(
-              Permission.campaignCreate,
-              reason: 'Only a Campaign Creator can add registrations.',
-              label: 'Add registrations',
-              child: BmdButton(
-                label: 'Add registrations',
-                onPressed: () => context.go('/campaigns/$campaignId/register'),
+              const SizedBox(width: 12),
+              StatusChip(
+                label: c.status.label(AppL10n.of(context)),
+                tone: StatusTone.info,
               ),
-            ),
+            ],
+          ),
+          if (actions.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Wrap(spacing: 8, runSpacing: 8, children: actions),
+          ],
         ],
       ),
     );

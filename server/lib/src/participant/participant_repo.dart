@@ -1,5 +1,5 @@
 import 'package:campaign_contracts/campaign_contracts.dart';
-import 'package:postgres/postgres.dart' show Sql;
+import 'package:postgres/postgres.dart' show Sql, TxSession;
 import 'package:uuid/uuid.dart';
 
 import '../db/pool.dart';
@@ -224,6 +224,39 @@ class ParticipantRepo {
     return (registered: inserted, alreadyRegistered: ids.length - inserted);
   }
 
+  /// The provisional-carpenter INSERT, callable inside a caller's own
+  /// transaction. Both `createProfileRequest` (its own tx) and the bulk-import
+  /// commit (one tx across many rows, 2b.D5) use this rather than duplicating
+  /// the SQL. Source PROFILE_REQUEST / sync PENDING_PROFILE_SYNC, display_code
+  /// from the shared sequence.
+  Future<CarpenterView> insertProvisionalCarpenterTx(
+    TxSession tx, {
+    required String organizationId,
+    required String name,
+    required String phone,
+  }) async {
+    final inserted = await tx.execute(
+      Sql.named(
+        'INSERT INTO carpenters '
+        '(id, organization_id, full_name, phone, source, sync_status, '
+        ' display_code) '
+        "VALUES (@id, @org, @name, @phone, 'PROFILE_REQUEST', "
+        "        'PENDING_PROFILE_SYNC', "
+        "        'CARP-' || lpad(nextval('carpenter_display_serial')::text, 8, '0')) "
+        'RETURNING id, full_name, phone, display_code, dealer_context, '
+        '          thumbnail_url, eligible, sync_status, '
+        '          NULL::text AS territory_name',
+      ),
+      parameters: {
+        'id': _uuid.v4(),
+        'org': organizationId,
+        'name': name,
+        'phone': phone,
+      },
+    );
+    return _view(row(inserted.single));
+  }
+
   /// Creates the provisional carpenter AND the profile request in one
   /// transaction (spec 2a.D1), returning both so the route can hand the
   /// carpenter straight back for the client's basket. `null` when the
@@ -242,30 +275,16 @@ class ParticipantRepo {
     );
     if (campaign.isEmpty) return null;
 
-    final carpenterId = _uuid.v4();
     final requestId = _uuid.v4();
     late CarpenterView view;
     await _db.tx((tx) async {
-      final inserted = await tx.execute(
-        Sql.named(
-          'INSERT INTO carpenters '
-          '(id, organization_id, full_name, phone, source, sync_status, '
-          ' display_code) '
-          "VALUES (@id, @org, @name, @phone, 'PROFILE_REQUEST', "
-          "        'PENDING_PROFILE_SYNC', "
-          "        'CARP-' || lpad(nextval('carpenter_display_serial')::text, 8, '0')) "
-          'RETURNING id, full_name, phone, display_code, dealer_context, '
-          '          thumbnail_url, eligible, sync_status, '
-          '          NULL::text AS territory_name',
-        ),
-        parameters: {
-          'id': carpenterId,
-          'org': organizationId,
-          'name': name,
-          'phone': phone,
-        },
+      view = await insertProvisionalCarpenterTx(
+        tx,
+        organizationId: organizationId,
+        name: name,
+        phone: phone,
       );
-      view = _view(row(inserted.single));
+      final carpenterId = view.id;
       await tx.execute(
         Sql.named(
           'INSERT INTO profile_requests '

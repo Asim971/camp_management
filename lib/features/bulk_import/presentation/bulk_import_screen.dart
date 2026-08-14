@@ -1,7 +1,7 @@
-import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/di/providers.dart';
 import '../../../app/shell/app_shell.dart';
 import '../../../app/theme/tokens.dart';
 import '../../../core/design_system/bmd_button.dart';
@@ -11,9 +11,10 @@ import '../../../domain/common/status.dart';
 import '../../../domain/import/import_job.dart';
 import '../application/import_controller.dart';
 
-/// Bulk Import Job & Results (W-07). Four stages: upload → dry-run summary →
-/// row-level validation → commit. Every row shows a stable id and an explicit
-/// outcome; commit persists only valid rows and is idempotent.
+/// Bulk Import Job & Results (W-07). Four stages: upload → dry-run (async,
+/// polled to a terminal state) → row-level validation → commit. Every row
+/// shows a stable id and an explicit outcome; commit persists the
+/// committable rows (valid + needs-profile) and is idempotent.
 class BulkImportScreen extends ConsumerWidget {
   const BulkImportScreen({required this.campaignId, super.key});
   final String campaignId;
@@ -30,16 +31,9 @@ class BulkImportScreen extends ConsumerWidget {
         children: [
           _UploadPanel(
             onPick: () async {
-              const csvGroup = XTypeGroup(
-                label: 'CSV',
-                extensions: <String>['csv'],
-                mimeTypes: <String>['text/csv'],
-              );
-              final file = await openFile(
-                acceptedTypeGroups: <XTypeGroup>[csvGroup],
-              );
-              if (file != null) {
-                await c.uploadDryRun(await file.readAsBytes(), file.name);
+              final result = await ref.read(fileSourceProvider).pickCsv();
+              if (result != null) {
+                await c.uploadDryRun(result.bytes, result.name);
               }
             },
           ),
@@ -76,27 +70,41 @@ class _UploadPanel extends StatelessWidget {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(
+        // A Row([Expanded(description), Download template, Choose file])
+        // clamps the Expanded description to near-zero on a narrow
+        // CI-emulator viewport (~320-360dp) once both buttons' intrinsic
+        // widths are subtracted from it — rendering the description one
+        // letter per line and pushing/clipping "Choose file" (import_pick,
+        // the id the bulk-import e2e flow drives) off-screen. The
+        // description now takes the full card width on its own line, with
+        // the actions below in a Wrap that flows to a second line rather
+        // than overflowing horizontally.
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Expanded(
-              child: Text(
-                'Upload a participant CSV using the approved template. '
-                'A dry run validates every row before anything is committed.',
-              ),
+            const Text(
+              'Upload a participant CSV using the approved template. '
+              'A dry run validates every row before anything is committed.',
             ),
-            const SizedBox(width: 16),
-            BmdButton(
-              label: 'Download template',
-              variant: BmdButtonVariant.text,
-              onPressed: () {
-                /* asset: assets/templates/participants_template.csv */
-              },
-            ),
-            const SizedBox(width: 8),
-            BmdButton(
-              label: 'Choose file',
-              icon: Icons.upload_file,
-              onPressed: () => onPick(),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                BmdButton(
+                  label: 'Download template',
+                  variant: BmdButtonVariant.text,
+                  onPressed: () {
+                    /* asset: assets/templates/participants_template.csv */
+                  },
+                ),
+                BmdButton(
+                  identifier: 'import_pick',
+                  label: 'Choose file',
+                  icon: Icons.upload_file,
+                  onPressed: () => onPick(),
+                ),
+              ],
             ),
           ],
         ),
@@ -142,11 +150,35 @@ class _Results extends StatelessWidget {
     ImportRowOutcome.error => (label: 'Error', tone: StatusTone.error),
   };
 
+  /// Stable, status-derived header text. "Ready to commit" in particular is
+  /// asserted verbatim by the E2E flow (Task 11) as the signal that polling
+  /// has reached a terminal, committable state — it must not be rephrased
+  /// without updating that assertion.
+  String get _statusHeadline => switch (job.status) {
+    ImportStatus.processing => 'Processing import…',
+    ImportStatus.readyToCommit || ImportStatus.dryRun => 'Ready to commit',
+    ImportStatus.failed => 'Import failed. Check the file and retry.',
+    ImportStatus.completed => 'Import completed.',
+    ImportStatus.partiallyCompleted => 'Import completed with rows skipped.',
+    ImportStatus.cancelled => 'Import cancelled.',
+  };
+
+  bool get _canCommit =>
+      (job.status == ImportStatus.readyToCommit ||
+          job.status == ImportStatus.dryRun) &&
+      job.committable > 0;
+
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (job.status == ImportStatus.processing) ...[
+          const LinearProgressIndicator(),
+          const SizedBox(height: 8),
+        ],
+        Text(_statusHeadline, style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
         // Dry-run summary.
         Wrap(
           spacing: 8,
@@ -159,6 +191,29 @@ class _Results extends StatelessWidget {
                   tone: _outcome(o).tone,
                 ),
           ],
+        ),
+        const SizedBox(height: 16),
+        // Commit action ABOVE the detail table on purpose. The table is a
+        // fixed 360px block; with the button below it, on a short (~640px)
+        // emulator viewport the button lands off the bottom of the screen —
+        // rendered but unreachable, so the W-07 e2e drove `import_commit` and
+        // got "element not found" even though "Ready to commit" was visible.
+        // Placed here, the commit button and the status headline above it stay
+        // in the always-visible top region (the post-commit "Import completed."
+        // headline included); the row-level table scrolls below. Align +
+        // FittedBox keeps the label ("Commit N valid row(s)", whose width grows
+        // with the count) fully on-screen instead of overflowing a narrow width.
+        Align(
+          alignment: Alignment.centerRight,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: BmdButton(
+              identifier: 'import_commit',
+              label: 'Commit ${job.committable} valid row(s)',
+              loading: committing,
+              onPressed: _canCommit ? () => onCommit() : null,
+            ),
+          ),
         ),
         const SizedBox(height: 16),
         // Row-level validation table.
@@ -218,17 +273,6 @@ class _Results extends StatelessWidget {
               ),
             ],
           ),
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            const Spacer(),
-            BmdButton(
-              label: 'Commit ${job.committable} valid row(s)',
-              loading: committing,
-              onPressed: job.committable == 0 ? null : () => onCommit(),
-            ),
-          ],
         ),
       ],
     );

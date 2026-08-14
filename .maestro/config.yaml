@@ -1,15 +1,25 @@
-# Maestro workspace config. See TESTING_MAESTRO.md for the full plan.
+# Maestro WORKSPACE config (not a flow file). See TESTING_MAESTRO.md §4.
 #
-# NOTE: this file lists every flow, but the CI `e2e` job does NOT run it. Each
-# flow needs a different `--dart-define` set (ROLE, QUALITY, SEED, LOCALE) and
-# those are COMPILE-TIME values, so ci.yml builds one APK per configuration and
-# names the flows for it explicitly. Running this whole config against a single
-# APK fails five flows for configuration reasons alone. Keep the list current
-# anyway — it is what a local `maestro test .maestro/config.yaml` uses, and the
-# inventory in TESTING_MAESTRO.md §4 is checked against it by eye.
-appId: ${APP_ID}
----
-# Execution order is by file; flows are independent and each clears state.
+# Format matters: a workspace config is plain top-level keys — `flows:`
+# inclusion patterns, optional `includeTags:`/`excludeTags:` — with NO `appId:`
+# and NO `---` separator. Each flow file under flows/ declares its own
+# `appId: ${APP_ID}`, so a workspace-level appId is redundant. The previous
+# flow-file shape here (`appId: ${APP_ID}` + `---`) made Maestro read this as a
+# single flow whose `flows:` block is just commands, so the inclusion patterns
+# were ignored. Maestro's default discovery then only looks at YAML files at
+# the workspace ROOT (never subfolders) — and ours live under flows/ — so the
+# Maestro Cloud pilot (ci.yml `e2e-cloud`, which uploads this whole `.maestro`
+# workspace) failed at upload with "Top-level directories do not contain any
+# Flows". The inclusion list below is what makes flows/ discoverable.
+#
+# NOTE: the CI `e2e` (emulator) job does NOT use this file. Each flow needs a
+# different `--dart-define` set (ROLE, QUALITY, SEED, LOCALE) and those are
+# COMPILE-TIME values, so ci.yml builds one APK per configuration and names the
+# flows for it explicitly. Running this whole list against a single APK fails
+# flows for configuration reasons alone. The list is kept current anyway — it
+# is what a local `maestro test .maestro/config.yaml` uses, and the inventory
+# in TESTING_MAESTRO.md §4 is checked against it by eye. `e2e-cloud` filters
+# this list down to one flow via the action's `include-tags: bulk_import`.
 flows:
   - flows/campaign_list_smoke.yaml
   - flows/carpenter_search_confirm.yaml
@@ -22,3 +32,4 @@ flows:
   - flows/locale_bengali.yaml
   - flows/real_auth_campaign_journey.yaml
   - flows/registration_workspace.yaml
+  - flows/bulk_import.yaml

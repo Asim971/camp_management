@@ -64,7 +64,7 @@ void main() {
 
   test('every core provider builds against the real graph', () {
     // DELIBERATELY WEAK, and labelled so no future reader mistakes it for
-    // coverage: all 24 of these build today with only appConfigProvider
+    // coverage: all 25 of these build today with only appConfigProvider
     // overridden, because construction is lazy. It catches a broken dependency
     // or the authService -> dio -> authState -> sessionManager cycle failing to
     // resolve - nothing more. The real guarantee is the query test above.
@@ -86,6 +86,7 @@ void main() {
       'mediaEncryptor': () => container.read(mediaEncryptorProvider),
       'faceQualityChecker': () => container.read(faceQualityCheckerProvider),
       'captureSource': () => container.read(captureSourceProvider),
+      'fileSource': () => container.read(fileSourceProvider),
       'syncUploader': () => container.read(syncUploaderProvider),
       'verificationRepository': () =>
           container.read(verificationRepositoryProvider),

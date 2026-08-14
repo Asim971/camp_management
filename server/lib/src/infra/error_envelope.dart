@@ -41,6 +41,7 @@ class ApiException implements Exception {
     // back after the in-flight attempt resolves".
     ApiErrorCode.idempotencyKeyInFlight => 409,
     ApiErrorCode.unknownCarpenter => 422,
+    ApiErrorCode.importFileInvalid => 422,
     ApiErrorCode.internal => 500,
   };
 

@@ -13,6 +13,7 @@ import '../../core/auth/e2e_session.dart';
 import '../../core/auth/session_manager.dart';
 import '../../core/auth/token_store.dart';
 import '../../core/consent/notice_repository.dart';
+import '../../core/files/file_source.dart';
 import '../../core/media/capture_source.dart';
 import '../../core/media/evidence_store.dart';
 import '../../core/media/face_quality.dart';
@@ -258,6 +259,13 @@ final faceQualityCheckerProvider = Provider<FaceQualityChecker>((ref) {
 final captureSourceProvider = Provider<CaptureSource>((ref) {
   final config = ref.watch(appConfigProvider);
   return config.e2e ? FakeCaptureSource() : CameraCaptureSource();
+});
+
+/// Real file picker in production; a bundled-asset fake under E2E so Maestro
+/// can drive the bulk-import flow without a native file dialog.
+final fileSourceProvider = Provider<FileSource>((ref) {
+  final config = ref.watch(appConfigProvider);
+  return config.e2e ? const FakeFileSource() : const RealFileSource();
 });
 
 final syncUploaderProvider = Provider<SyncUploader>(

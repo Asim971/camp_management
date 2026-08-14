@@ -291,6 +291,16 @@ jobs:
             defines: '--dart-define=E2E_REAL_AUTH=true'
             useMock: '0'
             flows: .maestro/flows/registration_workspace.yaml
+          # 2b-I: real-auth login, open the seeded campaign's bulk import,
+          # inject the bundled CSV (FakeFileSource, no native picker), poll the
+          # async classify to "Ready to commit", commit -> "Import completed."
+          # -- the acceptance proof for sub-project 2b (async bulk import).
+          # See bulk_import.yaml's own header comment. Also piloted on Maestro
+          # Cloud in the e2e-cloud job below (non-blocking).
+          - key: bulkImport
+            defines: '--dart-define=E2E_REAL_AUTH=true'
+            useMock: '0'
+            flows: .maestro/flows/bulk_import.yaml
     steps:
       - uses: actions/checkout@v4
 
@@ -435,5 +445,136 @@ jobs:
         with:
           name: backend-log-${{ matrix.config.key }}
           path: ${{ runner.temp }}/backend.log
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # Maestro Cloud pilot (user-requested, 2026-08-13). Runs the bulk_import flow
+  # on Maestro's remote device farm instead of a GitHub-hosted emulator — the
+  # emulator's ANR/viewport/boot flakes cost many reruns during 2a. Because the
+  # devices are REMOTE, they cannot reach the campaign_service on the runner
+  # (10.0.2.2 / localhost mean nothing off-box), so a cloudflared quick tunnel
+  # publishes the runner's seeded service at a public HTTPS URL the device
+  # reaches, and the APK is built to point API_BASE_URL at that URL.
+  #
+  # continue-on-error: this is a PILOT. The emulator `e2e (bulkImport)` config
+  # above is the blocking acceptance gate for 2b; a Cloud hiccup (tunnel, quota,
+  # device availability) must not block merge while the approach is proven out.
+  # Flip to blocking and drop the emulator bulkImport entry once it's reliable.
+  e2e-cloud:
+    name: e2e-cloud (bulkImport)
+    runs-on: ubuntu-latest
+    needs: gate
+    continue-on-error: true
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: campaign
+          POSTGRES_PASSWORD: campaign
+          POSTGRES_DB: campaign
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://campaign:campaign@localhost:5432/campaign
+      JWT_SECRET: ci-secret-at-least-32-characters-long!!
+      ENABLE_TEST_SEEDING: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: Resolve dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: Generate localizations
+        run: flutter gen-l10n
+      - name: Run code generation
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Start the real campaign_service
+        run: |
+          cd server
+          dart pub get
+          nohup dart run bin/server.dart > "$RUNNER_TEMP/backend.log" 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8080/health > /dev/null; then
+              echo "backend up"; exit 0
+            fi
+            sleep 1
+          done
+          echo "backend did not come up:"; cat "$RUNNER_TEMP/backend.log"; exit 1
+
+      - name: Start a cloudflared tunnel to the backend
+        run: |
+          # Quick tunnel (no account needed): publishes localhost:8080 at a
+          # random https://<slug>.trycloudflare.com the remote device reaches.
+          wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O cloudflared
+          chmod +x cloudflared
+          nohup ./cloudflared tunnel --url http://localhost:8080 --no-autoupdate \
+            > "$RUNNER_TEMP/tunnel.log" 2>&1 &
+          # The URL is printed to the log asynchronously; poll for it.
+          for i in $(seq 1 30); do
+            url=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' "$RUNNER_TEMP/tunnel.log" | head -1)
+            if [ -n "$url" ]; then
+              echo "TUNNEL_URL=$url" >> "$GITHUB_ENV"
+              echo "tunnel up: $url"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "tunnel did not come up:"; cat "$RUNNER_TEMP/tunnel.log"; exit 1
+
+      - name: Seed fixtures through the tunnel
+        run: |
+          # One reset is enough: bulk_import is a single flow, so there is no
+          # concurrent-flow-vs-one-backend contention the sequential emulator
+          # runner's per-flow reset guards against.
+          for i in $(seq 1 15); do
+            if curl -fsS -X POST "$TUNNEL_URL/__test__/reset" > /dev/null; then
+              echo "reset ok"; exit 0
+            fi
+            sleep 2
+          done
+          echo "reset via tunnel failed"; exit 1
+
+      - name: Build the bulkImport APK pointing at the tunnel
+        run: |
+          flutter build apk --debug --flavor dev \
+            --dart-define=E2E=true \
+            --dart-define=E2E_REAL_AUTH=true \
+            --dart-define=API_BASE_URL=$TUNNEL_URL
+          ls -l build/app/outputs/flutter-apk/app-dev-debug.apk
+
+      - name: Run bulk_import on Maestro Cloud
+        uses: mobile-dev-inc/action-maestro-cloud@v2.0.2
+        with:
+          api-key: ${{ secrets.MAESTRO_API_KEY }}
+          project-id: ${{ secrets.MAESTRO_PROJECT_ID }}
+          app-file: build/app/outputs/flutter-apk/app-dev-debug.apk
+          workspace: .maestro
+          include-tags: bulk_import
+          # The flow's `appId: ${APP_ID}` needs this at run time (the emulator
+          # path passes it via run_maestro_flows.sh --env). If v2.0.2 does not
+          # accept `env`, the first CI run reveals it and we hardcode the dev
+          # applicationId in a Cloud-specific flow copy instead.
+          env: |
+            APP_ID=com.acsl.campaign.dev
+
+      - name: Upload tunnel + backend logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-cloud-logs
+          path: |
+            ${{ runner.temp }}/tunnel.log
+            ${{ runner.temp }}/backend.log
           retention-days: 7
           if-no-files-found: ignore
