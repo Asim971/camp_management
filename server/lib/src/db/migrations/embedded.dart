@@ -9,6 +9,7 @@ const Map<String, String> embeddedMigrations = {
   '007_attendance': _attendance,
   '008_verification': _verification,
   '009_escalation': _escalation,
+  '010_queue_indexes': _queueIndexes,
 };
 
 const String _foundation = r'''
@@ -364,4 +365,12 @@ CREATE INDEX verification_decisions_attendance_idx ON verification_decisions(att
 const String _escalation = r'''
 ALTER TABLE attendance ADD COLUMN escalated_at TIMESTAMPTZ;
 ALTER TABLE attendance ADD COLUMN escalated_by TEXT REFERENCES staff_users(id);
+''';
+
+const String _queueIndexes = r'''
+CREATE INDEX attendance_assignee_idx
+  ON attendance(organization_id, status, assignee_id);
+CREATE INDEX attendance_escalated_idx
+  ON attendance(organization_id, status)
+  WHERE escalated_at IS NOT NULL;
 ''';
