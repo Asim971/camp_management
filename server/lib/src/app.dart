@@ -9,6 +9,7 @@ import 'campaign/campaign_repo.dart';
 import 'campaign/campaign_routes.dart';
 import 'campaign/session_routes.dart';
 import 'config.dart';
+import 'consent/consent_routes.dart';
 import 'db/pool.dart';
 import 'import_/import_routes.dart';
 import 'infra/correlation.dart';
@@ -118,6 +119,12 @@ Handler buildApp({required Db db, required ServerConfig config}) {
       )
       .addHandler(mediaRouter(db: db, signingKey: config.jwtSecret).call);
 
+  final consentHandler = const Pipeline()
+      .addMiddleware(
+        _authenticateUnder(const {'consent'}, db: db, tokens: tokens),
+      )
+      .addHandler(consentRouter(db: db).call);
+
   var cascade = Cascade()
       .add(publicRouter.call)
       .add(authHandler)
@@ -125,7 +132,8 @@ Handler buildApp({required Db db, required ServerConfig config}) {
       .add(participantHandler)
       .add(importHandler)
       .add(sessionHandler)
-      .add(mediaHandler);
+      .add(mediaHandler)
+      .add(consentHandler);
 
   // Seed routes are ABSENT, not registered-and-guarded, when seeding is
   // disabled: there is no route at all for a probe to find (spec §9; Task 11

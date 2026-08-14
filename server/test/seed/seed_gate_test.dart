@@ -303,4 +303,41 @@ void main() {
     };
     expect(byId, {'CARP_E2E': 'CARP-00004821', 'CARP_E2E_2': 'CARP-00007734'});
   });
+
+  test('reset seeds the v1 consent notices in both languages, and GET '
+      '/consent/notices serves them back', () async {
+    final handler = buildApp(db: db, config: configWithSeeding(true));
+    await _post(handler, '/__test__/reset');
+
+    final loginRes = await _post(
+      handler,
+      '/auth/login',
+      body: {'username': 'field_user', 'password': seedPassword},
+    );
+    final token =
+        (jsonDecode(await loginRes.readAsString())
+                as Map<String, Object?>)['accessToken']!
+            as String;
+
+    final res = await handler(
+      Request(
+        'GET',
+        Uri.parse('http://localhost/consent/notices'),
+        headers: {'authorization': 'Bearer $token'},
+      ),
+    );
+    expect(res.statusCode, 200);
+    final body = jsonDecode(await res.readAsString()) as Map<String, Object?>;
+    final notices = (body['notices']! as List<Object?>)
+        .cast<Map<String, Object?>>();
+
+    final byLanguage = {for (final n in notices) n['language']: n};
+    expect(
+      byLanguage.keys,
+      containsAll(['en', 'bn']),
+      reason: 'reset should seed the v1 notice in both bundled languages',
+    );
+    expect(byLanguage['en']!['version'], 1);
+    expect(byLanguage['bn']!['version'], 1);
+  });
 }

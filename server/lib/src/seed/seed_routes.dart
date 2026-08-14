@@ -162,6 +162,7 @@ Router seedRouter({
     await _seedBaseline(db, hasher: hasher);
     await _seedCampaignFixture(db, _campaignFixtures);
     await _seedCarpenterFixture(db);
+    await _seedConsentNotices(db);
     return Response(204);
   });
 
@@ -198,6 +199,7 @@ Router seedRouter({
 /// `schema_migrations` itself excluded — truncating that would make the
 /// server think it needs to reapply migrations it already ran.
 const List<String> _allSeedableTables = [
+  'consent_notices',
   'import_job_rows',
   'import_jobs',
   'profile_requests',
@@ -391,6 +393,23 @@ Future<void> _seedCarpenterFixture(Db db) async {
       },
     );
   }
+}
+
+/// Seeds the v1 consent notice in both languages the client bundles
+/// (`assets/consent/notice_v1.json`) — the same content `GET
+/// /consent/notices` reads back for its background refresh. `ON CONFLICT ...
+/// DO NOTHING` rather than an unconditional insert because [_truncateEverything]
+/// already clears the table on every reset; the guard just keeps this call
+/// idempotent if it is ever invoked without a preceding truncate.
+Future<void> _seedConsentNotices(Db db) async {
+  await db.execute(
+    "INSERT INTO consent_notices (version, language, title, body, content_hash) VALUES "
+    "(1, 'en', 'Attendance consent', "
+    " 'Your photo and attendance are recorded for verification.', 'seed-en-v1'), "
+    "(1, 'bn', 'উপস্থিতি সম্মতি', "
+    " 'যাচাইয়ের জন্য আপনার ছবি ও উপস্থিতি সংরক্ষণ করা হয়।', 'seed-bn-v1') "
+    "ON CONFLICT (version, language) DO NOTHING",
+  );
 }
 
 Future<Map<String, Object?>> _readJsonBody(Request request) async {
