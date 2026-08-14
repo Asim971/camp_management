@@ -347,7 +347,25 @@ Router _buildRouter(_Store store) {
 
   r.post('/attendance/<id>/confirm', (Request req, String id) async {
     await _body(req);
-    return _json({'status': 'matchProcessing'});
+    return _json({'status': 'MATCH_PROCESSING'});
+  });
+
+  // ---- Consent --------------------------------------------------------
+  // Matches the real service's shape exactly (server/lib/src/consent/
+  // consent_routes.dart): {'notices': [...]} with each item carrying
+  // version (int), language, title, body, contentHash.
+  r.get('/consent/notices', (Request req) {
+    return _json({
+      'notices': [
+        {
+          'version': 1,
+          'language': 'en',
+          'title': 'Consent',
+          'body': 'We record your attendance for verification.',
+          'contentHash': 'mock-en',
+        },
+      ],
+    });
   });
 
   // Tiny fixture image for CRM evidence (1x1 PNG).

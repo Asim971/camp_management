@@ -7,6 +7,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:campaign_contracts/campaign_contracts.dart';
 import 'package:campaign_service/src/app.dart';
@@ -530,6 +531,133 @@ void main() {
         reason:
             'a regression to the mock\'s old lowercase action map ("active") '
             'must fail this, not just fail SessionStatus.tryParseWire',
+      );
+    });
+
+    // Task 7 (4a): the mock's confirm status and consent shape were aligned
+    // to the real service's wire -- SCREAMING_SNAKE 'MATCH_PROCESSING'
+    // (previously camelCase 'matchProcessing') and a {'notices': [...]}
+    // envelope from a new GET /consent/notices route. This pins both so
+    // neither backend drifts back.
+    //
+    // GET /consent/notices only needs any authenticated org member, so
+    // buildTargets' default user-1 token (via `target.getJson`) works
+    // unchanged on both backends. POST /attendance/<id>/confirm needs the
+    // `attendance_capture` permission, which user-1's default
+    // `campaign_creator` role does NOT carry (auth/tokens.dart's
+    // permissionsByRole) -- so the real side mints its own field_user token
+    // and calls the app handler directly instead of going through
+    // `real.postJson`, which always sends user-1's baked-in bearer.
+    test('$targetName: consent notices carry version+language, and confirm '
+        'returns the exact literal MATCH_PROCESSING', () async {
+      final targets = await buildTargets(campaignCount: 0);
+      final target = targetName == 'real' ? targets.real : targets.mock;
+
+      if (targetName == 'real') {
+        await targets.realDb.execute(
+          'INSERT INTO consent_notices '
+          '(version, language, title, body, content_hash) VALUES '
+          "(1, 'en', 'Consent', 'We record your attendance for "
+          "verification.', 'hash-en')",
+        );
+      }
+      final notices = await target.getJson('/consent/notices');
+      expect(notices.keys, contains('notices'));
+      final items = (notices['notices']! as List).cast<Map<String, Object?>>();
+      expect(items, isNotEmpty);
+      for (final n in items) {
+        expect(n['version'], isA<int>());
+        expect(n['language'], isA<String>());
+      }
+
+      const key = 'parity-attendance-key';
+      final confirmBody = <String, Object?>{
+        'sessionId': 'parity-attendance-sess',
+        'carpenterId': 'parity-attendance-carp',
+        'capturedAt': '2026-09-01T09:05:00.000Z',
+        'consentVersion': 1,
+        'consentLanguage': 'en',
+        'consentShownAt': '2026-09-01T09:04:00.000Z',
+        'consentContentHash': 'hash-en',
+      };
+
+      late final Map<String, Object?> confirmed;
+      if (targetName == 'mock') {
+        // The mock doesn't validate sessionId/carpenterId or require
+        // evidence to exist first -- it just echoes the confirmed status.
+        final res = await target.postJson(
+          '/attendance/$key/confirm',
+          confirmBody,
+        );
+        expect(res.status, 200);
+        confirmed = res.body;
+      } else {
+        await seedCampaign(
+          targets.realDb,
+          id: 'parity-attendance-camp',
+          status: CampaignStatus.approved,
+        );
+        await seedCampaignSession(
+          targets.realDb,
+          id: 'parity-attendance-sess',
+          campaignId: 'parity-attendance-camp',
+          venue: 'Hall A',
+          startAt: DateTime.utc(2026, 9, 1, 9),
+          capacity: 60,
+        );
+        await seedCarpenter(targets.realDb, id: 'parity-attendance-carp');
+        // The real confirm requires an uploaded evidence blob for the
+        // attendance key before it will confirm (attendance_repo.dart's
+        // evidenceMissing check) -- inserted directly rather than via a
+        // real presign+upload round trip, mirroring
+        // attendance_routes_test.dart's `seedEvidence`.
+        await targets.realDb.execute(
+          'INSERT INTO media_objects (id, content_type, bytes) '
+          "VALUES (@id, 'application/octet-stream', @b)",
+          params: {
+            'id': key,
+            'b': Uint8List.fromList(const [1, 2, 3]),
+          },
+        );
+        await seedOrganizationWithUser(
+          targets.realDb,
+          userId: 'parity-field-user',
+          username: 'parity-field',
+          roles: const ['field_user'],
+        );
+        final config = ServerConfig.fromEnvironment({
+          'DATABASE_URL': testDatabaseUrl,
+          'JWT_SECRET': 'a-secret-at-least-32-characters-long!!',
+        });
+        final fieldToken = (await TokenService(
+          db: targets.realDb,
+          config: config,
+        ).issueFor('parity-field-user')).accessToken;
+        final handler = buildApp(db: targets.realDb, config: config);
+
+        final res = await handler(
+          Request(
+            'POST',
+            Uri.parse('http://localhost/attendance/$key/confirm'),
+            headers: {
+              'authorization': 'Bearer $fieldToken',
+              'content-type': 'application/json',
+              'Idempotency-Key': 'parity-confirm-${_keySeq++}',
+            },
+            body: jsonEncode(confirmBody),
+          ),
+        );
+        expect(res.statusCode, 200);
+        confirmed =
+            jsonDecode(await res.readAsString()) as Map<String, Object?>;
+      }
+
+      expect(
+        confirmed['status'],
+        'MATCH_PROCESSING',
+        reason:
+            '$targetName must return the exact literal, not a camelCase '
+            'or otherwise-cased variant',
       );
     });
   }
