@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../core/network/dio_client.dart';
 import '../../core/network/trace_options.dart';
@@ -65,7 +66,7 @@ class VerificationRepositoryImpl implements VerificationRepository {
       await _dio.post<void>(
         '/verification/cases/${decision.attendanceId}/decision',
         data: {
-          'outcome': decision.outcome.name,
+          'outcome': decision.outcome.wireValue,
           'reason': decision.reason,
           'supervisorOverride': decision.supervisorOverride,
         },
@@ -110,17 +111,23 @@ class VerificationRepositoryImpl implements VerificationRepository {
     ),
   );
 
-  MatchBand _band(String? s) => switch (s) {
-    'high' => MatchBand.high,
-    'medium' => MatchBand.medium,
-    'low' => MatchBand.low,
-    _ => MatchBand.noReference,
-  };
+  MatchBand _band(String? s) {
+    final parsed = MatchBand.tryParseWire(s ?? '');
+    if (parsed == null) {
+      debugPrint('VerificationRepositoryImpl: unrecognized band "$s"');
+      return MatchBand.noReference;
+    }
+    return parsed;
+  }
 
-  ReferenceSource _refSource(String? s) => switch (s) {
-    'verifiedProfilePhoto' => ReferenceSource.verifiedProfilePhoto,
-    'authorizedNidPhoto' => ReferenceSource.authorizedNidPhoto,
-    'approvedBaselinePhoto' => ReferenceSource.approvedBaselinePhoto,
-    _ => ReferenceSource.unavailable,
-  };
+  ReferenceSource _refSource(String? s) {
+    final parsed = ReferenceSource.tryParseWire(s ?? '');
+    if (parsed == null) {
+      debugPrint(
+        'VerificationRepositoryImpl: unrecognized referenceSource "$s"',
+      );
+      return ReferenceSource.unavailable;
+    }
+    return parsed;
+  }
 }
