@@ -1,0 +1,87 @@
+# 5b.D1/D2: RETURN_FOR_RECAPTURE is a full decision outcome, and (unlike a
+# plain approve) it requires a reason — the Decision panel's Submit stays
+# disabled until one is entered (crm_case_screen.dart's `_reasonRequired`/
+# `_canSubmit`). This flow is the reason-required-gating counterpart the
+# happy-path `crm_case_decision.yaml` header defers to.
+# Prereq: POST /__test__/reset seeds CASE_E2E (CRM_REVIEW, version 1,
+# MEDIUM band, evidence + reference photo) on the real service -- see
+# server/lib/src/seed/seed_routes.dart's `_seedVerificationFixture`.
+#
+# Requires the `crm` matrix APK (--dart-define=E2E_REAL_AUTH=true
+# --dart-define=ROLE=crm_verifier, useMock 0): RouteGuards redirect an
+# unauthenticated session to /login, so this signs in for real as
+# crm_verifier (who holds verification_decide + sensitive_media_view) rather
+# than using ../subflows/launch_as_crm.yaml (that subflow is FakeAuth-only
+# and skips /login entirely; with the default field_user the session has no
+# verificationDecide and the route redirects to /forbidden). See ci.yml's e2e
+# matrix, `crm` entry.
+appId: ${APP_ID}
+tags:
+  - crm
+  - critical
+  - android
+  - pr-smoke
+---
+- clearState
+- launchApp
+
+- assertVisible:
+    id: "login_username"
+- tapOn:
+    id: "login_username"
+- inputText: "crm_verifier"
+- tapOn:
+    id: "login_password"
+- inputText: "Test1234!"
+- hideKeyboard
+- tapOn:
+    id: "login_submit"
+
+- assertVisible:
+    id: "dev_launcher"
+- tapOn:
+    id: "dev_open_crm_case" # opens /verification/cases/CASE_E2E
+- assertVisible: "Verification case"
+
+# The Decision card sits BELOW THE FOLD on CI's api-34 emulator (see
+# crm_case_decision.yaml's comment on the same shape), so every control is
+# reached with scrollUntilVisible rather than a bare tapOn/assertVisible.
+- scrollUntilVisible:
+    element:
+      id: "crm_outcome_returnForRecapture"
+    direction: DOWN
+- tapOn:
+    id: "crm_outcome_returnForRecapture" # radio "Return for recapture"
+
+# Submit must still be disabled: a reason is required for anything other
+# than a plain approve (`_reasonRequired`/`_canSubmit`). Asserting this
+# before filling the reason is what makes this flow the reason-required
+# counterpart to crm_case_decision.yaml's optional-reason happy path.
+- scrollUntilVisible:
+    element:
+      id: "crm_submit"
+    direction: DOWN
+- assertVisible:
+    id: "crm_submit"
+    enabled: false
+
+- scrollUntilVisible:
+    element:
+      id: "crm_reason"
+    direction: UP
+- tapOn:
+    id: "crm_reason"
+- inputText: "Photo is blurry — carpenter needs to be recaptured."
+# The keyboard raised by inputText can cover the button on a short viewport, so
+# scroll again rather than assuming the earlier scroll still holds.
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: "crm_submit"
+    direction: DOWN
+- assertVisible:
+    id: "crm_submit"
+    enabled: true
+- tapOn:
+    id: "crm_submit"
+- assertVisible: "Decision recorded"

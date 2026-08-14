@@ -249,12 +249,19 @@ jobs:
           # CASE_E2E/CASE_CONFLICT cases, and drives approve / conflict
           # (412 on an already-decided case) against the real
           # campaign_service. Acceptance proof for sub-project 5a.
+          # 5b (Task 8): crm_case_recapture drives CASE_E2E to
+          # RETURN_FOR_RECAPTURE as crm_verifier (reason required);
+          # crm_case_override signs in as crm_supervisor and re-decides the
+          # already-APPROVED CASE_CONFLICT via the supervisor-override CAS.
+          # Acceptance proof for sub-project 5b.
           - key: crm
             defines: '--dart-define=E2E_REAL_AUTH=true --dart-define=ROLE=crm_verifier'
             useMock: '0'
             flows: >-
               .maestro/flows/crm_case_decision.yaml
               .maestro/flows/crm_case_conflict.yaml
+              .maestro/flows/crm_case_recapture.yaml
+              .maestro/flows/crm_case_override.yaml
           # failFirst is process-wide, so this cannot share an APK with a flow
           # that expects its first capture to pass.
           - key: recapture

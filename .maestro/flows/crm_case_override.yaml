@@ -1,0 +1,87 @@
+# 5b.D3/D4: a supervisor can re-decide an already-decided case. CASE_CONFLICT
+# is seeded APPROVED at version=2 (server/lib/src/seed/seed_routes.dart's
+# `_seedVerificationFixture`); crm_case_conflict.yaml proves a crm_verifier's
+# ordinary decision on it 412s (the CAS's status guard fails, not the
+# version). This flow proves the OTHER half of that CAS: a crm_supervisor
+# who holds verification_override sees the "Supervisor override" switch
+# (crm_case_screen.dart's `_canOverride`/`canOverride`), and with it set the
+# same CAS matches on version alone, dropping the status guard, so the
+# already-decided case can be re-decided — 200, not 412.
+# Prereq: POST /__test__/reset seeds CASE_CONFLICT (APPROVED, version 2).
+#
+# Requires the `crm` matrix APK (--dart-define=E2E_REAL_AUTH=true
+# --dart-define=ROLE=crm_verifier, useMock 0): RouteGuards redirect an
+# unauthenticated session to /login, so this signs in for real — as
+# crm_supervisor, not the APK's default ROLE — rather than using
+# ../subflows/launch_as_crm.yaml (that subflow is FakeAuth-only and skips
+# /login entirely). See ci.yml's e2e matrix, `crm` entry; ROLE in the APK
+# define does not matter here because this flow logs in explicitly.
+appId: ${APP_ID}
+tags:
+  - crm
+  - critical
+  - android
+  - pr-smoke
+---
+- clearState
+- launchApp
+
+- assertVisible:
+    id: "login_username"
+- tapOn:
+    id: "login_username"
+- inputText: "crm_supervisor"
+- tapOn:
+    id: "login_password"
+- inputText: "Test1234!"
+- hideKeyboard
+- tapOn:
+    id: "login_submit"
+
+- assertVisible:
+    id: "dev_launcher"
+- tapOn:
+    id: "dev_open_crm_case_conflict" # opens /verification/cases/CASE_CONFLICT
+- assertVisible: "Verification case"
+
+# The Decision card sits BELOW THE FOLD on CI's api-34 emulator (see
+# crm_case_decision.yaml's comment on the same shape), so every control is
+# reached with scrollUntilVisible rather than a bare tapOn/assertVisible.
+# The "Supervisor override" switch only renders at all when the signed-in
+# session holds verification_override (crm_supervisor does, crm_verifier
+# does not) — it is visible here because this flow signed in as
+# crm_supervisor.
+- scrollUntilVisible:
+    element:
+      id: "crm_supervisor_override"
+    direction: DOWN
+- tapOn:
+    id: "crm_supervisor_override"
+
+- scrollUntilVisible:
+    element:
+      id: "crm_outcome_rejected"
+    direction: DOWN
+- tapOn:
+    id: "crm_outcome_rejected" # radio "Reject"
+
+- scrollUntilVisible:
+    element:
+      id: "crm_reason"
+    direction: UP
+- tapOn:
+    id: "crm_reason"
+- inputText: "Supervisor override — re-review found a mismatch."
+# The keyboard raised by inputText can cover the button on a short viewport, so
+# scroll again rather than assuming the earlier scroll still holds.
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: "crm_submit"
+    direction: DOWN
+- assertVisible:
+    id: "crm_submit"
+    enabled: true
+- tapOn:
+    id: "crm_submit"
+- assertVisible: "Decision recorded"
