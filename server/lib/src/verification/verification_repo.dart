@@ -171,11 +171,17 @@ class VerificationRepo {
   /// Supports `approved` (-> `APPROVED`), `rejected` (-> `REJECTED`),
   /// `returnForRecapture` (-> `RETURNED`), and `escalated` (stays
   /// `CRM_REVIEW`, stamps `escalated_at`/`escalated_by` so a supervisor can
-  /// pick it up). Any unrecognised outcome, or a supervisor override
-  /// (override lands in a later task), yields
+  /// pick it up). Any unrecognised outcome yields
   /// [VerificationDecisionCode.unsupportedOutcome] (422). Rejecting,
-  /// returning for recapture, or escalating without a non-blank [reason]
-  /// yields [VerificationDecisionCode.reasonRequired] (422).
+  /// returning for recapture, escalating, or overriding without a non-blank
+  /// [reason] yields [VerificationDecisionCode.reasonRequired] (422).
+  ///
+  /// [supervisorOverride] is the caller's authority to re-decide a case that
+  /// is no longer open (`status <> 'CRM_REVIEW'`): it drops the CAS's
+  /// `status = 'CRM_REVIEW'` guard while keeping the `version = @ifMatch`
+  /// guard, so a stale If-Match still 412s. The route enforces the
+  /// `verification_override` permission before calling this — this method
+  /// trusts the flag it is given.
   Future<VerificationDecisionResult> decide({
     required String attendanceId,
     required String organizationId,
@@ -199,8 +205,7 @@ class VerificationRepo {
     }
 
     final outcome = VerificationOutcome.tryParseWire(outcomeWire);
-    if (outcome == null || supervisorOverride) {
-      // Unknown wire, or override (override lands in Task 4). Both -> 422.
+    if (outcome == null) {
       return const VerificationDecisionResult(
         VerificationDecisionCode.unsupportedOutcome,
       );
@@ -215,6 +220,7 @@ class VerificationRepo {
     final newStatus = statusForOutcome[outcome]!;
 
     final reasonRequired =
+        supervisorOverride ||
         outcome == VerificationOutcome.rejected ||
         outcome == VerificationOutcome.returnForRecapture ||
         outcome == VerificationOutcome.escalated;
@@ -238,12 +244,15 @@ class VerificationRepo {
       // conflict — reloading it will show the decision that closed it —
       // and it is exactly the right shape to prevent a re-decide of a
       // closed case, without inventing a new outcome/branch for it.
+      final whereOpenGuard = supervisorOverride
+          ? ''
+          : "  AND status = 'CRM_REVIEW' ";
       final casResult = await tx.execute(
         Sql.named(
           'UPDATE attendance SET status = @status, version = version + 1, '
           '  escalated_at = @escAt, escalated_by = @escBy '
           'WHERE id = @id AND version = @ifMatch AND organization_id = @org '
-          "  AND status = 'CRM_REVIEW' "
+          '$whereOpenGuard'
           'RETURNING version',
         ),
         parameters: {

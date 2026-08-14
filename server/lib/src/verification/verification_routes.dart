@@ -64,15 +64,40 @@ Router verificationRouter({required Db db, required String signingKey}) {
               message: 'If-Match header is required.',
             );
           }
-          final body = (jsonDecode(await request.readAsString()) as Map)
-              .cast<String, Object?>();
+          final raw = await request.readAsString();
+          final Object? decoded;
+          try {
+            decoded = jsonDecode(raw);
+          } on FormatException {
+            throw ApiException(
+              ApiErrorCode.badRequest,
+              message: 'Request body must be a JSON object.',
+            );
+          }
+          if (decoded is! Map) {
+            throw ApiException(
+              ApiErrorCode.badRequest,
+              message: 'Request body must be a JSON object.',
+            );
+          }
+          final body = decoded.cast<String, Object?>();
+          final supervisorOverride =
+              (body['supervisorOverride'] as bool?) ?? false;
+          if (supervisorOverride && !auth.can('verification_override')) {
+            throw ApiException(
+              ApiErrorCode.forbidden,
+              message:
+                  'Supervisor override requires the verification_override '
+                  'permission.',
+            );
+          }
           final result = await repo.decide(
             attendanceId: request.params['id']!,
             organizationId: auth.organizationId,
             verifierId: auth.userId,
             outcomeWire: body['outcome'] as String? ?? '',
             reason: body['reason'] as String?,
-            supervisorOverride: (body['supervisorOverride'] as bool?) ?? false,
+            supervisorOverride: supervisorOverride,
             ifMatchVersion: ifMatch,
             correlationId: correlationOf(request),
           );

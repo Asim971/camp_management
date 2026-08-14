@@ -73,6 +73,7 @@ void main() {
   late Handler handler;
   late String
   verifierToken; // crm_verifier: verification_decide + sensitive_media_view
+  late String supervisorToken; // crm_supervisor: adds verification_override
   late String viewerToken; // field_user: neither permission
 
   final config = ServerConfig.fromEnvironment({
@@ -96,9 +97,16 @@ void main() {
       username: 'field',
       roles: const ['field_user'],
     );
+    await seedOrganizationWithUser(
+      db,
+      userId: 'user-4',
+      username: 'supervisor',
+      roles: const ['crm_supervisor'],
+    );
     final tokens = TokenService(db: db, config: config);
     verifierToken = (await tokens.issueFor('user-1')).accessToken;
     viewerToken = (await tokens.issueFor('user-2')).accessToken;
+    supervisorToken = (await tokens.issueFor('user-4')).accessToken;
     handler = buildApp(db: db, config: config);
 
     await seedCampaign(
@@ -202,6 +210,29 @@ void main() {
     ),
   );
 
+  // Mirrors [decide] but sends a raw (possibly non-JSON) string body, for
+  // the malformed-body -> 400 test.
+  Future<Response> rawDecide(
+    String id, {
+    String? bearer,
+    String? ifMatch,
+    required String rawBody,
+  }) async => handler(
+    Request(
+      'POST',
+      Uri.parse('http://localhost/verification/cases/$id/decision'),
+      headers: {
+        if (bearer != null) 'authorization': 'Bearer $bearer',
+        if (ifMatch != null) 'if-match': ifMatch,
+        'content-type': 'application/json',
+      },
+      body: rawBody,
+    ),
+  );
+
+  Future<String> errorCode(Response r) async =>
+      ((await decode(r))['error']! as Map)['code']! as String;
+
   Future<String> attendanceStatus(String id) async {
     final res = await db.execute(
       'SELECT status FROM attendance WHERE id = @id',
@@ -216,6 +247,18 @@ void main() {
       params: {'id': id},
     );
     return row(res.single)['version']! as int;
+  }
+
+  // Most-recent decision row for [id] — the override tests each seed a
+  // fresh, never-before-decided attendance, so "the" decision row is
+  // unambiguous.
+  Future<Map<String, Object?>> latestDecision(String id) async {
+    final res = await db.execute(
+      'SELECT outcome, supervisor_override FROM verification_decisions '
+      'WHERE attendance_id = @id',
+      params: {'id': id},
+    );
+    return row(res.single);
   }
 
   group('GET /verification/queue', () {
@@ -537,23 +580,148 @@ void main() {
       expect(await attendanceStatus('att-1'), 'CRM_REVIEW');
     });
 
-    test(
-      'supervisorOverride:true -> 422 VERIFICATION_OUTCOME_UNSUPPORTED',
-      () async {
-        final res = await decide(
-          'att-1',
-          bearer: verifierToken,
-          ifMatch: '1',
-          body: const {'outcome': 'APPROVED', 'supervisorOverride': true},
-        );
-        expect(res.statusCode, 422);
-        expect(
-          ((await decode(res))['error']! as Map)['code'],
-          'VERIFICATION_OUTCOME_UNSUPPORTED',
-        );
-        expect(await attendanceStatus('att-1'), 'CRM_REVIEW');
-      },
-    );
+    // Superseded by Task 4: supervisorOverride:true from a caller lacking
+    // verification_override is gated in the route (403 FORBIDDEN) before
+    // the repo is ever called, even on an open CRM_REVIEW case — the 422
+    // VERIFICATION_OUTCOME_UNSUPPORTED path Task 3 exercised here no longer
+    // applies once override is a supported (permission-gated) outcome.
+    test('supervisorOverride:true without the permission is 403', () async {
+      final res = await decide(
+        'att-1',
+        bearer: verifierToken,
+        ifMatch: '1',
+        body: const {'outcome': 'APPROVED', 'supervisorOverride': true},
+      );
+      expect(res.statusCode, 403);
+      expect(await errorCode(res), 'FORBIDDEN');
+      expect(await attendanceStatus('att-1'), 'CRM_REVIEW');
+    });
+
+    // A supervisor can re-decide a closed case; the override is recorded.
+    test('supervisor override re-decides a closed case', () async {
+      await seedCrmReviewAttendance(
+        db,
+        id: 'att-ov-1',
+        organizationId: 'org-1',
+        campaignId: 'camp-1',
+        sessionId: 'sess-1',
+        carpenterId: 'c-1',
+        status: 'APPROVED',
+        version: 2,
+      );
+
+      final res = await decide(
+        'att-ov-1',
+        bearer: supervisorToken,
+        ifMatch: '2',
+        body: const {
+          'outcome': 'REJECTED',
+          'reason': 'Original approval was incorrect on review.',
+          'supervisorOverride': true,
+        },
+      );
+      expect(res.statusCode, 200);
+      expect(await attendanceStatus('att-ov-1'), 'REJECTED');
+      expect(await attendanceVersion('att-ov-1'), 3);
+
+      final decision = await latestDecision('att-ov-1');
+      expect(decision['outcome'], 'REJECTED');
+      expect(decision['supervisor_override'], isTrue);
+    });
+
+    // A plain verifier sending override -> 403 (not 422), even for an
+    // already-closed case, and the row is untouched.
+    test('override without verification_override is 403', () async {
+      await seedCrmReviewAttendance(
+        db,
+        id: 'att-ov-2',
+        organizationId: 'org-1',
+        campaignId: 'camp-1',
+        sessionId: 'sess-1',
+        carpenterId: 'c-1',
+        status: 'APPROVED',
+        version: 2,
+      );
+
+      final res = await decide(
+        'att-ov-2',
+        bearer: verifierToken,
+        ifMatch: '2',
+        body: const {
+          'outcome': 'REJECTED',
+          'reason': 'x',
+          'supervisorOverride': true,
+        },
+      );
+      expect(res.statusCode, 403);
+      expect(await errorCode(res), 'FORBIDDEN');
+      expect(await attendanceStatus('att-ov-2'), 'APPROVED'); // unchanged
+    });
+
+    // Override stays version-safe: a stale If-Match still 412s even for a
+    // supervisor — dropping the status guard must not drop the version one.
+    test('supervisor override with a stale If-Match is 412', () async {
+      await seedCrmReviewAttendance(
+        db,
+        id: 'att-ov-3',
+        organizationId: 'org-1',
+        campaignId: 'camp-1',
+        sessionId: 'sess-1',
+        carpenterId: 'c-1',
+        status: 'APPROVED',
+        version: 2,
+      );
+
+      final res = await decide(
+        'att-ov-3',
+        bearer: supervisorToken,
+        ifMatch: '1', // stale: current version is 2
+        body: const {
+          'outcome': 'REJECTED',
+          'reason': 'stale',
+          'supervisorOverride': true,
+        },
+      );
+      expect(res.statusCode, 412);
+      expect(await attendanceStatus('att-ov-3'), 'APPROVED'); // unchanged
+      expect(await attendanceVersion('att-ov-3'), 2);
+    });
+
+    // Override requires a reason, same as reject/return/escalate.
+    test('supervisor override requires a reason', () async {
+      await seedCrmReviewAttendance(
+        db,
+        id: 'att-ov-4',
+        organizationId: 'org-1',
+        campaignId: 'camp-1',
+        sessionId: 'sess-1',
+        carpenterId: 'c-1',
+        status: 'APPROVED',
+        version: 2,
+      );
+
+      final res = await decide(
+        'att-ov-4',
+        bearer: supervisorToken,
+        ifMatch: '2',
+        body: const {'outcome': 'APPROVED', 'supervisorOverride': true},
+      );
+      expect(res.statusCode, 422);
+      expect(await errorCode(res), 'DECISION_REASON_REQUIRED');
+      expect(await attendanceStatus('att-ov-4'), 'APPROVED'); // unchanged
+    });
+
+    // A non-JSON body -> 400, not 500.
+    test('a malformed decision body is 400', () async {
+      final res = await rawDecide(
+        'att-1',
+        bearer: verifierToken,
+        ifMatch: '1',
+        rawBody: 'not json',
+      );
+      expect(res.statusCode, 400);
+      expect(await errorCode(res), 'BAD_REQUEST');
+    });
 
     test('missing If-Match -> 400', () async {
       final res = await decide(
