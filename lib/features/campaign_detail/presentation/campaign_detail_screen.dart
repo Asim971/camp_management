@@ -269,6 +269,7 @@ class _SessionCard extends StatelessWidget {
               children: [
                 if (session.status == SessionStatus.upcoming)
                   BmdButton(
+                    identifier: 'session_start',
                     label: 'Start',
                     variant: BmdButtonVariant.tonal,
                     onPressed: session.readinessOk
@@ -277,23 +278,36 @@ class _SessionCard extends StatelessWidget {
                   ),
                 if (session.status == SessionStatus.active) ...[
                   BmdButton(
+                    identifier: 'session_pause',
                     label: 'Pause',
                     variant: BmdButtonVariant.outlined,
                     onPressed: () => controller.pauseSession(session.id),
                   ),
                   const SizedBox(width: 8),
                   BmdButton(
+                    identifier: 'session_close',
                     label: 'Close capture',
                     variant: BmdButtonVariant.outlined,
                     onPressed: () => controller.closeSession(session.id),
                   ),
                 ],
-                if (session.status == SessionStatus.paused)
+                if (session.status == SessionStatus.paused) ...[
                   BmdButton(
+                    identifier: 'session_start',
                     label: 'Resume',
                     variant: BmdButtonVariant.tonal,
-                    onPressed: () => controller.startSession(session.id),
+                    onPressed: session.readinessOk
+                        ? () => controller.startSession(session.id)
+                        : null,
                   ),
+                  const SizedBox(width: 8),
+                  BmdButton(
+                    identifier: 'session_close',
+                    label: 'Close capture',
+                    variant: BmdButtonVariant.outlined,
+                    onPressed: () => controller.closeSession(session.id),
+                  ),
+                ],
               ],
             ),
           ],

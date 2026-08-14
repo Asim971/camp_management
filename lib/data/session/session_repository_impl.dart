@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../core/network/dio_client.dart';
 import '../../core/result/result.dart';
@@ -48,10 +49,7 @@ class SessionRepositoryImpl implements SessionRepository {
     id: j['id'] as String,
     campaignId: j['campaignId'] as String,
     venue: j['venue'] as String,
-    status: SessionStatus.values.firstWhere(
-      (s) => s.name == j['status'],
-      orElse: () => SessionStatus.upcoming,
-    ),
+    status: _parseStatus(j['status'] as String?),
     startAt: j['startAt'] == null
         ? null
         : DateTime.parse(j['startAt'] as String),
@@ -63,4 +61,19 @@ class SessionRepositoryImpl implements SessionRepository {
     approvedCount: (j['approvedCount'] as int?) ?? 0,
     readinessOk: (j['readinessOk'] as bool?) ?? true,
   );
+
+  /// An unrecognised wire status is surfaced as a visible, action-disabling
+  /// fallback — never `upcoming`, which would enable Start on a session in an
+  /// unknown state. Same policy as ImportStatus parsing.
+  SessionStatus _parseStatus(String? wire) {
+    final parsed = wire == null ? null : SessionStatus.tryParseWire(wire);
+    if (parsed == null) {
+      debugPrint(
+        'SessionRepositoryImpl: unrecognised session status "$wire"; '
+        'treating it as captureClosed (non-operational).',
+      );
+      return SessionStatus.captureClosed;
+    }
+    return parsed;
+  }
 }
