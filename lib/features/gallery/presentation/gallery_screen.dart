@@ -387,6 +387,36 @@ class _CardsDemo extends StatelessWidget {
             onAction: () {},
           ),
         ),
+        // Glass variant (slice 1) — same content, translucent surface.
+        const SizedBox(
+          width: _kCardWidth,
+          child: KpiCard(
+            label: 'Verified attendance',
+            value: '1,107',
+            denominator: 'of 1,184 registered · 93.5%',
+            definition: 'Distinct carpenters with a CRM-approved record.',
+            source: 'verification facts',
+            freshness: 'refreshed 09:42',
+            delta: '+2.1pp',
+            deltaDirection: KpiDelta.up,
+            deltaContext: 'vs last week',
+            glass: true,
+          ),
+        ),
+        SizedBox(
+          width: _kCardWidth,
+          child: ExceptionCard(
+            label: 'Captures awaiting sync',
+            count: '34',
+            tone: ExceptionTone.warning,
+            detail: '34 devices, oldest queued in Chattogram.',
+            oldest: '2h 14m',
+            agePressure: 0.62,
+            actionLabel: 'Open queue',
+            onAction: () {},
+            glass: true,
+          ),
+        ),
       ],
     );
   }

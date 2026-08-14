@@ -24,6 +24,7 @@ class KpiCard extends StatelessWidget {
     this.deltaDirection = KpiDelta.flat,
     this.deltaContext,
     this.footer,
+    this.glass = false,
     super.key,
   });
 
@@ -53,94 +54,107 @@ class KpiCard extends StatelessWidget {
   /// Optional extra row — a sparkline, a caveat, an exclusion note.
   final Widget? footer;
 
+  /// Renders as a translucent glass surface — [BmdTokens.glassFill] fill,
+  /// a [BmdTokens.glassBorder] hairline and [BmdElevation.level2] ambient
+  /// elevation — instead of the default opaque [Card]. Defaults to false, so
+  /// every existing caller keeps today's look unchanged (slice 1).
+  final bool glass;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final bmd = theme.bmd;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(BmdSpace.s4),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
+    final content = Padding(
+      padding: const EdgeInsets.all(BmdSpace.s4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Flexible(
+                child: Text(
+                  label.toUpperCase(),
+                  style: theme.textTheme.labelSmall,
+                ),
+              ),
+              const SizedBox(width: BmdSpace.s1),
+              Tooltip(
+                message: definition,
+                child: Icon(Icons.info_outline, size: 14, color: bmd.textFaint),
+              ),
+            ],
+          ),
+          const SizedBox(height: BmdSpace.s2),
+          // A standalone value reads better with proportional figures;
+          // tabular is for columns that must align vertically.
+          Text(
+            value,
+            style: theme.textTheme.displayLarge?.copyWith(
+              fontSize: 34,
+              height: 40 / 34,
+              letterSpacing: -0.68,
+              fontFeatures: const [FontFeature.proportionalFigures()],
+            ),
+          ),
+          if (denominator != null) ...[
+            const SizedBox(height: BmdSpace.s1),
+            Text(denominator!, style: theme.textTheme.bodyMedium),
+          ],
+          if (delta != null) ...[
+            const SizedBox(height: BmdSpace.s2),
             Row(
               children: [
-                Flexible(
-                  child: Text(
-                    label.toUpperCase(),
-                    style: theme.textTheme.labelSmall,
-                  ),
+                Icon(
+                  switch (deltaDirection) {
+                    KpiDelta.up => Icons.arrow_upward,
+                    KpiDelta.down => Icons.arrow_downward,
+                    KpiDelta.flat => Icons.remove,
+                  },
+                  size: 12,
+                  color: _deltaColor(bmd),
                 ),
-                const SizedBox(width: BmdSpace.s1),
-                Tooltip(
-                  message: definition,
-                  child: Icon(
-                    Icons.info_outline,
-                    size: 14,
-                    color: bmd.textFaint,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: BmdSpace.s2),
-            // A standalone value reads better with proportional figures;
-            // tabular is for columns that must align vertically.
-            Text(
-              value,
-              style: theme.textTheme.displayLarge?.copyWith(
-                fontSize: 34,
-                height: 40 / 34,
-                letterSpacing: -0.68,
-                fontFeatures: const [FontFeature.proportionalFigures()],
-              ),
-            ),
-            if (denominator != null) ...[
-              const SizedBox(height: BmdSpace.s1),
-              Text(denominator!, style: theme.textTheme.bodyMedium),
-            ],
-            if (delta != null) ...[
-              const SizedBox(height: BmdSpace.s2),
-              Row(
-                children: [
-                  Icon(
-                    switch (deltaDirection) {
-                      KpiDelta.up => Icons.arrow_upward,
-                      KpiDelta.down => Icons.arrow_downward,
-                      KpiDelta.flat => Icons.remove,
-                    },
-                    size: 12,
+                const SizedBox(width: 2),
+                Text(
+                  delta!,
+                  style: theme.textTheme.labelMedium?.copyWith(
                     color: _deltaColor(bmd),
                   ),
-                  const SizedBox(width: 2),
-                  Text(
-                    delta!,
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: _deltaColor(bmd),
+                ),
+                if (deltaContext != null) ...[
+                  const SizedBox(width: BmdSpace.s2),
+                  Flexible(
+                    child: Text(
+                      deltaContext!,
+                      style: theme.textTheme.bodySmall,
                     ),
                   ),
-                  if (deltaContext != null) ...[
-                    const SizedBox(width: BmdSpace.s2),
-                    Flexible(
-                      child: Text(
-                        deltaContext!,
-                        style: theme.textTheme.bodySmall,
-                      ),
-                    ),
-                  ],
                 ],
-              ),
-            ],
-            if (footer != null) ...[
-              const SizedBox(height: BmdSpace.s2),
-              footer!,
-            ],
-            const SizedBox(height: BmdSpace.s2),
-            Text('$source · $freshness', style: theme.textTheme.bodySmall),
+              ],
+            ),
           ],
-        ),
+          if (footer != null) ...[const SizedBox(height: BmdSpace.s2), footer!],
+          const SizedBox(height: BmdSpace.s2),
+          Text('$source · $freshness', style: theme.textTheme.bodySmall),
+        ],
       ),
+    );
+
+    if (!glass) return Card(child: content);
+
+    // Glass surface (slice 1): a plain Container stands in for the Card so
+    // the translucent fill and hairline border are the only edge drawn —
+    // stacking this on top of the opaque Card's own themed border would
+    // double it up. Radius and padding are unchanged from the default look.
+    return Container(
+      decoration: BoxDecoration(
+        color: bmd.glassFill,
+        border: Border.all(color: bmd.glassBorder),
+        borderRadius: BorderRadius.circular(BmdRadius.card),
+        boxShadow: BmdElevation.level2,
+      ),
+      child: content,
     );
   }
 
@@ -176,6 +190,7 @@ class ExceptionCard extends StatelessWidget {
     this.agePressure,
     this.actionLabel,
     this.onAction,
+    this.glass = false,
     super.key,
   });
 
@@ -196,6 +211,13 @@ class ExceptionCard extends StatelessWidget {
   final String? actionLabel;
   final VoidCallback? onAction;
 
+  /// Renders as a translucent glass surface — [BmdTokens.glassFill] fill,
+  /// a [BmdTokens.glassBorder] hairline (the tone accent bar stays on the
+  /// leading edge) and [BmdElevation.level2] ambient elevation — instead of
+  /// the default opaque [Card]. Defaults to false, so every existing caller
+  /// keeps today's look unchanged (slice 1).
+  final bool glass;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -206,64 +228,100 @@ class ExceptionCard extends StatelessWidget {
       ExceptionTone.info => bmd.info,
     };
 
-    return Card(
-      child: Container(
-        padding: const EdgeInsets.all(BmdSpace.s4),
-        decoration: BoxDecoration(
-          border: Border(left: BorderSide(color: accent, width: 3)),
-          borderRadius: BorderRadius.circular(BmdRadius.card),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(label.toUpperCase(), style: theme.textTheme.labelSmall),
-            const SizedBox(height: BmdSpace.s2),
-            Text(
-              count,
-              style: theme.textTheme.headlineMedium?.copyWith(
-                fontSize: 30,
-                height: 34 / 30,
-                fontFeatures: const [FontFeature.proportionalFigures()],
-              ),
+    // A [Border] can only combine a [borderRadius] with a non-uniform side
+    // color when exactly one side is visible (Flutter throws "A borderRadius
+    // can only be given on borders with uniform colors" otherwise) — so the
+    // glass surface's all-round [BmdTokens.glassBorder] hairline and the
+    // tone accent can't live in the same [BoxDecoration.border]. The accent
+    // is drawn as a separate leading bar, clipped to the same corner radius,
+    // layered on top of the glass surface instead.
+    final body = Container(
+      padding: const EdgeInsets.all(BmdSpace.s4),
+      decoration: glass
+          ? BoxDecoration(
+              color: bmd.glassFill,
+              border: Border.all(color: bmd.glassBorder),
+              borderRadius: BorderRadius.circular(BmdRadius.card),
+              boxShadow: BmdElevation.level2,
+            )
+          : BoxDecoration(
+              border: Border(left: BorderSide(color: accent, width: 3)),
+              borderRadius: BorderRadius.circular(BmdRadius.card),
             ),
-            if (agePressure != null) ...[
-              const SizedBox(height: BmdSpace.s3),
-              Row(
-                children: [
-                  Expanded(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(2),
-                      child: LinearProgressIndicator(
-                        value: agePressure!.clamp(0.0, 1.0),
-                        minHeight: 4,
-                        backgroundColor: bmd.surfaceSunken,
-                        valueColor: AlwaysStoppedAnimation(accent),
-                      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label.toUpperCase(), style: theme.textTheme.labelSmall),
+          const SizedBox(height: BmdSpace.s2),
+          Text(
+            count,
+            style: theme.textTheme.headlineMedium?.copyWith(
+              fontSize: 30,
+              height: 34 / 30,
+              fontFeatures: const [FontFeature.proportionalFigures()],
+            ),
+          ),
+          if (agePressure != null) ...[
+            const SizedBox(height: BmdSpace.s3),
+            Row(
+              children: [
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(2),
+                    child: LinearProgressIndicator(
+                      value: agePressure!.clamp(0.0, 1.0),
+                      minHeight: 4,
+                      backgroundColor: bmd.surfaceSunken,
+                      valueColor: AlwaysStoppedAnimation(accent),
                     ),
                   ),
-                  if (oldest != null) ...[
-                    const SizedBox(width: BmdSpace.s2),
-                    Text(oldest!, style: theme.textTheme.bodySmall),
-                  ],
-                ],
-              ),
-            ],
-            const SizedBox(height: BmdSpace.s3),
-            Text(detail, style: theme.textTheme.bodySmall),
-            if (actionLabel != null) ...[
-              const SizedBox(height: BmdSpace.s2),
-              InkWell(
-                onTap: onAction,
-                child: Text(
-                  '$actionLabel →',
-                  style: theme.textTheme.bodySmall?.copyWith(color: bmd.info),
                 ),
-              ),
-            ],
+                if (oldest != null) ...[
+                  const SizedBox(width: BmdSpace.s2),
+                  Text(oldest!, style: theme.textTheme.bodySmall),
+                ],
+              ],
+            ),
           ],
-        ),
+          const SizedBox(height: BmdSpace.s3),
+          Text(detail, style: theme.textTheme.bodySmall),
+          if (actionLabel != null) ...[
+            const SizedBox(height: BmdSpace.s2),
+            InkWell(
+              onTap: onAction,
+              child: Text(
+                '$actionLabel →',
+                style: theme.textTheme.bodySmall?.copyWith(color: bmd.info),
+              ),
+            ),
+          ],
+        ],
       ),
+    );
+
+    if (!glass) return Card(child: body);
+
+    return Stack(
+      children: [
+        body,
+        // `top`/`bottom: 0` (rather than `Positioned.fill` + `Align`) gives
+        // this a tight height matching the card exactly — an unconstrained
+        // height inside a loosened `Align` collapses to zero.
+        Positioned(
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: 3,
+          child: ClipRRect(
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(BmdRadius.card),
+              bottomLeft: Radius.circular(BmdRadius.card),
+            ),
+            child: ColoredBox(color: accent),
+          ),
+        ),
+      ],
     );
   }
 }
