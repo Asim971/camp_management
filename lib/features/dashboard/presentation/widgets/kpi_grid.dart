@@ -62,7 +62,19 @@ class KpiGrid extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       mainAxisSpacing: BmdSpace.s4,
       crossAxisSpacing: BmdSpace.s4,
-      childAspectRatio: columns == 1 ? 2.6 : 1.7,
+      // Card height is derived from column width by this ratio, so the more
+      // columns, the shorter (and narrower) each card. At 4-up desktop widths
+      // a card is ~200px wide, which wraps the "<source> · <freshness>"
+      // defence line (e.g. "Offline queue · Live (device-local)") onto a
+      // second line — content the 1.7 ratio's height could not fit (a 4.5px
+      // bottom overflow, caught by dashboard_golden_test). The 4-column case
+      // gets a taller card; 1- and 2-up are wide enough that the line stays
+      // single and keep their original proportions.
+      childAspectRatio: switch (columns) {
+        1 => 2.6,
+        2 => 1.7,
+        _ => 1.5,
+      },
       children: [
         for (var i = 0; i < kpis.length; i++) _KpiTile(index: i, kpi: kpis[i]),
       ],
