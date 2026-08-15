@@ -57,9 +57,15 @@ New `server/lib/src/analytics/` module (`analytics_routes.dart`,
                    "status": "ACTIVE", "target": 500, "verified": 180,
                    "inReview": 9 } ],
   "sample": { "totalAttendance": 210, "small": false },
+  "range": { "from": "2026-07-17", "to": "2026-08-15" },
   "generatedAt": "2026-08-15T17:20:00Z"
 }
 ```
+
+`range` echoes the RESOLVED inclusive dates the server actually aggregated
+over (after defaulting). Clients render axes and range labels exclusively
+from this echo — never from a client-side "today" — which keeps rendering
+deterministic and the two sides agreed on what the numbers cover.
 
 - **Semantics:** `funnel.target`/`registered` come from campaign + session
   tables; `captured` is the TOTAL attendance rows in range (any status);
