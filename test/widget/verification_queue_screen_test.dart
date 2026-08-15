@@ -1,4 +1,6 @@
 import 'package:acsl_campaign/app/di/providers.dart';
+import 'package:acsl_campaign/app/theme/bmd_theme.dart';
+import 'package:acsl_campaign/app/theme/tokens.dart';
 import 'package:acsl_campaign/core/auth/rbac.dart';
 import 'package:acsl_campaign/core/auth/session.dart';
 import 'package:acsl_campaign/core/auth/session_manager.dart';
@@ -41,7 +43,14 @@ AuthState _signedInVerifier({required bool withOverride}) => AuthSignedIn(
 /// which requires the widget under test to be built by an actual GoRouter
 /// route rather than a bare MaterialApp(home: ...) (same reason
 /// crm_case_screen_test.dart wraps in a router).
-Widget _wrapInRouter() {
+///
+/// [reducedMotion] applies the OS "reduce motion" signal inside
+/// `MaterialApp.router`'s own `builder`, below the app's view-derived
+/// `MediaQuery` — an ancestor `MediaQuery` placed outside `MaterialApp.router`
+/// would be replaced by the one the app builds from the test view, per
+/// Flutter's `WidgetsApp` wiring (mirrors
+/// `dashboard_reduced_motion_test.dart`).
+Widget _wrapInRouter({bool reducedMotion = false}) {
   final router = GoRouter(
     initialLocation: '/verification',
     routes: [
@@ -58,7 +67,15 @@ Widget _wrapInRouter() {
       ),
     ],
   );
-  return MaterialApp.router(routerConfig: router);
+  return MaterialApp.router(
+    routerConfig: router,
+    builder: reducedMotion
+        ? (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(disableAnimations: true),
+            child: child!,
+          )
+        : null,
+  );
 }
 
 /// In-memory [VerificationRepository] so the real [VerificationQueueNotifier]
@@ -67,10 +84,18 @@ Widget _wrapInRouter() {
 /// what this test is about; the fake just needs to be a faithful stand-in for
 /// the full interface.
 class _FakeVerificationRepository implements VerificationRepository {
+  /// [items] defaults to the standard escalated/unassigned fixture used by
+  /// most of this file's tests; pass a custom list for tests (e.g. the S1
+  /// urgency ramp) that need specific ages/bands.
+  _FakeVerificationRepository({List<VerificationQueueItem>? items})
+    : _items = items ?? _defaultItems;
+
   final List<String> claimedIds = [];
   final List<String> releasedIds = [];
 
-  final _items = <VerificationQueueItem>[
+  final List<VerificationQueueItem> _items;
+
+  static final _defaultItems = <VerificationQueueItem>[
     VerificationQueueItem(
       attendanceId: _escalatedId,
       carpenterName: 'Karim Uddin',
@@ -129,6 +154,23 @@ Finder _byIdentifier(String id) => find.byWidgetPredicate(
 );
 
 void main() {
+  // Slice 2 RD2.D4 adds a `ScreenHero` above the filter tabs; at the default
+  // 800x600 test surface that leaves too little vertical room for two full
+  // queue cards to render without scrolling, which made
+  // `tester.tap(claimFinder)` below miss its target. Widen the surface the
+  // same way `crm_case_screen_test.dart` does for an analogous
+  // desktop-width-dependent layout — this changes only how much screen the
+  // widget gets, not any assertion any test makes.
+  setUp(() {
+    final view =
+        TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+    view.physicalSize = const Size(800, 900);
+    view.devicePixelRatio = 1.0;
+  });
+  tearDown(() {
+    TestWidgetsFlutterBinding.instance.platformDispatcher.views.first.reset();
+  });
+
   testWidgets(
     'verification_queue_screen: renders one item per queue entry, the '
     'always-present tabs, and the Escalated tab when the session holds '
@@ -224,4 +266,140 @@ void main() {
       expect(repo.claimedIds, [_unassignedId]);
     },
   );
+
+  testWidgets('S1 urgency ramp: a tile past the 24h window renders its '
+      '"Waiting" label in the error tone at wght 600; a fresh tile does not', (
+    tester,
+  ) async {
+    final repo = _FakeVerificationRepository(
+      items: const [
+        VerificationQueueItem(
+          attendanceId: 'CASE_OVERDUE',
+          carpenterName: 'Overdue Carpenter',
+          campaignName: 'Campaign A',
+          age: Duration(hours: 25),
+          band: MatchBand.medium,
+          referenceSource: ReferenceSource.verifiedProfilePhoto,
+          assigneeId: null,
+          escalatedAt: null,
+        ),
+        VerificationQueueItem(
+          attendanceId: 'CASE_FRESH',
+          carpenterName: 'Fresh Carpenter',
+          campaignName: 'Campaign B',
+          age: Duration(hours: 2),
+          band: MatchBand.high,
+          referenceSource: ReferenceSource.authorizedNidPhoto,
+          assigneeId: null,
+          escalatedAt: null,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          verificationRepositoryProvider.overrideWithValue(repo),
+          authStateProvider.overrideWith(
+            (ref) => _signedInVerifier(withOverride: true),
+          ),
+        ],
+        child: _wrapInRouter(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final overdue = tester.widget<Text>(find.text('Waiting 1d'));
+    final fresh = tester.widget<Text>(find.text('Waiting 2h 0m'));
+    final errorColor = bmdTheme(
+      brightness: Brightness.light,
+    ).extension<BmdTokens>()!.error;
+    expect(overdue.style?.color, errorColor);
+    expect(
+      overdue.style?.fontVariations,
+      contains(const FontVariation('wght', 600)),
+    );
+    expect(fresh.style?.color, isNot(errorColor));
+  });
+
+  testWidgets('frozen identifiers survive the redesign', (tester) async {
+    final repo = _FakeVerificationRepository(
+      items: const [
+        VerificationQueueItem(
+          attendanceId: 'CASE_A',
+          carpenterName: 'Case A Carpenter',
+          campaignName: 'Campaign A',
+          age: Duration(hours: 3),
+          band: MatchBand.high,
+          referenceSource: ReferenceSource.authorizedNidPhoto,
+          assigneeId: null,
+          escalatedAt: null,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          verificationRepositoryProvider.overrideWithValue(repo),
+          authStateProvider.overrideWith(
+            (ref) => _signedInVerifier(withOverride: true),
+          ),
+        ],
+        child: _wrapInRouter(reducedMotion: true),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    for (final id in [
+      'queue_tab_all',
+      'queue_tab_mine',
+      'queue_tab_unassigned',
+      'queue_item_CASE_A',
+      'queue_claim_CASE_A',
+    ]) {
+      expect(
+        _byIdentifier(id),
+        findsOneWidget,
+        reason: 'identifier $id must survive (Maestro contract)',
+      );
+    }
+  });
+
+  testWidgets('reduced motion renders the full list in a single pump', (
+    tester,
+  ) async {
+    final repo = _FakeVerificationRepository(
+      items: const [
+        VerificationQueueItem(
+          attendanceId: 'CASE_A',
+          carpenterName: 'Case A Carpenter',
+          campaignName: 'Campaign A',
+          age: Duration(hours: 3),
+          band: MatchBand.high,
+          referenceSource: ReferenceSource.authorizedNidPhoto,
+          assigneeId: null,
+          escalatedAt: null,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          verificationRepositoryProvider.overrideWithValue(repo),
+          authStateProvider.overrideWith(
+            (ref) => _signedInVerifier(withOverride: true),
+          ),
+        ],
+        child: _wrapInRouter(reducedMotion: true),
+      ),
+    );
+
+    // Exactly one pump — no pumpAndSettle — the whole point of the
+    // assertion: reduced motion must hold on the very first paint.
+    await tester.pump();
+
+    expect(_byIdentifier('queue_item_CASE_A'), findsOneWidget);
+  });
 }

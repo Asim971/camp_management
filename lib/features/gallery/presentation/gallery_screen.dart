@@ -6,7 +6,9 @@ import '../../../core/design_system/bmd_cards.dart';
 import '../../../core/design_system/bmd_data_table.dart';
 import '../../../core/design_system/bmd_feedback.dart';
 import '../../../core/design_system/bmd_field.dart';
+import '../../../core/design_system/bmd_state_view.dart';
 import '../../../core/design_system/lineage_rail.dart';
+import '../../../core/design_system/screen_hero.dart';
 import '../../../core/design_system/status_chip.dart';
 import '../../../domain/common/status.dart';
 
@@ -27,8 +29,20 @@ abstract final class GallerySection {
   static const feedback = 'gallery_feedback';
   static const table = 'gallery_table';
   static const lineage = 'gallery_lineage';
+  static const screenHero = 'gallery_screen_hero';
+  static const states = 'gallery_state_views';
 
-  static const all = [buttons, fields, status, cards, feedback, table, lineage];
+  static const all = [
+    buttons,
+    fields,
+    status,
+    cards,
+    feedback,
+    table,
+    lineage,
+    screenHero,
+    states,
+  ];
 }
 
 /// The seven gallery sections, as data.
@@ -73,6 +87,16 @@ List<GallerySectionView> gallerySections() => const [
     id: GallerySection.lineage,
     title: 'Lineage rail',
     child: _LineageDemo(),
+  ),
+  GallerySectionView(
+    id: GallerySection.screenHero,
+    title: 'Screen hero',
+    child: _ScreenHeroDemo(),
+  ),
+  GallerySectionView(
+    id: GallerySection.states,
+    title: 'Empty and error states',
+    child: _StateViewsDemo(),
   ),
 ];
 
@@ -654,6 +678,64 @@ class _LineageDemo extends StatelessWidget {
             ),
             LineageNode(label: 'Uploaded', state: LineageState.pending),
           ],
+        ),
+      ],
+    );
+  }
+}
+
+class _ScreenHeroDemo extends StatelessWidget {
+  const _ScreenHeroDemo();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const ScreenHero(title: 'Verification queue'),
+        const SizedBox(height: BmdSpace.s4),
+        ScreenHero(
+          title: 'Campaigns',
+          subtitle: 'All campaigns in scope',
+          summary: const [
+            StatusChip(label: '12 total', tone: StatusTone.neutral),
+            StatusChip(label: '7 active', tone: StatusTone.info),
+          ],
+          actions: [
+            BmdButton(
+              label: 'Create campaign',
+              variant: BmdButtonVariant.outlined,
+              onPressed: () {},
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _StateViewsDemo extends StatelessWidget {
+  const _StateViewsDemo();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(
+          height: _kStateHeight,
+          child: BmdStateView.empty(
+            title: 'No cases in this view',
+            message: 'Claimed and escalated cases appear under their tabs.',
+          ),
+        ),
+        SizedBox(
+          height: _kStateHeight,
+          child: BmdStateView.error(
+            title: "Couldn't load the verification queue",
+            message: 'Check your connection and try again.',
+            onRetry: () {},
+          ),
         ),
       ],
     );

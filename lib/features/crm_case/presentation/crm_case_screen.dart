@@ -5,11 +5,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/di/providers.dart';
 import '../../../app/shell/app_shell.dart';
+import '../../../app/theme/tokens.dart';
 import '../../../core/auth/rbac.dart';
 import '../../../core/auth/session_manager.dart';
 import '../../../core/design_system/bmd_button.dart';
 import '../../../core/design_system/bmd_field.dart';
+import '../../../core/design_system/bmd_state_view.dart';
+import '../../../core/design_system/status_chip.dart';
+import '../../../core/motion/reveal.dart';
 import '../../../core/responsive/breakpoints.dart';
+import '../../../domain/common/status.dart';
 import '../../../domain/verification/verification.dart';
 import '../../../domain/verification/verification_case.dart';
 import '../application/crm_case_controller.dart';
@@ -31,19 +36,20 @@ class CrmCaseScreen extends ConsumerWidget {
       title: 'Verification case',
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) => Center(
-          child: BmdButton(
-            label: 'Retry',
-            variant: BmdButtonVariant.outlined,
-            onPressed: () =>
-                ref.invalidate(crmCaseControllerProvider(attendanceId)),
-          ),
+        error: (_, __) => BmdStateView.error(
+          title: "Couldn't load this case",
+          message: 'Check your connection and try again.',
+          onRetry: () =>
+              ref.invalidate(crmCaseControllerProvider(attendanceId)),
         ),
         data: (c) {
           final wide = Breakpoint.of(context).isDesktopUp;
-          final evidence = _EvidenceZone(vcase: c);
-          final context0 = _ContextZone(vcase: c);
-          final decision = _DecisionPanel(attendanceId: attendanceId);
+          final evidence = Reveal(index: 0, child: _EvidenceZone(vcase: c));
+          final context0 = Reveal(index: 1, child: _ContextZone(vcase: c));
+          final decision = Reveal(
+            index: 2,
+            child: _DecisionPanel(attendanceId: attendanceId),
+          );
 
           if (wide) {
             return Row(
@@ -72,16 +78,80 @@ class CrmCaseScreen extends ConsumerWidget {
   }
 }
 
-class _EvidenceZone extends StatelessWidget {
+class _EvidenceZone extends StatefulWidget {
   const _EvidenceZone({required this.vcase});
   final VerificationCase vcase;
 
   @override
+  State<_EvidenceZone> createState() => _EvidenceZoneState();
+}
+
+class _EvidenceZoneState extends State<_EvidenceZone> {
+  final _captured = TransformationController();
+  final _reference = TransformationController();
+  bool _synced = true;
+
+  /// Re-entrancy guard: writing the peer's value fires ITS listener, which
+  /// would write back and recurse forever without this.
+  bool _mirroring = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _captured.addListener(() => _mirror(_captured, _reference));
+    _reference.addListener(() => _mirror(_reference, _captured));
+  }
+
+  void _mirror(TransformationController from, TransformationController to) {
+    if (!_synced || _mirroring) return;
+    _mirroring = true;
+    to.value = from.value.clone();
+    _mirroring = false;
+  }
+
+  @override
+  void dispose() {
+    _captured.dispose();
+    _reference.dispose();
+    super.dispose();
+  }
+
+  bool get _hasReference => widget.vcase.referenceImageUrl != null;
+
+  @override
   Widget build(BuildContext context) {
+    final vcase = widget.vcase;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Evidence', style: Theme.of(context).textTheme.titleMedium),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Evidence',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            if (_hasReference) ...[
+              Text(
+                'Synced zoom',
+                style: Theme.of(context).textTheme.labelMedium,
+              ),
+              const SizedBox(width: BmdSpace.s1),
+              Semantics(
+                identifier: 'crm_zoom_sync',
+                child: Switch(
+                  value: _synced,
+                  onChanged: (v) {
+                    setState(() => _synced = v);
+                    // Re-enabling re-syncs the reference to the captured view.
+                    if (v) _reference.value = _captured.value.clone();
+                  },
+                ),
+              ),
+            ],
+          ],
+        ),
         const SizedBox(height: 12),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -90,6 +160,7 @@ class _EvidenceZone extends StatelessWidget {
               child: _EvidenceImage(
                 label: 'Captured',
                 url: vcase.capturedImageUrl,
+                controller: _captured,
               ),
             ),
             const SizedBox(width: 12),
@@ -97,6 +168,7 @@ class _EvidenceZone extends StatelessWidget {
               child: _EvidenceImage(
                 label: _refLabel(vcase.machine.referenceSource),
                 url: vcase.referenceImageUrl,
+                controller: _reference,
               ),
             ),
           ],
@@ -114,9 +186,14 @@ class _EvidenceZone extends StatelessWidget {
 }
 
 class _EvidenceImage extends StatelessWidget {
-  const _EvidenceImage({required this.label, required this.url});
+  const _EvidenceImage({
+    required this.label,
+    required this.url,
+    required this.controller,
+  });
   final String label;
   final String? url;
+  final TransformationController controller;
 
   @override
   Widget build(BuildContext context) {
@@ -137,6 +214,7 @@ class _EvidenceImage extends StatelessWidget {
                   )
                 : InteractiveViewer(
                     maxScale: 4,
+                    transformationController: controller,
                     child: Image.network(
                       url!,
                       fit: BoxFit.cover,
@@ -173,36 +251,58 @@ class _ContextZone extends StatelessWidget {
         _kv(context, 'Captured', vcase.capturedAt.toString()),
         const SizedBox(height: 16),
         // Machine recommendation is a SEPARATE, clearly-labelled advisory block.
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Machine recommendation (advisory)',
-                  style: Theme.of(context).textTheme.labelMedium,
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    Chip(label: Text('Band: ${_band(m.band)}')),
-                    if (m.padReview) const Chip(label: Text('PAD review')),
-                    if (m.lowQuality) const Chip(label: Text('Low quality')),
-                  ],
-                ),
-                if (m.reasons.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  for (final r in m.reasons) Text('• $r'),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Theme.of(context).bmd.glassFill,
+            border: Border.all(color: Theme.of(context).bmd.glassBorder),
+            borderRadius: BorderRadius.circular(BmdRadius.card),
+            boxShadow: BmdElevation.level2,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Machine recommendation (advisory)',
+                style: Theme.of(context).textTheme.labelMedium,
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  StatusChip(
+                    label: 'Band: ${_band(m.band)}',
+                    tone: _bandTone(m.band),
+                  ),
+                  if (m.padReview)
+                    const StatusChip(
+                      label: 'PAD review',
+                      tone: StatusTone.warning,
+                    ),
+                  if (m.lowQuality)
+                    const StatusChip(
+                      label: 'Low quality',
+                      tone: StatusTone.warning,
+                    ),
                 ],
+              ),
+              if (m.reasons.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                for (final r in m.reasons) Text('• $r'),
               ],
-            ),
+            ],
           ),
         ),
       ],
     );
   }
+
+  StatusTone _bandTone(MatchBand b) => switch (b) {
+    MatchBand.high => StatusTone.success,
+    MatchBand.medium => StatusTone.info,
+    MatchBand.low || MatchBand.noReference => StatusTone.warning,
+  };
 
   Widget _kv(BuildContext context, String k, String v) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 3),

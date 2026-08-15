@@ -38,6 +38,18 @@ Widget _host(Widget child, {Brightness brightness = Brightness.light}) {
   return MaterialApp(
     debugShowCheckedModeBanner: false,
     theme: bmdTheme(brightness: brightness),
+    // Reveal builds a flutter_animate `.animate()` chain unless motion is
+    // off, and `_AnimateState.initState` schedules a real Timer — one that
+    // TickerMode(enabled: false) below freezes but does not cancel, so it
+    // is still pending at teardown and fails the test. disableAnimations
+    // makes Reveal's motionOff(context) short-circuit return the child
+    // statically before Animate is ever constructed, so no Timer is
+    // scheduled in the first place (same reasoning as the MediaQuery
+    // override in test/app/dev_routes_test.dart).
+    builder: (context, child) => MediaQuery(
+      data: MediaQuery.of(context).copyWith(disableAnimations: true),
+      child: child!,
+    ),
     home: Scaffold(
       body: SingleChildScrollView(
         // BmdButton(loading: true) renders an indeterminate

@@ -54,8 +54,33 @@ Widget _wrapInRouter(String attendanceId) {
 /// In-memory [VerificationRepository] so the real [CrmCaseController] runs
 /// against fixed data instead of a live Dio client — no network stack needed
 /// to exercise the screen's decision gating.
+///
+/// [caseBuilder] defaults to [_defaultCase] (no reference image) so every
+/// pre-existing test keeps its original fixture untouched; tests that need a
+/// reference image (the S2 synced-zoom coverage) pass their own builder.
 class _FakeVerificationRepository implements VerificationRepository {
+  _FakeVerificationRepository({VerificationCase Function(String)? caseBuilder})
+    : _caseBuilder = caseBuilder ?? _defaultCase;
+
+  final VerificationCase Function(String attendanceId) _caseBuilder;
+
   VerificationDecision? lastDecision;
+
+  static VerificationCase _defaultCase(String attendanceId) => VerificationCase(
+    attendanceId: attendanceId,
+    version: 1,
+    status: AttendanceStatus.crmReview,
+    carpenterName: 'Karim Uddin',
+    carpenterIdMasked: '••••1234',
+    campaignName: 'Test Campaign',
+    sessionName: 'Session A',
+    capturedAt: DateTime(2026, 7, 30),
+    capturedImageUrl: 'https://example.test/captured.png',
+    machine: const MachineResult(
+      band: MatchBand.high,
+      referenceSource: ReferenceSource.verifiedProfilePhoto,
+    ),
+  );
 
   @override
   Future<Result<List<VerificationQueueItem>>> queue({
@@ -72,23 +97,7 @@ class _FakeVerificationRepository implements VerificationRepository {
 
   @override
   Future<Result<VerificationCase>> getCase(String attendanceId) async {
-    return Ok(
-      VerificationCase(
-        attendanceId: attendanceId,
-        version: 1,
-        status: AttendanceStatus.crmReview,
-        carpenterName: 'Karim Uddin',
-        carpenterIdMasked: '••••1234',
-        campaignName: 'Test Campaign',
-        sessionName: 'Session A',
-        capturedAt: DateTime(2026, 7, 30),
-        capturedImageUrl: 'https://example.test/captured.png',
-        machine: const MachineResult(
-          band: MatchBand.high,
-          referenceSource: ReferenceSource.verifiedProfilePhoto,
-        ),
-      ),
-    );
+    return Ok(_caseBuilder(attendanceId));
   }
 
   @override
@@ -212,4 +221,134 @@ void main() {
       expectSinglePrimaryAction(tester);
     },
   );
+
+  testWidgets('S2: panning the captured image mirrors onto the reference', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final repo = _FakeVerificationRepository(
+      caseBuilder: (id) => _FakeVerificationRepository._defaultCase(
+        id,
+      ).copyWith(referenceImageUrl: 'https://example.test/reference.png'),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          verificationRepositoryProvider.overrideWithValue(repo),
+          authStateProvider.overrideWith((ref) => _signedInVerifier()),
+        ],
+        child: _wrapInRouter('ATT-3'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final viewers = tester
+        .widgetList<InteractiveViewer>(find.byType(InteractiveViewer))
+        .toList();
+    expect(viewers, hasLength(2));
+    final captured = viewers[0].transformationController!;
+    final reference = viewers[1].transformationController!;
+
+    captured.value = Matrix4.identity()..translateByDouble(-40, -20, 0, 1);
+    await tester.pump();
+    expect(reference.value, captured.value);
+  });
+
+  testWidgets(
+    'S2: toggling crm_zoom_sync off stops mirroring; back on re-syncs',
+    (tester) async {
+      tester.view.physicalSize = const Size(1400, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final repo = _FakeVerificationRepository(
+        caseBuilder: (id) => _FakeVerificationRepository._defaultCase(
+          id,
+        ).copyWith(referenceImageUrl: 'https://example.test/reference.png'),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            verificationRepositoryProvider.overrideWithValue(repo),
+            authStateProvider.overrideWith((ref) => _signedInVerifier()),
+          ],
+          child: _wrapInRouter('ATT-4'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final viewers = tester
+          .widgetList<InteractiveViewer>(find.byType(InteractiveViewer))
+          .toList();
+      final captured = viewers[0].transformationController!;
+      final reference = viewers[1].transformationController!;
+
+      // No verificationOverride permission granted, so this is the only Switch.
+      await tester.tap(find.byType(Switch));
+      await tester.pump();
+      captured.value = Matrix4.identity()..scaleByDouble(2, 2, 1, 1);
+      await tester.pump();
+      expect(reference.value, isNot(captured.value));
+
+      await tester.tap(find.byType(Switch));
+      await tester.pump();
+      expect(reference.value, captured.value); // re-synced on re-enable
+    },
+  );
+
+  testWidgets('S2: no reference image → no sync row', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final repo =
+        _FakeVerificationRepository(); // default: referenceImageUrl null
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          verificationRepositoryProvider.overrideWithValue(repo),
+          authStateProvider.overrideWith((ref) => _signedInVerifier()),
+        ],
+        child: _wrapInRouter('ATT-5'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Synced zoom'), findsNothing);
+    expect(find.byType(Switch), findsNothing);
+  });
+
+  testWidgets('frozen decision identifiers survive', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final repo = _FakeVerificationRepository();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          verificationRepositoryProvider.overrideWithValue(repo),
+          authStateProvider.overrideWith((ref) => _signedInVerifier()),
+        ],
+        child: _wrapInRouter('ATT-6'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    for (final id in [
+      'crm_outcome_approved',
+      'crm_outcome_rejected',
+      'crm_reason',
+      'crm_submit',
+    ]) {
+      expect(_byIdentifier(id), findsOneWidget, reason: id);
+    }
+  });
 }
