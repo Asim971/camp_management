@@ -309,9 +309,9 @@ ThemeData bmdTheme({Brightness brightness = Brightness.light}) {
   );
 }
 
-/// The expressive hero display role (spec RD.D2). Not a Material TextTheme slot
-/// (those are full), so it is exposed on BuildContext. Desktop size; the
-/// responsive layer steps it down on mobile like the rest of the scale.
+/// The expressive hero display roles (spec RD.D2). Not a Material TextTheme
+/// slot (those are full), so they are exposed on BuildContext. Desktop sizes;
+/// the responsive layer steps them down on mobile like the rest of the scale.
 extension BmdTextRoles on BuildContext {
   TextStyle get displayHero => TextStyle(
     fontFamily: 'Inter',
@@ -321,6 +321,20 @@ extension BmdTextRoles on BuildContext {
     fontWeight: FontWeight.w800,
     fontVariations: const [FontVariation('wght', 800)],
     letterSpacing: -1.5,
+    color: Theme.of(this).bmd.textHeading,
+  );
+
+  /// Section-hero display role (slice 2 RD2.D1): [ScreenHero] titles. Between
+  /// titleLarge and [displayHero]; w700 via fontVariations like the rest of
+  /// the scale — never a synthetic bold.
+  TextStyle get displayTitle => TextStyle(
+    fontFamily: 'Inter',
+    fontFamilyFallback: const ['NotoSansBengali'],
+    fontSize: 30,
+    height: 36 / 30,
+    fontWeight: FontWeight.w700,
+    fontVariations: const [FontVariation('wght', 700)],
+    letterSpacing: -0.5,
     color: Theme.of(this).bmd.textHeading,
   );
 }

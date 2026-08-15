@@ -7,6 +7,7 @@ import '../../../core/design_system/bmd_data_table.dart';
 import '../../../core/design_system/bmd_feedback.dart';
 import '../../../core/design_system/bmd_field.dart';
 import '../../../core/design_system/lineage_rail.dart';
+import '../../../core/design_system/screen_hero.dart';
 import '../../../core/design_system/status_chip.dart';
 import '../../../domain/common/status.dart';
 
@@ -27,8 +28,18 @@ abstract final class GallerySection {
   static const feedback = 'gallery_feedback';
   static const table = 'gallery_table';
   static const lineage = 'gallery_lineage';
+  static const screenHero = 'gallery_screen_hero';
 
-  static const all = [buttons, fields, status, cards, feedback, table, lineage];
+  static const all = [
+    buttons,
+    fields,
+    status,
+    cards,
+    feedback,
+    table,
+    lineage,
+    screenHero,
+  ];
 }
 
 /// The seven gallery sections, as data.
@@ -73,6 +84,11 @@ List<GallerySectionView> gallerySections() => const [
     id: GallerySection.lineage,
     title: 'Lineage rail',
     child: _LineageDemo(),
+  ),
+  GallerySectionView(
+    id: GallerySection.screenHero,
+    title: 'Screen hero',
+    child: _ScreenHeroDemo(),
   ),
 ];
 
@@ -653,6 +669,36 @@ class _LineageDemo extends StatelessWidget {
               meta: 'waiting for network',
             ),
             LineageNode(label: 'Uploaded', state: LineageState.pending),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _ScreenHeroDemo extends StatelessWidget {
+  const _ScreenHeroDemo();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const ScreenHero(title: 'Verification queue'),
+        const SizedBox(height: BmdSpace.s4),
+        ScreenHero(
+          title: 'Campaigns',
+          subtitle: 'All campaigns in scope',
+          summary: const [
+            StatusChip(label: '12 total', tone: StatusTone.neutral),
+            StatusChip(label: '7 active', tone: StatusTone.info),
+          ],
+          actions: [
+            BmdButton(
+              label: 'Create campaign',
+              variant: BmdButtonVariant.outlined,
+              onPressed: () {},
+            ),
           ],
         ),
       ],
