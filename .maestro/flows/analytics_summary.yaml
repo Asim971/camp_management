@@ -37,6 +37,7 @@ tags:
     id: "dev_launcher"
 - tapOn:
     id: "dev_open_campaigns"
+- assertVisible: ".*ACSL Pilot Carpenter Drive.*"
 # Navigate via the nav destination (Analytics appears for export holders).
 - tapOn: ".*Analytics.*"
 - assertVisible:
