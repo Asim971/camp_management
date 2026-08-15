@@ -315,4 +315,38 @@ void main() {
       expect(find.text('Reference SEC-403'), findsOneWidget);
     });
   });
+
+  group('BmdTextRoles', () {
+    testWidgets(
+      'displayHero is the 72px w800 hero role, not a synthetic bold',
+      (tester) async {
+        late TextStyle style;
+        await _pump(
+          tester,
+          Builder(
+            builder: (context) {
+              style = context.displayHero;
+              return const SizedBox();
+            },
+          ),
+        );
+
+        expect(style.fontSize, 72);
+        expect(style.fontFamily, 'Inter');
+        expect(style.letterSpacing, -1.5);
+        expect(style.height, 76 / 72);
+        expect(style.color, BmdTokens.light.textHeading);
+
+        // fontWeight alone would make the engine synthesise a fake bold
+        // (bmd_theme.dart's own _wght rationale) — the wght axis must also
+        // be set to the same 800 value.
+        final axis = (style.fontVariations ?? const <FontVariation>[]).where(
+          (v) => v.axis == 'wght',
+        );
+        expect(axis, hasLength(1));
+        expect(axis.single.value, 800);
+        expect(style.fontWeight, FontWeight.w800);
+      },
+    );
+  });
 }

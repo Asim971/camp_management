@@ -308,3 +308,19 @@ ThemeData bmdTheme({Brightness brightness = Brightness.light}) {
     ),
   );
 }
+
+/// The expressive hero display role (spec RD.D2). Not a Material TextTheme slot
+/// (those are full), so it is exposed on BuildContext. Desktop size; the
+/// responsive layer steps it down on mobile like the rest of the scale.
+extension BmdTextRoles on BuildContext {
+  TextStyle get displayHero => TextStyle(
+    fontFamily: 'Inter',
+    fontFamilyFallback: const ['NotoSansBengali'],
+    fontSize: 72,
+    height: 76 / 72,
+    fontWeight: FontWeight.w800,
+    fontVariations: const [FontVariation('wght', 800)],
+    letterSpacing: -1.5,
+    color: Theme.of(this).bmd.textHeading,
+  );
+}

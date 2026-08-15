@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app/theme/tokens.dart';
+import '../motion/motion_tokens.dart';
 import '../responsive/breakpoints.dart';
 
 /// Button variants from Guideline §5.1. Rule: a single filled primary action
@@ -79,26 +80,33 @@ class BmdButton extends StatelessWidget {
 
     return SizedBox(
       height: height,
-      child: switch (variant) {
-        BmdButtonVariant.primary => FilledButton(
-          onPressed: onTap,
-          child: child,
-        ),
-        BmdButtonVariant.tonal => FilledButton.tonal(
-          onPressed: onTap,
-          child: child,
-        ),
-        BmdButtonVariant.outlined => OutlinedButton(
-          onPressed: onTap,
-          child: child,
-        ),
-        BmdButtonVariant.text => TextButton(onPressed: onTap, child: child),
-        BmdButtonVariant.danger => FilledButton(
-          onPressed: onTap,
-          style: FilledButton.styleFrom(backgroundColor: BmdColor.error),
-          child: child,
-        ),
-      },
+      // Press-spring (slice 1): a purely visual tap-scale layered outside the
+      // Material button. It only observes pointer down/up/cancel — it never
+      // claims the gesture — so it cannot change hit-testing, the tap target,
+      // onPressed wiring or the Semantics/enabled workaround above.
+      child: _TapSpring(
+        enabled: _interactive && !motionOff(context),
+        child: switch (variant) {
+          BmdButtonVariant.primary => FilledButton(
+            onPressed: onTap,
+            child: child,
+          ),
+          BmdButtonVariant.tonal => FilledButton.tonal(
+            onPressed: onTap,
+            child: child,
+          ),
+          BmdButtonVariant.outlined => OutlinedButton(
+            onPressed: onTap,
+            child: child,
+          ),
+          BmdButtonVariant.text => TextButton(onPressed: onTap, child: child),
+          BmdButtonVariant.danger => FilledButton(
+            onPressed: onTap,
+            style: FilledButton.styleFrom(backgroundColor: BmdColor.error),
+            child: child,
+          ),
+        },
+      ),
     );
   }
 
@@ -107,6 +115,53 @@ class BmdButton extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [Icon(icon, size: 18), const SizedBox(width: 8), Text(label)],
+    );
+  }
+}
+
+/// A tactile tap-scale (slice 1): shrinks to 0.97 on pointer-down and springs
+/// back on release/cancel, purely as paint — a [Transform.scale] never
+/// changes layout size, so the tap target this wraps is identical with and
+/// without it.
+///
+/// Built on [Listener] rather than a [GestureDetector]/[InkWell]: a raw
+/// pointer listener only *observes* down/up/cancel, it never enters the
+/// gesture arena, so it cannot compete with — or delay — the wrapped
+/// Material button's own recognizer. [onPressed] wiring and the
+/// Semantics/`enabled:` workaround in [BmdButton.build] stay untouched.
+class _TapSpring extends StatefulWidget {
+  const _TapSpring({required this.enabled, required this.child});
+
+  /// False under reduced-motion (or when the button cannot be pressed),
+  /// pinning the scale at 1.0 regardless of pointer state.
+  final bool enabled;
+  final Widget child;
+
+  @override
+  State<_TapSpring> createState() => _TapSpringState();
+}
+
+class _TapSpringState extends State<_TapSpring> {
+  bool _pressed = false;
+
+  void _setPressed(bool value) {
+    if (_pressed == value) return;
+    setState(() => _pressed = value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scaled = widget.enabled && _pressed;
+    return Listener(
+      onPointerDown: widget.enabled ? (_) => _setPressed(true) : null,
+      onPointerUp: widget.enabled ? (_) => _setPressed(false) : null,
+      onPointerCancel: widget.enabled ? (_) => _setPressed(false) : null,
+      child: AnimatedScale(
+        scale: scaled ? 0.97 : 1.0,
+        duration: MotionDur.fast,
+        curve: MotionCurve.spring,
+        child: widget.child,
+      ),
     );
   }
 }
