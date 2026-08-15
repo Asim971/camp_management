@@ -62,12 +62,20 @@ void main() {
       // and several components (BmdButton, BmdField, BmdSearchField) would
       // size themselves for the wrong breakpoint. Driving tester.view
       // directly is what actually changes MediaQuery.sizeOf.
-      tester.view.physicalSize = const Size(1280, 4000);
+      // Height tracks gallery growth (slice 1 + slice 2 sections); increase if
+      // new sections are added.
+      tester.view.physicalSize = const Size(1280, 6000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
 
       await tester.pumpWidget(
-        MaterialApp(theme: bmdTheme(), home: const GalleryScreen()),
+        MaterialApp(
+          theme: bmdTheme(),
+          home: const MediaQuery(
+            data: MediaQueryData(disableAnimations: true),
+            child: GalleryScreen(),
+          ),
+        ),
       );
       // Not pumpAndSettle: the buttons section deliberately includes a
       // BmdButton(loading: true), whose CircularProgressIndicator animates
