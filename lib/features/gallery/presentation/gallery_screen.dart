@@ -6,6 +6,7 @@ import '../../../core/design_system/bmd_cards.dart';
 import '../../../core/design_system/bmd_data_table.dart';
 import '../../../core/design_system/bmd_feedback.dart';
 import '../../../core/design_system/bmd_field.dart';
+import '../../../core/design_system/bmd_state_view.dart';
 import '../../../core/design_system/lineage_rail.dart';
 import '../../../core/design_system/screen_hero.dart';
 import '../../../core/design_system/status_chip.dart';
@@ -29,6 +30,7 @@ abstract final class GallerySection {
   static const table = 'gallery_table';
   static const lineage = 'gallery_lineage';
   static const screenHero = 'gallery_screen_hero';
+  static const states = 'gallery_state_views';
 
   static const all = [
     buttons,
@@ -39,6 +41,7 @@ abstract final class GallerySection {
     table,
     lineage,
     screenHero,
+    states,
   ];
 }
 
@@ -89,6 +92,11 @@ List<GallerySectionView> gallerySections() => const [
     id: GallerySection.screenHero,
     title: 'Screen hero',
     child: _ScreenHeroDemo(),
+  ),
+  GallerySectionView(
+    id: GallerySection.states,
+    title: 'Empty and error states',
+    child: _StateViewsDemo(),
   ),
 ];
 
@@ -700,6 +708,34 @@ class _ScreenHeroDemo extends StatelessWidget {
               onPressed: () {},
             ),
           ],
+        ),
+      ],
+    );
+  }
+}
+
+class _StateViewsDemo extends StatelessWidget {
+  const _StateViewsDemo();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(
+          height: _kStateHeight,
+          child: BmdStateView.empty(
+            title: 'No cases in this view',
+            message: 'Claimed and escalated cases appear under their tabs.',
+          ),
+        ),
+        SizedBox(
+          height: _kStateHeight,
+          child: BmdStateView.error(
+            title: "Couldn't load the verification queue",
+            message: 'Check your connection and try again.',
+            onRetry: () {},
+          ),
         ),
       ],
     );
