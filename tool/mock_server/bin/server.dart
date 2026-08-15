@@ -418,12 +418,21 @@ Router _buildRouter(_Store store) {
   // all).
   r.get('/analytics/summary', (Request req) {
     if (!_permissionsOf(req).contains('export')) {
-      // Bare 403, no body -- mirrors the real service's `requirePermission`
-      // middleware exactly, which answers `Response.forbidden(null)`
-      // rather than a JSON error envelope (server/lib/src/auth/
-      // middleware.dart) -- so a client can't tell which backend it's
-      // talking to from this response alone.
-      return Response(403);
+      // JSON error envelope, not the bare `Response.forbidden(null)` the
+      // real service's `requirePermission` middleware itself answers with
+      // (server/lib/src/auth/middleware.dart) -- because that bare response
+      // never reaches a real client as-is: `errorEnvelope()`, the outermost
+      // middleware in server/lib/src/app.dart, rewraps any bare >=400
+      // response into exactly this `{"error": {...}}` shape before it goes
+      // over the wire (server/lib/src/infra/error_envelope.dart). `traceId`
+      // is omitted -- this mock has no correlation-id middleware to source
+      // one from, same as every other error envelope in this file.
+      return _json({
+        'error': {
+          'code': 'FORBIDDEN',
+          'message': 'You do not have permission to perform this action.',
+        },
+      }, status: 403);
     }
     final qp = req.url.queryParameters;
     final now = DateTime.now().toUtc();
@@ -646,10 +655,13 @@ Map<String, dynamic> _authPayload(String username) {
 
 /// The caller's permission set, resolved from a mock-issued bearer token
 /// (`mock-access-<role>`, minted by [_authPayload] above) against the same
-/// [_permissionsByRole] map. A missing, malformed, or unrecognised token
-/// carries no permissions at all (denied) -- this mock has no session
-/// store to consult, so an unfamiliar token can never be assumed
-/// privileged.
+/// [_permissionsByRole] map. A missing or malformed token (no `Bearer `
+/// prefix, or a token that isn't of the `mock-access-<role>` shape) carries
+/// no permissions at all (denied) -- this mock has no session store to
+/// consult, so an unfamiliar token shape can never be assumed privileged.
+/// A well-formed token naming a role [_permissionsByRole] doesn't recognise
+/// falls back to `['attendance_capture']`, mirroring [_authPayload]'s own
+/// fallback for an unrecognised role one line above.
 Set<String> _permissionsOf(Request req) {
   final header = req.headers['authorization'] ?? '';
   if (!header.startsWith('Bearer ')) return const <String>{};

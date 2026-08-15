@@ -1589,26 +1589,35 @@ void main() {
       }
     });
 
-    test(
-      'denied: a token without export -> 403 parity on both backends',
-      () async {
-        final real = await buildRealAnalyticsHandler();
-        final realRes = await real.handler(
-          Request(
-            'GET',
-            Uri.parse('http://localhost/analytics/summary'),
-            headers: {'authorization': 'Bearer ${real.fieldBearer}'},
-          ),
-        );
-        expect(realRes.statusCode, 403);
+    test('denied: a token without export -> 403 error-envelope parity on both '
+        'backends', () async {
+      final real = await buildRealAnalyticsHandler();
+      final realRes = await real.handler(
+        Request(
+          'GET',
+          Uri.parse('http://localhost/analytics/summary'),
+          headers: {'authorization': 'Bearer ${real.fieldBearer}'},
+        ),
+      );
+      expect(realRes.statusCode, 403);
+      // The real route itself answers a bare `Response.forbidden(null)`
+      // (auth/middleware.dart's `requirePermission`), but that never
+      // reaches a client as-is: `errorEnvelope()` (the outermost
+      // middleware, server/lib/src/app.dart) rewraps it into the
+      // documented `{"error": {...}}` shape before it goes over the wire
+      // -- so this is what the real service's caller actually sees.
+      final realBody =
+          jsonDecode(await realRes.readAsString()) as Map<String, Object?>;
+      expect((realBody['error']! as Map)['code'], 'FORBIDDEN');
 
-        final mockRes = await _mockGetRaw(
-          '/analytics/summary',
-          bearer: 'mock-access-field_user',
-        );
-        expect(mockRes.status, 403);
-      },
-    );
+      final mockRes = await _mockGetRaw(
+        '/analytics/summary',
+        bearer: 'mock-access-field_user',
+      );
+      expect(mockRes.status, 403);
+      final mockBody = jsonDecode(mockRes.body) as Map<String, Object?>;
+      expect((mockBody['error']! as Map)['code'], 'FORBIDDEN');
+    });
   });
 }
 
