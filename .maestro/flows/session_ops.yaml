@@ -45,21 +45,51 @@ tags:
 # a real POST /sessions/<id>/<action> to the campaign_service; assert the
 # resulting status label after each (extendedWaitUntil: the action is an async
 # round trip).
+#
+# Every session control is reached with scrollUntilVisible, not a bare tapOn:
+# the slice-2 expressive header (ScreenHero with the campaign name, status
+# chip, attendance meter and contextual actions) is tall enough on the CI
+# emulator's short viewport that the session card's buttons sit BELOW THE
+# FOLD — same shape as crm_case_decision.yaml's Decision card, fixed the same
+# way. Each action also refreshes the sessions list, which can reset the
+# scroll position, so every tap re-scrolls rather than assuming the previous
+# scroll still holds. waitToSettleTimeoutMs for the same emulator-settling
+# reason as the crm flows.
+- scrollUntilVisible:
+    element:
+      id: "session_start"
+    direction: DOWN
+    waitToSettleTimeoutMs: 1000
 - tapOn:
     id: "session_start"
 - extendedWaitUntil:
     visible: ".*Active.*"
     timeout: 15000
+- scrollUntilVisible:
+    element:
+      id: "session_pause"
+    direction: DOWN
+    waitToSettleTimeoutMs: 1000
 - tapOn:
     id: "session_pause"
 - extendedWaitUntil:
     visible: ".*Paused.*"
     timeout: 15000
+- scrollUntilVisible:
+    element:
+      id: "session_start"
+    direction: DOWN
+    waitToSettleTimeoutMs: 1000
 - tapOn:
     id: "session_start"
 - extendedWaitUntil:
     visible: ".*Active.*"
     timeout: 15000
+- scrollUntilVisible:
+    element:
+      id: "session_close"
+    direction: DOWN
+    waitToSettleTimeoutMs: 1000
 - tapOn:
     id: "session_close"
 - extendedWaitUntil:
