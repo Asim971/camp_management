@@ -42,34 +42,49 @@ class CampaignDetailScreen extends ConsumerWidget {
         ),
         data: (data) => DefaultTabController(
           length: 6,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _Header(campaignId: campaignId, data: data),
-              const TabBar(
-                isScrollable: true,
-                tabs: [
-                  Tab(text: 'Overview'),
-                  Tab(text: 'Sessions'),
-                  Tab(text: 'Registrations'),
-                  Tab(text: 'Attendance'),
-                  Tab(text: 'Analytics'),
-                  Tab(text: 'Audit'),
-                ],
-              ),
-              Expanded(
-                child: TabBarView(
-                  children: [
-                    _OverviewTab(data: data),
-                    _SessionsTab(campaignId: campaignId, data: data),
-                    _RegistrationsTab(campaignId: campaignId),
-                    const _Placeholder('Attendance timeline — W-05 follow-up'),
-                    const _Placeholder('Analytics — see A-02'),
-                    const _Placeholder('Audit trail — AD-01'),
-                  ],
-                ),
+          // A fixed hero+TabBar above the Column left the Sessions ListView a
+          // ~96dp scroll viewport on short phone screens — found by session_ops
+          // in CI, where Maestro's scrollUntilVisible swipes at screen center,
+          // landing in the non-scrollable hero so session_start could never be
+          // scrolled into view. NestedScrollView lets the hero scroll away with
+          // the page, giving tab content real height and making gesture-at-
+          // screen-center scrolling work.
+          child: NestedScrollView(
+            headerSliverBuilder: (context, _) => [
+              SliverToBoxAdapter(
+                child: _Header(campaignId: campaignId, data: data),
               ),
             ],
+            body: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const TabBar(
+                  isScrollable: true,
+                  tabs: [
+                    Tab(text: 'Overview'),
+                    Tab(text: 'Sessions'),
+                    Tab(text: 'Registrations'),
+                    Tab(text: 'Attendance'),
+                    Tab(text: 'Analytics'),
+                    Tab(text: 'Audit'),
+                  ],
+                ),
+                Expanded(
+                  child: TabBarView(
+                    children: [
+                      _OverviewTab(data: data),
+                      _SessionsTab(campaignId: campaignId, data: data),
+                      _RegistrationsTab(campaignId: campaignId),
+                      const _Placeholder(
+                        'Attendance timeline — W-05 follow-up',
+                      ),
+                      const _Placeholder('Analytics — see A-02'),
+                      const _Placeholder('Audit trail — AD-01'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
