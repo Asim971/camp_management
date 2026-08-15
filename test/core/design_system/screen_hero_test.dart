@@ -32,12 +32,12 @@ void main() {
       'populated slot', (tester) async {
     await tester.pumpWidget(
       _host(
-        ScreenHero(
+        const ScreenHero(
           title: 'Campaigns',
           subtitle: 'All campaigns in scope',
-          summary: const [Text('12 total')],
-          actions: const [Text('Create')],
-          meter: const Text('meter-slot'),
+          summary: [Text('12 total')],
+          actions: [Text('Create')],
+          meter: Text('meter-slot'),
         ),
       ),
     );
