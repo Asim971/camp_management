@@ -1,0 +1,55 @@
+# Slice 3 (A-02): the analytics summary renders real aggregates from the
+# seeded campaign_service data. Requires the realAuth APK; signs in as
+# campaign_creator (holds `export` — server/lib/src/auth/tokens.dart).
+# Seeded data guarantees a non-empty summary: CASE_CONFLICT is APPROVED at
+# seed time (verified >= 1) and CASE_E2E is CRM_REVIEW (in review >= 1).
+#
+# Navigation: DevLauncherScreen (lib/features/dev/presentation/
+# dev_launcher_screen.dart) has no direct Analytics entry — it is a bare
+# Scaffold with no AppShell/nav destinations, so tapping "Analytics" from
+# there has nothing to tap. Instead this flow opens `dev_open_campaigns`
+# first, landing on `/campaigns`, which IS wrapped in AppShell and therefore
+# renders the permission-filtered nav (nav_destinations.dart): for
+# campaign_creator (only `export` among the gated permissions) that is
+# exactly Dashboard/Campaigns/Analytics — three items, well under the mobile
+# NavigationBar's collapse threshold, so the "Analytics" label is on-screen
+# and tappable without opening an overflow menu.
+appId: ${APP_ID}
+tags:
+  - analytics
+  - critical
+  - android
+---
+- clearState
+- launchApp
+- assertVisible:
+    id: "login_username"
+- tapOn:
+    id: "login_username"
+- inputText: "campaign_creator"
+- tapOn:
+    id: "login_password"
+- inputText: "Test1234!"
+- hideKeyboard
+- tapOn:
+    id: "login_submit"
+- assertVisible:
+    id: "dev_launcher"
+- tapOn:
+    id: "dev_open_campaigns"
+# Navigate via the nav destination (Analytics appears for export holders).
+- tapOn: ".*Analytics.*"
+- assertVisible:
+    id: "analytics_trend"
+- scrollUntilVisible:
+    element:
+      id: "analytics_funnel"
+    direction: DOWN
+    waitToSettleTimeoutMs: 1000
+- scrollUntilVisible:
+    element:
+      id: "analytics_table"
+    direction: DOWN
+    waitToSettleTimeoutMs: 1000
+    visibilityPercentage: 40
+- assertVisible: ".*ACSL Pilot Carpenter Drive.*"

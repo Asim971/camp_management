@@ -348,6 +348,12 @@ jobs:
             defines: '--dart-define=E2E_REAL_AUTH=true --dart-define=ROLE=field_user'
             useMock: '0'
             flows: .maestro/flows/attendance_capture.yaml
+          # Slice 3: A-02 analytics against the real campaign_service.
+          - key: analytics
+            defines: '--dart-define=E2E_REAL_AUTH=true --dart-define=ROLE=campaign_creator'
+            useMock: '0'
+            flows: >-
+              .maestro/flows/analytics_summary.yaml
     steps:
       - uses: actions/checkout@v4
 

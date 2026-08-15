@@ -1,10 +1,13 @@
 import 'package:acsl_campaign/app/theme/bmd_theme.dart';
+import 'package:acsl_campaign/domain/analytics/analytics_summary.dart';
 import 'package:acsl_campaign/domain/campaign/campaign.dart';
 import 'package:acsl_campaign/domain/campaign/campaign_repository.dart';
 import 'package:acsl_campaign/domain/common/status.dart';
 import 'package:acsl_campaign/domain/session/campaign_session.dart';
 import 'package:acsl_campaign/domain/verification/verification.dart';
 import 'package:acsl_campaign/domain/verification/verification_case.dart';
+import 'package:acsl_campaign/features/analytics/application/analytics_notifier.dart';
+import 'package:acsl_campaign/features/analytics/presentation/analytics_screen.dart';
 import 'package:acsl_campaign/features/campaign_detail/application/campaign_detail_controller.dart';
 import 'package:acsl_campaign/features/campaign_detail/presentation/campaign_detail_screen.dart';
 import 'package:acsl_campaign/features/campaign_list/application/campaign_list_notifier.dart';
@@ -194,11 +197,87 @@ class _SeededDetail extends CampaignDetailController {
       );
 }
 
+/// A fixed 14-day analytics summary (2026-08-02..2026-08-15) — every field
+/// hand-picked so the trend, funnel, band-mix and drill table all render
+/// non-trivial data. `range` is fixed rather than derived from `DateTime.now`
+/// (the only clock read in the feature lives in the repository, upstream of
+/// this override) so the baseline never depends on the day the suite runs.
+class _SeededAnalytics extends AnalyticsNotifier {
+  @override
+  Future<AnalyticsSummary> build(AnalyticsQuery query) async =>
+      AnalyticsSummary(
+        funnel: const AnalyticsFunnel(
+          target: 500,
+          registered: 320,
+          captured: 210,
+          inReview: 9,
+          approved: 180,
+          rejected: 12,
+          returned: 6,
+        ),
+        verifiedPerDay: [
+          DailyCount(date: DateTime.utc(2026, 8, 2), count: 0),
+          DailyCount(date: DateTime.utc(2026, 8, 3), count: 3),
+          DailyCount(date: DateTime.utc(2026, 8, 4), count: 8),
+          DailyCount(date: DateTime.utc(2026, 8, 5), count: 5),
+          DailyCount(date: DateTime.utc(2026, 8, 6), count: 0),
+          DailyCount(date: DateTime.utc(2026, 8, 7), count: 12),
+          DailyCount(date: DateTime.utc(2026, 8, 8), count: 14),
+          DailyCount(date: DateTime.utc(2026, 8, 9), count: 9),
+          DailyCount(date: DateTime.utc(2026, 8, 10), count: 4),
+          DailyCount(date: DateTime.utc(2026, 8, 11), count: 0),
+          DailyCount(date: DateTime.utc(2026, 8, 12), count: 6),
+          DailyCount(date: DateTime.utc(2026, 8, 13), count: 11),
+          DailyCount(date: DateTime.utc(2026, 8, 14), count: 7),
+          DailyCount(date: DateTime.utc(2026, 8, 15), count: 2),
+        ],
+        bandMix: const {
+          MatchBand.high: 120,
+          MatchBand.medium: 60,
+          MatchBand.low: 18,
+          MatchBand.noReference: 12,
+        },
+        campaigns: const [
+          AnalyticsCampaignRow(
+            id: 'CAMP-1',
+            name: 'ACSL Pilot Carpenter Drive',
+            status: CampaignStatus.active,
+            target: 500,
+            verified: 320,
+            inReview: 9,
+          ),
+          AnalyticsCampaignRow(
+            id: 'CAMP-2',
+            name: 'Chattogram Contractor Meet',
+            status: CampaignStatus.active,
+            target: 300,
+            verified: 140,
+            inReview: 4,
+          ),
+          AnalyticsCampaignRow(
+            id: 'CAMP-3',
+            name: 'Sylhet Mason Outreach',
+            status: CampaignStatus.pendingApproval,
+            target: 200,
+            verified: 0,
+            inReview: 0,
+          ),
+        ],
+        sample: const AnalyticsSample(totalAttendance: 210, small: false),
+        range: AnalyticsRange(
+          from: DateTime.utc(2026, 8, 2),
+          to: DateTime.utc(2026, 8, 15),
+        ),
+        generatedAt: DateTime.utc(2026, 8, 15, 12),
+      );
+}
+
 final _screens = <String, Widget Function()>{
   'queue': () => const VerificationQueueScreen(),
   'crm_case': () => const CrmCaseScreen(attendanceId: 'CASE_OVERDUE'),
   'campaign_list': () => const CampaignListScreen(),
   'campaign_detail': () => const CampaignDetailScreen(campaignId: 'CAMP-1'),
+  'analytics': () => const AnalyticsScreen(),
 };
 
 // Family providers are overridden at the family level (no call-argument):
@@ -214,6 +293,10 @@ List<Override> _overridesFor(String id) => switch (id) {
   'crm_case' => [crmCaseControllerProvider.overrideWith(_SeededCase.new)],
   'campaign_list' => [campaignListProvider.overrideWith(_SeededList.new)],
   'campaign_detail' => [campaignDetailProvider.overrideWith(_SeededDetail.new)],
+  'analytics' => [
+    analyticsSummaryProvider.overrideWith(_SeededAnalytics.new),
+    campaignListProvider.overrideWith(_SeededList.new),
+  ],
   _ => throw StateError('unknown screen $id'),
 };
 
