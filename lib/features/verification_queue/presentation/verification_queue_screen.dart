@@ -9,7 +9,11 @@ import '../../../app/theme/tokens.dart';
 import '../../../core/auth/rbac.dart';
 import '../../../core/auth/session_manager.dart';
 import '../../../core/design_system/bmd_button.dart';
+import '../../../core/design_system/bmd_state_view.dart';
+import '../../../core/design_system/screen_hero.dart';
 import '../../../core/design_system/status_chip.dart';
+import '../../../core/motion/motion_tokens.dart';
+import '../../../core/motion/reveal.dart';
 import '../../../domain/common/status.dart';
 import '../../../domain/verification/verification_case.dart';
 import '../application/verification_queue_notifier.dart';
@@ -57,6 +61,18 @@ class _VerificationQueueScreenState
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(
+              BmdSpace.s4,
+              BmdSpace.s4,
+              BmdSpace.s4,
+              0,
+            ),
+            child: ScreenHero(
+              title: 'Verification queue',
+              subtitle: 'Prioritised by SLA and risk',
+            ),
+          ),
           _FilterTabs(
             selected: filter,
             canEscalate: canEscalate,
@@ -77,10 +93,13 @@ class _VerificationQueueScreenState
                       itemCount: items.length,
                       separatorBuilder: (_, __) =>
                           const SizedBox(height: BmdSpace.s3),
-                      itemBuilder: (_, i) => _QueueTile(
-                        item: items[i],
-                        userId: userId,
-                        filter: filter,
+                      itemBuilder: (_, i) => Reveal(
+                        index: i < 8 ? i : 8,
+                        child: _QueueTile(
+                          item: items[i],
+                          userId: userId,
+                          filter: filter,
+                        ),
                       ),
                     ),
             ),
@@ -114,7 +133,7 @@ class _FilterTabs extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         BmdSpace.s4,
-        BmdSpace.s4,
+        BmdSpace.s3,
         BmdSpace.s4,
         0,
       ),
@@ -162,88 +181,126 @@ class _QueueTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notifier = ref.read(verificationQueueProvider(filter).notifier);
+    final bmd = Theme.of(context).bmd;
+    final overdue = item.age >= const Duration(hours: 24);
+    final bandTone = switch (item.band) {
+      MatchBand.high => bmd.success,
+      MatchBand.medium => bmd.info,
+      MatchBand.low || MatchBand.noReference => bmd.warning,
+    };
+    final accent = overdue ? bmd.error : bandTone;
 
     return Semantics(
       identifier: 'queue_item_${item.attendanceId}',
       child: Card(
-        child: InkWell(
-          onTap: () => context.go('/verification/cases/${item.attendanceId}'),
-          borderRadius: BorderRadius.circular(BmdRadius.card),
-          child: Padding(
-            padding: const EdgeInsets.all(BmdSpace.s4),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+        child: Stack(
+          children: [
+            InkWell(
+              onTap: () =>
+                  context.go('/verification/cases/${item.attendanceId}'),
+              borderRadius: BorderRadius.circular(BmdRadius.card),
+              child: Padding(
+                padding: const EdgeInsets.all(BmdSpace.s4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Text(
-                        item.carpenterName,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                    ),
-                    if (item.escalatedAt != null)
-                      Padding(
-                        padding: const EdgeInsets.only(left: BmdSpace.s2),
-                        child: Semantics(
-                          identifier: 'queue_escalated_${item.attendanceId}',
-                          child: const StatusChip(
-                            label: 'Escalated',
-                            tone: StatusTone.error,
-                            icon: Icons.priority_high,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            item.carpenterName,
+                            style: Theme.of(context).textTheme.titleMedium,
                           ),
                         ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: BmdSpace.s1),
-                Text(
-                  item.campaignName,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-                const SizedBox(height: BmdSpace.s2),
-                Wrap(
-                  spacing: BmdSpace.s2,
-                  runSpacing: BmdSpace.s1,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Chip(label: Text('Band: ${_band(item.band)}')),
-                    Text(
-                      'Waiting ${_formatAge(item.age)}',
-                      style: Theme.of(context).textTheme.labelMedium,
-                    ),
-                    Text(
-                      _isUnassigned
-                          ? 'Unassigned'
-                          : (_isMine ? 'Assigned to you' : 'Assigned'),
-                      style: Theme.of(context).textTheme.labelMedium,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: BmdSpace.s3),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: _isUnassigned
-                      ? BmdButton(
-                          identifier: 'queue_claim_${item.attendanceId}',
-                          label: 'Claim',
-                          variant: BmdButtonVariant.outlined,
-                          onPressed: () => _act(context, notifier.claim),
-                        )
-                      : (_isMine
-                            ? BmdButton(
+                        if (item.escalatedAt != null)
+                          Padding(
+                            padding: const EdgeInsets.only(left: BmdSpace.s2),
+                            child: _EscalatedGlow(
+                              child: Semantics(
                                 identifier:
-                                    'queue_release_${item.attendanceId}',
-                                label: 'Release',
-                                variant: BmdButtonVariant.outlined,
-                                onPressed: () =>
-                                    _act(context, notifier.release),
-                              )
-                            : const SizedBox.shrink()),
+                                    'queue_escalated_${item.attendanceId}',
+                                child: const StatusChip(
+                                  label: 'Escalated',
+                                  tone: StatusTone.error,
+                                  icon: Icons.priority_high,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: BmdSpace.s1),
+                    Text(
+                      item.campaignName,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: BmdSpace.s2),
+                    Wrap(
+                      spacing: BmdSpace.s2,
+                      runSpacing: BmdSpace.s1,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Chip(label: Text('Band: ${_band(item.band)}')),
+                        Text(
+                          'Waiting ${_formatAge(item.age)}',
+                          style: overdue
+                              ? Theme.of(
+                                  context,
+                                ).textTheme.labelMedium?.copyWith(
+                                  color: bmd.error,
+                                  fontVariations: const [
+                                    FontVariation('wght', 600),
+                                  ],
+                                )
+                              : Theme.of(context).textTheme.labelMedium,
+                        ),
+                        Text(
+                          _isUnassigned
+                              ? 'Unassigned'
+                              : (_isMine ? 'Assigned to you' : 'Assigned'),
+                          style: Theme.of(context).textTheme.labelMedium,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: BmdSpace.s3),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: _isUnassigned
+                          ? BmdButton(
+                              identifier: 'queue_claim_${item.attendanceId}',
+                              label: 'Claim',
+                              variant: BmdButtonVariant.outlined,
+                              onPressed: () => _act(context, notifier.claim),
+                            )
+                          : (_isMine
+                                ? BmdButton(
+                                    identifier:
+                                        'queue_release_${item.attendanceId}',
+                                    label: 'Release',
+                                    variant: BmdButtonVariant.outlined,
+                                    onPressed: () =>
+                                        _act(context, notifier.release),
+                                  )
+                                : const SizedBox.shrink()),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ),
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: 3,
+              child: ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(BmdRadius.card),
+                  bottomLeft: Radius.circular(BmdRadius.card),
+                ),
+                child: ColoredBox(color: accent),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -287,29 +344,56 @@ class _QueueTile extends ConsumerWidget {
   }
 }
 
+/// One-time entrance halo for the Escalated chip (S1): accent-cyan glow that
+/// rises and fades once. Entirely skipped under reduced motion — the chip
+/// renders statically.
+class _EscalatedGlow extends StatelessWidget {
+  const _EscalatedGlow({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (motionOff(context)) return child;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: MotionDur.slow * 2,
+      builder: (context, t, c) {
+        final pulse = 1 - (2 * t - 1).abs(); // 0 → 1 → 0
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(BmdRadius.chip),
+            boxShadow: [
+              BoxShadow(
+                color: BmdColor.accentCyan.withValues(alpha: 0.24 * pulse),
+                blurRadius: 12,
+                spreadRadius: 1,
+              ),
+            ],
+          ),
+          child: c,
+        );
+      },
+      child: child,
+    );
+  }
+}
+
 class _EmptyState extends StatelessWidget {
   const _EmptyState();
   @override
-  Widget build(BuildContext context) =>
-      const Center(child: Text('No cases in this view.'));
+  Widget build(BuildContext context) => const BmdStateView.empty(
+    title: 'No cases in this view',
+    message: 'Claimed and escalated cases appear under their own tabs.',
+  );
 }
 
 class _ErrorState extends StatelessWidget {
   const _ErrorState({required this.onRetry});
   final VoidCallback onRetry;
   @override
-  Widget build(BuildContext context) => Center(
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Text("Couldn't load the verification queue."),
-        const SizedBox(height: BmdSpace.s2),
-        BmdButton(
-          variant: BmdButtonVariant.outlined,
-          label: 'Retry',
-          onPressed: onRetry,
-        ),
-      ],
-    ),
+  Widget build(BuildContext context) => BmdStateView.error(
+    title: "Couldn't load the verification queue",
+    message: 'Check your connection and try again.',
+    onRetry: onRetry,
   );
 }
