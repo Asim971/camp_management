@@ -3,10 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/shell/app_shell.dart';
+import '../../../app/theme/tokens.dart';
 import '../../../core/auth/permission_gate.dart';
 import '../../../core/auth/rbac.dart';
 import '../../../core/design_system/bmd_button.dart';
+import '../../../core/design_system/bmd_cards.dart';
+import '../../../core/design_system/bmd_state_view.dart';
+import '../../../core/design_system/screen_hero.dart';
 import '../../../core/design_system/status_chip.dart';
+import '../../../core/motion/motion_tokens.dart';
+import '../../../core/motion/reveal.dart';
 import '../../../domain/common/status.dart';
 import '../../../domain/common/status_labels.dart';
 import '../../../domain/session/campaign_session.dart';
@@ -29,12 +35,10 @@ class CampaignDetailScreen extends ConsumerWidget {
       title: 'Campaign detail',
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) => Center(
-          child: BmdButton(
-            label: 'Retry',
-            variant: BmdButtonVariant.outlined,
-            onPressed: () => ref.invalidate(campaignDetailProvider(campaignId)),
-          ),
+        error: (_, __) => BmdStateView.error(
+          title: "Couldn't load this campaign",
+          message: 'Check your connection and try again.',
+          onRetry: () => ref.invalidate(campaignDetailProvider(campaignId)),
         ),
         data: (data) => DefaultTabController(
           length: 6,
@@ -127,32 +131,65 @@ class _Header extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  c.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-              ),
-              const SizedBox(width: 12),
-              StatusChip(
-                label: c.status.label(AppL10n.of(context)),
-                tone: StatusTone.info,
-              ),
-            ],
+      child: ScreenHero(
+        title: c.name,
+        summary: [
+          StatusChip(
+            label: c.status.label(AppL10n.of(context)),
+            tone: StatusTone.info,
           ),
-          if (actions.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Wrap(spacing: 8, runSpacing: 8, children: actions),
-          ],
         ],
+        actions: actions,
+        meter: _ProgressMeter(
+          verified: c.verifiedAttendance,
+          target: c.targetAudience,
+        ),
       ),
+    );
+  }
+}
+
+/// S4: verified attendance vs target as a rounded linear gauge (§6.3 — the
+/// defence line beneath says exactly what the number is). Cyan is the data
+/// accent (never an action color). Under reduced motion the fill renders at
+/// its final width in one frame ([reduced] collapses the duration; see
+/// CountUp's note on TweenAnimationBuilder and zero durations).
+class _ProgressMeter extends StatelessWidget {
+  const _ProgressMeter({required this.verified, required this.target});
+  final int verified;
+  final int target;
+
+  @override
+  Widget build(BuildContext context) {
+    final bmd = Theme.of(context).bmd;
+    final fraction = target <= 0
+        ? 0.0
+        : (verified / target).clamp(0.0, 1.0).toDouble();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0, end: fraction),
+          duration: reduced(context, MotionDur.slow),
+          curve: MotionCurve.emphasized,
+          builder: (context, f, _) => ClipRRect(
+            borderRadius: BorderRadius.circular(BmdRadius.chip),
+            child: LinearProgressIndicator(
+              value: f,
+              minHeight: 10,
+              backgroundColor: bmd.surfaceSunken,
+              valueColor: AlwaysStoppedAnimation(bmd.accent),
+            ),
+          ),
+        ),
+        const SizedBox(height: BmdSpace.s1),
+        Text(
+          target <= 0 ? 'No target set' : '$verified of $target verified',
+          style: Theme.of(
+            context,
+          ).textTheme.labelMedium?.copyWith(color: bmd.textSecondary),
+        ),
+      ],
     );
   }
 }
@@ -186,21 +223,29 @@ class _OverviewTab extends StatelessWidget {
   }
 
   Widget _kpi(BuildContext context, String label, int value) => SizedBox(
-    width: 160,
-    child: Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: Theme.of(context).textTheme.labelMedium),
-            const SizedBox(height: 6),
-            Text('$value', style: Theme.of(context).textTheme.headlineMedium),
-          ],
-        ),
+    width: 260,
+    child: TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: value.toDouble()),
+      duration: reduced(context, MotionDur.slow),
+      curve: MotionCurve.emphasized,
+      builder: (context, v, _) => KpiCard(
+        label: label,
+        value: '${v.round()}',
+        definition: _definitionFor(label),
+        source: 'Campaign service',
+        freshness: 'Live',
+        glass: true,
       ),
     ),
   );
+
+  String _definitionFor(String label) => switch (label) {
+    'Registered' => 'Participants registered across all sessions.',
+    'Pending sync' => 'Captures waiting to upload from field devices.',
+    'In review' => 'Attendance records awaiting CRM verification.',
+    'Approved' => 'Attendance approved by verification.',
+    _ => label,
+  };
 }
 
 class _SessionsTab extends ConsumerWidget {
@@ -217,7 +262,11 @@ class _SessionsTab extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: 12),
       children: [
-        for (final s in data.sessions) _SessionCard(session: s, controller: c),
+        for (final (i, s) in data.sessions.indexed)
+          Reveal(
+            index: i < 8 ? i : 8,
+            child: _SessionCard(session: s, controller: c),
+          ),
       ],
     );
   }
@@ -230,88 +279,113 @@ class _SessionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bmd = Theme.of(context).bmd;
+    final accent = (!session.readinessOk || session.overCapacity)
+        ? bmd.warning
+        : bmd.info;
+
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      child: Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Text(
-                    session.venue,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        session.venue,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ),
+                    if (!session.readinessOk)
+                      const StatusChip(
+                        label: 'Readiness',
+                        tone: StatusTone.warning,
+                      )
+                    else if (session.overCapacity)
+                      const StatusChip(
+                        label: 'Over capacity',
+                        tone: StatusTone.warning,
+                      )
+                    else
+                      StatusChip(
+                        label: session.status.label(AppL10n.of(context)),
+                        tone: StatusTone.info,
+                      ),
+                  ],
                 ),
-                if (!session.readinessOk)
-                  const StatusChip(label: 'Readiness', tone: StatusTone.warning)
-                else if (session.overCapacity)
-                  const StatusChip(
-                    label: 'Over capacity',
-                    tone: StatusTone.warning,
-                  )
-                else
-                  StatusChip(
-                    label: session.status.label(AppL10n.of(context)),
-                    tone: StatusTone.info,
-                  ),
+                const SizedBox(height: 8),
+                Text(
+                  'Registered ${session.registeredCount} · pending ${session.pendingSyncCount} '
+                  '· review ${session.reviewCount} · approved ${session.approvedCount}',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    if (session.status == SessionStatus.upcoming)
+                      BmdButton(
+                        identifier: 'session_start',
+                        label: 'Start',
+                        variant: BmdButtonVariant.tonal,
+                        onPressed: session.readinessOk
+                            ? () => controller.startSession(session.id)
+                            : null,
+                      ),
+                    if (session.status == SessionStatus.active) ...[
+                      BmdButton(
+                        identifier: 'session_pause',
+                        label: 'Pause',
+                        variant: BmdButtonVariant.outlined,
+                        onPressed: () => controller.pauseSession(session.id),
+                      ),
+                      const SizedBox(width: 8),
+                      BmdButton(
+                        identifier: 'session_close',
+                        label: 'Close capture',
+                        variant: BmdButtonVariant.outlined,
+                        onPressed: () => controller.closeSession(session.id),
+                      ),
+                    ],
+                    if (session.status == SessionStatus.paused) ...[
+                      BmdButton(
+                        identifier: 'session_start',
+                        label: 'Resume',
+                        variant: BmdButtonVariant.tonal,
+                        onPressed: session.readinessOk
+                            ? () => controller.startSession(session.id)
+                            : null,
+                      ),
+                      const SizedBox(width: 8),
+                      BmdButton(
+                        identifier: 'session_close',
+                        label: 'Close capture',
+                        variant: BmdButtonVariant.outlined,
+                        onPressed: () => controller.closeSession(session.id),
+                      ),
+                    ],
+                  ],
+                ),
               ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Registered ${session.registeredCount} · pending ${session.pendingSyncCount} '
-              '· review ${session.reviewCount} · approved ${session.approvedCount}',
-              style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: 3,
+            child: ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(BmdRadius.card),
+                bottomLeft: Radius.circular(BmdRadius.card),
+              ),
+              child: ColoredBox(color: accent),
             ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                if (session.status == SessionStatus.upcoming)
-                  BmdButton(
-                    identifier: 'session_start',
-                    label: 'Start',
-                    variant: BmdButtonVariant.tonal,
-                    onPressed: session.readinessOk
-                        ? () => controller.startSession(session.id)
-                        : null,
-                  ),
-                if (session.status == SessionStatus.active) ...[
-                  BmdButton(
-                    identifier: 'session_pause',
-                    label: 'Pause',
-                    variant: BmdButtonVariant.outlined,
-                    onPressed: () => controller.pauseSession(session.id),
-                  ),
-                  const SizedBox(width: 8),
-                  BmdButton(
-                    identifier: 'session_close',
-                    label: 'Close capture',
-                    variant: BmdButtonVariant.outlined,
-                    onPressed: () => controller.closeSession(session.id),
-                  ),
-                ],
-                if (session.status == SessionStatus.paused) ...[
-                  BmdButton(
-                    identifier: 'session_start',
-                    label: 'Resume',
-                    variant: BmdButtonVariant.tonal,
-                    onPressed: session.readinessOk
-                        ? () => controller.startSession(session.id)
-                        : null,
-                  ),
-                  const SizedBox(width: 8),
-                  BmdButton(
-                    identifier: 'session_close',
-                    label: 'Close capture',
-                    variant: BmdButtonVariant.outlined,
-                    onPressed: () => controller.closeSession(session.id),
-                  ),
-                ],
-              ],
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
