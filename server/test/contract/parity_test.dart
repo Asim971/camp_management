@@ -1281,6 +1281,392 @@ void main() {
       },
     );
   }
+
+  // Task 3 (RD3.D1): the mock gained a genuine, fixture-computed
+  // `/analytics/summary` (tool/mock_server/bin/server.dart's `_Store.
+  // analyticsSummary`, backed by `_analyticsAttendance`/
+  // `_registeredByCampaign`), mirroring `AnalyticsRepo.summary`'s envelope
+  // and range semantics exactly. Unlike the loop above, each case here
+  // seeds the real DB to numerically MATCH the mock's own fixed fixture
+  // (three campaigns CAMP-1/CAMP-2/CAMP-3 at the same targets/statuses, the
+  // mock's fixed per-campaign registration counts, and its five attendance
+  // rows against CAMP-1) so the two backends can be compared on actual
+  // computed NUMBERS, not just shape — the same spirit as the carpenter
+  // (CARP_E2E) seeding above, applied to a richer envelope.
+  group('/analytics/summary parity', () {
+    Future<void> seedRealToMatchMockFixture(Db db) async {
+      await seedCampaign(
+        db,
+        id: 'CAMP-1',
+        name: 'ACSL Pilot Carpenter Drive',
+        status: CampaignStatus.approved,
+        targetAudience: 100,
+      );
+      await seedCampaign(
+        db,
+        id: 'CAMP-2',
+        name: 'Chattogram Contractor Meet',
+        status: CampaignStatus.pendingApproval,
+        targetAudience: 60,
+      );
+      await seedCampaign(
+        db,
+        id: 'CAMP-3',
+        name: 'Rajshahi Carpenter Drive',
+        status: CampaignStatus.draft,
+        targetAudience: 40,
+      );
+      await seedCampaignSession(
+        db,
+        id: 'CAMP-1-sess',
+        campaignId: 'CAMP-1',
+        venue: 'Hall A',
+      );
+
+      await seedCarpenter(db, id: 'AN_CARP_1');
+      await seedCarpenter(
+        db,
+        id: 'AN_CARP_2',
+        phone: '+8801700009101',
+        displayCode: 'CARP-00009101',
+      );
+      await seedCarpenter(
+        db,
+        id: 'AN_CARP_3',
+        phone: '+8801700009102',
+        displayCode: 'CARP-00009102',
+      );
+      // Mirrors the mock's fixed `_registeredByCampaign`: CAMP-1: 2,
+      // CAMP-2: 1, CAMP-3: 0.
+      await seedRegistration(
+        db,
+        campaignId: 'CAMP-1',
+        carpenterId: 'AN_CARP_1',
+      );
+      await seedRegistration(
+        db,
+        campaignId: 'CAMP-1',
+        carpenterId: 'AN_CARP_2',
+      );
+      await seedRegistration(
+        db,
+        campaignId: 'CAMP-2',
+        carpenterId: 'AN_CARP_3',
+      );
+
+      // Mirrors the mock's fixed `_analyticsAttendance` list exactly.
+      await seedAttendanceForAnalytics(
+        db,
+        id: 'AN_A1',
+        campaignId: 'CAMP-1',
+        sessionId: 'CAMP-1-sess',
+        carpenterId: 'AN_CARP_1',
+        status: 'APPROVED',
+        machineBand: 'HIGH',
+        capturedAt: DateTime.utc(2025, 6, 1, 10),
+      );
+      await seedAttendanceForAnalytics(
+        db,
+        id: 'AN_A2',
+        campaignId: 'CAMP-1',
+        sessionId: 'CAMP-1-sess',
+        carpenterId: 'AN_CARP_1',
+        status: 'APPROVED',
+        machineBand: 'MEDIUM',
+        capturedAt: DateTime.utc(2025, 6, 1, 15),
+      );
+      await seedAttendanceForAnalytics(
+        db,
+        id: 'AN_A3',
+        campaignId: 'CAMP-1',
+        sessionId: 'CAMP-1-sess',
+        carpenterId: 'AN_CARP_1',
+        status: 'APPROVED',
+        machineBand: 'HIGH',
+        capturedAt: DateTime.utc(2025, 6, 3, 9),
+      );
+      await seedAttendanceForAnalytics(
+        db,
+        id: 'AN_A4',
+        campaignId: 'CAMP-1',
+        sessionId: 'CAMP-1-sess',
+        carpenterId: 'AN_CARP_1',
+        status: 'CRM_REVIEW',
+        machineBand: 'LOW',
+        capturedAt: DateTime.utc(2025, 6, 3, 11),
+      );
+      await seedAttendanceForAnalytics(
+        db,
+        id: 'AN_A5',
+        campaignId: 'CAMP-1',
+        sessionId: 'CAMP-1-sess',
+        carpenterId: 'AN_CARP_1',
+        status: 'REJECTED',
+        machineBand: 'NO_REFERENCE',
+        capturedAt: DateTime.utc(2025, 6, 4, 8),
+      );
+    }
+
+    Future<({Handler handler, String creatorBearer, String fieldBearer})>
+    buildRealAnalyticsHandler() async {
+      final db = await freshDb();
+      openDbs.add(db);
+      await Migrator(db).applyPending();
+      await seedOrganizationWithUser(db); // campaign_creator, org-1/user-1
+      await seedOrganizationWithUser(
+        db,
+        userId: 'analytics-field',
+        username: 'analytics-field',
+        roles: const ['field_user'],
+      );
+      await seedRealToMatchMockFixture(db);
+
+      final config = ServerConfig.fromEnvironment({
+        'DATABASE_URL': testDatabaseUrl,
+        'JWT_SECRET': 'a-secret-at-least-32-characters-long!!',
+      });
+      final tokens = TokenService(db: db, config: config);
+      final creatorBearer = (await tokens.issueFor('user-1')).accessToken;
+      final fieldBearer = (await tokens.issueFor(
+        'analytics-field',
+      )).accessToken;
+      return (
+        handler: buildApp(db: db, config: config),
+        creatorBearer: creatorBearer,
+        fieldBearer: fieldBearer,
+      );
+    }
+
+    Future<Map<String, Object?>> getRealJson(
+      Handler handler,
+      String path, {
+      required String bearer,
+    }) async {
+      final res = await handler(
+        Request(
+          'GET',
+          Uri.parse('http://localhost$path'),
+          headers: {'authorization': 'Bearer $bearer'},
+        ),
+      );
+      return jsonDecode(await res.readAsString()) as Map<String, Object?>;
+    }
+
+    test('default query (no params): same key set, funnel field names, int '
+        'types, and equal numbers across backends', () async {
+      final real = await buildRealAnalyticsHandler();
+      final realBody = await getRealJson(
+        real.handler,
+        '/analytics/summary',
+        bearer: real.creatorBearer,
+      );
+      final mockBody = await _mockGetJson(
+        '/analytics/summary',
+        bearer: 'mock-access-campaign_creator',
+      );
+
+      const expectedKeys = <String>{
+        'funnel',
+        'verifiedPerDay',
+        'bandMix',
+        'campaigns',
+        'sample',
+        'range',
+        'generatedAt',
+      };
+      expect(realBody.keys.toSet(), expectedKeys);
+      expect(mockBody.keys.toSet(), expectedKeys);
+
+      const funnelKeys = <String>[
+        'target',
+        'registered',
+        'captured',
+        'inReview',
+        'approved',
+        'rejected',
+        'returned',
+      ];
+      for (final body in [realBody, mockBody]) {
+        final funnel = body['funnel']! as Map<String, Object?>;
+        expect(funnel.keys.toSet(), funnelKeys.toSet());
+        for (final key in funnelKeys) {
+          expect(funnel[key], isA<int>());
+        }
+      }
+
+      // Structural denominators (unranged): target sums all 3 seeded
+      // campaigns (100+60+40), registered sums all 3 fixed registrations
+      // (2+1+0) — identical on both backends because the real DB above
+      // was seeded to numerically match the mock's own fixed fixture.
+      expect((realBody['funnel']! as Map)['target'], 200);
+      expect((mockBody['funnel']! as Map)['target'], 200);
+      expect((realBody['funnel']! as Map)['registered'], 3);
+      expect((mockBody['funnel']! as Map)['registered'], 3);
+
+      // Ranged numbers: both backends' attendance fixtures are dated in
+      // mid-2025, outside the default (last-30-days-from-today) window,
+      // so every ranged number is zero on both, regardless of which day
+      // this suite happens to run.
+      expect(realBody['funnel'], mockBody['funnel']);
+      expect(realBody['verifiedPerDay'], <Object?>[]);
+      expect(mockBody['verifiedPerDay'], <Object?>[]);
+      expect(realBody['bandMix'], mockBody['bandMix']);
+      expect(realBody['sample'], mockBody['sample']);
+      expect(realBody['sample'], {'totalAttendance': 0, 'small': true});
+      expect(realBody['campaigns'], mockBody['campaigns']);
+    });
+
+    test('?campaignId=CAMP-1 filters campaigns to one row on both, with '
+        "matching ranged numbers over the fixture's own fixed range", () async {
+      final real = await buildRealAnalyticsHandler();
+      const query =
+          '/analytics/summary?campaignId=CAMP-1&from=2025-06-01'
+          '&to=2025-06-30';
+      final realBody = await getRealJson(
+        real.handler,
+        query,
+        bearer: real.creatorBearer,
+      );
+      final mockBody = await _mockGetJson(
+        query,
+        bearer: 'mock-access-campaign_creator',
+      );
+
+      for (final body in [realBody, mockBody]) {
+        final campaigns = (body['campaigns']! as List)
+            .cast<Map<String, Object?>>();
+        expect(campaigns, hasLength(1));
+        expect(campaigns.single['id'], 'CAMP-1');
+      }
+
+      expect(realBody['funnel'], mockBody['funnel']);
+      expect(realBody['funnel'], {
+        'target': 100,
+        'registered': 2,
+        'captured': 5,
+        'inReview': 1,
+        'approved': 3,
+        'rejected': 1,
+        'returned': 0,
+      });
+      expect(realBody['verifiedPerDay'], mockBody['verifiedPerDay']);
+      expect(realBody['verifiedPerDay'], [
+        {'date': '2025-06-01', 'count': 2},
+        {'date': '2025-06-03', 'count': 1},
+      ]);
+      expect(realBody['bandMix'], mockBody['bandMix']);
+      expect(realBody['bandMix'], {
+        'HIGH': 2,
+        'MEDIUM': 1,
+        'LOW': 1,
+        'NO_REFERENCE': 1,
+      });
+      expect(realBody['sample'], mockBody['sample']);
+      expect(realBody['sample'], {'totalAttendance': 5, 'small': true});
+      expect(realBody['range'], mockBody['range']);
+      expect(realBody['range'], {'from': '2025-06-01', 'to': '2025-06-30'});
+    });
+
+    test('empty range (2020-01-01..2020-01-02): captured==0, small==true, '
+        'verifiedPerDay==[] on both', () async {
+      final real = await buildRealAnalyticsHandler();
+      const query = '/analytics/summary?from=2020-01-01&to=2020-01-02';
+      final realBody = await getRealJson(
+        real.handler,
+        query,
+        bearer: real.creatorBearer,
+      );
+      final mockBody = await _mockGetJson(
+        query,
+        bearer: 'mock-access-campaign_creator',
+      );
+
+      for (final body in [realBody, mockBody]) {
+        final funnel = body['funnel']! as Map<String, Object?>;
+        expect(funnel['captured'], 0);
+        expect(body['sample'], {'totalAttendance': 0, 'small': true});
+        expect(body['verifiedPerDay'], <Object?>[]);
+      }
+    });
+
+    test(
+      'denied: a token without export -> 403 parity on both backends',
+      () async {
+        final real = await buildRealAnalyticsHandler();
+        final realRes = await real.handler(
+          Request(
+            'GET',
+            Uri.parse('http://localhost/analytics/summary'),
+            headers: {'authorization': 'Bearer ${real.fieldBearer}'},
+          ),
+        );
+        expect(realRes.statusCode, 403);
+
+        final mockRes = await _mockGetRaw(
+          '/analytics/summary',
+          bearer: 'mock-access-field_user',
+        );
+        expect(mockRes.status, 403);
+      },
+    );
+  });
+}
+
+/// Inserts an `attendance` row directly, plus its `media_objects` evidence
+/// row (the attendance id doubles as the media id — same convention
+/// `AttendanceRepo.confirm` uses). Copied verbatim (module-local) from
+/// `server/test/analytics/analytics_routes_test.dart`'s `seedAttendance`,
+/// dropping the `organizationId` parameter (every call site here is
+/// `org-1`, this file's one fixed default) — this file's own established
+/// convention for small cross-test helper duplication rather than a shared
+/// import (see this file's `getReal`/`decideReal` local closures above).
+Future<void> seedAttendanceForAnalytics(
+  Db db, {
+  required String id,
+  required String campaignId,
+  required String sessionId,
+  required String carpenterId,
+  String organizationId = 'org-1',
+  String capturedBy = 'user-1',
+  DateTime? capturedAt,
+  String machineBand = 'MEDIUM',
+  String machineReferenceSrc = 'APPROVED_BASELINE_PHOTO',
+  List<String> machineReasons = const [],
+  String status = 'APPROVED',
+  int version = 1,
+}) async {
+  await db.execute(
+    'INSERT INTO attendance '
+    '(id, organization_id, campaign_id, session_id, carpenter_id, media_ref, '
+    ' status, captured_by, captured_at, machine_band, machine_reference_src, '
+    ' machine_reasons, version) '
+    'VALUES (@id, @org, @camp, @sess, @carp, @id, @status, @by, @at, @mb, '
+    '        @mrs, @mr::jsonb, @v)',
+    params: {
+      'id': id,
+      'org': organizationId,
+      'camp': campaignId,
+      'sess': sessionId,
+      'carp': carpenterId,
+      'status': status,
+      'by': capturedBy,
+      'at':
+          capturedAt ??
+          DateTime.now().toUtc().subtract(const Duration(minutes: 5)),
+      'mb': machineBand,
+      'mrs': machineReferenceSrc,
+      'mr': jsonEncode(machineReasons),
+      'v': version,
+    },
+  );
+  await db.execute(
+    "INSERT INTO media_objects (id, content_type, bytes) "
+    "VALUES (@id, 'image/png', @bytes)",
+    params: {
+      'id': id,
+      'bytes': Uint8List.fromList(const [1, 2, 3, 4]),
+    },
+  );
 }
 
 Future<void> _waitUntilUp(Uri uri, {int attempts = 30}) async {
@@ -1304,6 +1690,40 @@ Future<String> _httpGet(Uri uri) async {
   } finally {
     client.close();
   }
+}
+
+/// Like [_httpGet], but against the mock's fixed port and with an optional
+/// bearer token — needed for `/analytics/summary`'s permission gate, the
+/// first route in this suite's mock target that ever checks one (every
+/// other mock route this file exercises ignores Authorization entirely).
+Future<({int status, String body})> _mockGetRaw(
+  String pathAndQuery, {
+  String? bearer,
+}) async {
+  final client = HttpClient();
+  try {
+    final request = await client.getUrl(
+      Uri.parse('http://127.0.0.1:$_mockPort$pathAndQuery'),
+    );
+    if (bearer != null) {
+      request.headers.set('authorization', 'Bearer $bearer');
+    }
+    final response = await request.close();
+    final text = await response.transform(utf8.decoder).join();
+    return (status: response.statusCode, body: text);
+  } finally {
+    client.close();
+  }
+}
+
+/// [_mockGetRaw], decoded as a JSON object — for the happy-path analytics
+/// parity cases, which always expect 200 with a JSON body.
+Future<Map<String, Object?>> _mockGetJson(
+  String pathAndQuery, {
+  String? bearer,
+}) async {
+  final res = await _mockGetRaw(pathAndQuery, bearer: bearer);
+  return jsonDecode(res.body) as Map<String, Object?>;
 }
 
 Future<({int status, String body})> _httpPost(
