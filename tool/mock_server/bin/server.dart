@@ -403,6 +403,53 @@ Router _buildRouter(_Store store) {
     return _json({'status': 'ok'});
   });
 
+  // ---- Analytics ------------------------------------------------------
+  //
+  // RD3.D1 (Task 3): computed from this store's own campaign +
+  // `_analyticsAttendance` fixtures (never hardcoded envelope constants),
+  // transcribing `AnalyticsRepo.summary`'s semantics exactly (server/lib/
+  // src/analytics/analytics_repo.dart): `funnel.target`/`registered` are
+  // STRUCTURAL (campaignId-scoped but date-unranged) denominators; every
+  // other field is governed by the resolved from/to. Gated on `export` via
+  // [_permissionsOf] -- the first route in this file with a genuine
+  // per-request permission check (every other gate mentioned elsewhere in
+  // this file, e.g. on `/verification/queue`'s ESCALATED filter, is
+  // REAL-SERVICE-ONLY, since no other route here threads auth through at
+  // all).
+  r.get('/analytics/summary', (Request req) {
+    if (!_permissionsOf(req).contains('export')) {
+      // JSON error envelope, not the bare `Response.forbidden(null)` the
+      // real service's `requirePermission` middleware itself answers with
+      // (server/lib/src/auth/middleware.dart) -- because that bare response
+      // never reaches a real client as-is: `errorEnvelope()`, the outermost
+      // middleware in server/lib/src/app.dart, rewraps any bare >=400
+      // response into exactly this `{"error": {...}}` shape before it goes
+      // over the wire (server/lib/src/infra/error_envelope.dart). `traceId`
+      // is omitted -- this mock has no correlation-id middleware to source
+      // one from, same as every other error envelope in this file.
+      return _json({
+        'error': {
+          'code': 'FORBIDDEN',
+          'message': 'You do not have permission to perform this action.',
+        },
+      }, status: 403);
+    }
+    final qp = req.url.queryParameters;
+    final now = DateTime.now().toUtc();
+    final to = qp['to'] == null ? now : DateTime.tryParse(qp['to']!);
+    final from = qp['from'] == null
+        ? (to ?? now).subtract(const Duration(days: 29))
+        : DateTime.tryParse(qp['from']!);
+    if (from == null || to == null || from.isAfter(to)) {
+      return _json({
+        'error': {'code': 'BAD_REQUEST', 'message': 'Invalid analytics range.'},
+      }, status: 400);
+    }
+    return _json(
+      store.analyticsSummary(campaignId: qp['campaignId'], from: from, to: to),
+    );
+  });
+
   // ---- Audit (🔒 contract-pending shape) ----------------------------------
   // Real so dev and E2E flush successfully; a throwing stub would fail every
   // flush and grow the local buffer for no reason.
@@ -563,25 +610,34 @@ Router _buildRouter(_Store store) {
   return r;
 }
 
+/// Role -> permission expansion, shared by [_authPayload] (what a login
+/// response advertises for a role) and [_permissionsOf] (what
+/// `/analytics/summary`'s gate actually checks a caller's bearer token
+/// against) -- one source of truth, so a token this mock issues for role R
+/// is always gated by exactly the permissions R's own login response
+/// claimed.
+const Map<String, List<String>> _permissionsByRole = {
+  'crm_verifier': ['verification_decide', 'sensitive_media_view'],
+  'campaign_creator': ['campaign_create', 'bulk_import', 'export'],
+  'admin': [
+    'campaign_create',
+    'campaign_approve',
+    'campaign_cancel',
+    'bulk_import',
+    'attendance_capture',
+    'verification_decide',
+    'verification_override',
+    'sensitive_media_view',
+    'nid_reveal',
+    'config_manage',
+    'export',
+  ],
+};
+
 Map<String, dynamic> _authPayload(String username) {
-  final roles = <String, List<String>>{
-    'crm_verifier': ['verification_decide', 'sensitive_media_view'],
-    'campaign_creator': ['campaign_create', 'bulk_import', 'export'],
-    'admin': [
-      'campaign_create',
-      'campaign_approve',
-      'campaign_cancel',
-      'bulk_import',
-      'attendance_capture',
-      'verification_decide',
-      'verification_override',
-      'sensitive_media_view',
-      'nid_reveal',
-      'config_manage',
-      'export',
-    ],
-  };
-  final role = roles.containsKey(username) ? username : 'field_user';
+  final role = _permissionsByRole.containsKey(username)
+      ? username
+      : 'field_user';
   return {
     'accessToken': 'mock-access-$role',
     'refreshToken': 'refresh-for-$role',
@@ -591,10 +647,29 @@ Map<String, dynamic> _authPayload(String username) {
       'displayName': 'Mock $role',
       'organizationId': 'ORG_MOCK',
       'roles': [role],
-      'permissions': roles[role] ?? ['attendance_capture'],
+      'permissions': _permissionsByRole[role] ?? ['attendance_capture'],
       'territoryIds': <String>[],
     },
   };
+}
+
+/// The caller's permission set, resolved from a mock-issued bearer token
+/// (`mock-access-<role>`, minted by [_authPayload] above) against the same
+/// [_permissionsByRole] map. A missing or malformed token (no `Bearer `
+/// prefix, or a token that isn't of the `mock-access-<role>` shape) carries
+/// no permissions at all (denied) -- this mock has no session store to
+/// consult, so an unfamiliar token shape can never be assumed privileged.
+/// A well-formed token naming a role [_permissionsByRole] doesn't recognise
+/// falls back to `['attendance_capture']`, mirroring [_authPayload]'s own
+/// fallback for an unrecognised role one line above.
+Set<String> _permissionsOf(Request req) {
+  final header = req.headers['authorization'] ?? '';
+  if (!header.startsWith('Bearer ')) return const <String>{};
+  final token = header.substring('Bearer '.length);
+  const prefix = 'mock-access-';
+  if (!token.startsWith(prefix)) return const <String>{};
+  final role = token.substring(prefix.length);
+  return (_permissionsByRole[role] ?? const ['attendance_capture']).toSet();
 }
 
 // ---------------------------------------------------------------------------
@@ -926,7 +1001,202 @@ class _Store {
       'reasons': ['Landmark alignment within tolerance'],
     };
   }
+
+  /// Fixed structural registration counts per campaign (RD3.D1) -- this
+  /// mock has no persistent `registrations` table, so
+  /// `/analytics/summary`'s unranged `funnel.registered` denominator is a
+  /// small fixed fixture rather than a derived count, same spirit as
+  /// `_campaign`'s fixed `verifiedAttendance` field above.
+  static const Map<String, int> _registeredByCampaign = {
+    'CAMP-1': 2,
+    'CAMP-2': 1,
+    'CAMP-3': 0,
+  };
+
+  /// The four `MatchBand` wire values, in the fixed order the wire envelope
+  /// always presents `bandMix` in — mirrors `AnalyticsRepo`'s own
+  /// `_bandKeys` (server/lib/src/analytics/analytics_repo.dart).
+  static const List<String> _bandKeys = [
+    'HIGH',
+    'MEDIUM',
+    'LOW',
+    'NO_REFERENCE',
+  ];
+
+  /// Attendance-shaped rows `/analytics/summary` computes its ranged
+  /// numbers from (RD3.D1) -- status/band/capturedAt per campaign,
+  /// mirroring the real `attendance` table's columns
+  /// `AnalyticsRepo.summary` reads. Dated in mid-2025: comfortably outside
+  /// any rolling "last 30 days" default window for the foreseeable life of
+  /// this fixture, so a no-params query always sees zero ranged activity
+  /// -- deterministic regardless of the day the mock (or the parity suite)
+  /// happens to run.
+  static final List<_AnalyticsAttendance> _analyticsAttendance = [
+    _AnalyticsAttendance(
+      campaignId: 'CAMP-1',
+      status: 'APPROVED',
+      band: 'HIGH',
+      capturedAt: DateTime.utc(2025, 6, 1, 10),
+    ),
+    _AnalyticsAttendance(
+      campaignId: 'CAMP-1',
+      status: 'APPROVED',
+      band: 'MEDIUM',
+      capturedAt: DateTime.utc(2025, 6, 1, 15),
+    ),
+    _AnalyticsAttendance(
+      campaignId: 'CAMP-1',
+      status: 'APPROVED',
+      band: 'HIGH',
+      capturedAt: DateTime.utc(2025, 6, 3, 9),
+    ),
+    _AnalyticsAttendance(
+      campaignId: 'CAMP-1',
+      status: 'CRM_REVIEW',
+      band: 'LOW',
+      capturedAt: DateTime.utc(2025, 6, 3, 11),
+    ),
+    _AnalyticsAttendance(
+      campaignId: 'CAMP-1',
+      status: 'REJECTED',
+      band: 'NO_REFERENCE',
+      capturedAt: DateTime.utc(2025, 6, 4, 8),
+    ),
+  ];
+
+  /// Computes the `/analytics/summary` envelope from this store's own
+  /// [campaigns] + [_analyticsAttendance] fixtures -- transcribing
+  /// `AnalyticsRepo.summary`'s semantics exactly (see that method's doc
+  /// comment for the binding ruling this mirrors): `target`/`registered`
+  /// are structural (campaignId-scoped, date-unranged) denominators; every
+  /// other field is governed by [from]/[to], which the route has already
+  /// resolved and validated before calling this.
+  Map<String, dynamic> analyticsSummary({
+    String? campaignId,
+    required DateTime from,
+    required DateTime to,
+  }) {
+    final fromUtc = DateTime.utc(from.year, from.month, from.day);
+    // Built from [to]'s year/month/day fields directly, not `.toUtc()` --
+    // same reason as AnalyticsRepo.summary's `toDateOnly`: a bare
+    // "yyyy-MM-dd" query param parses to a local-time DateTime, and
+    // `.toUtc()` on one can roll the calendar date across a host timezone
+    // offset.
+    final toDateOnly = DateTime.utc(to.year, to.month, to.day);
+    final toExclusive = toDateOnly.add(const Duration(days: 1));
+
+    final scopedCampaigns = campaignId == null
+        ? campaigns.values.toList()
+        : campaigns.values.where((c) => c['id'] == campaignId).toList();
+
+    final target = scopedCampaigns.fold<int>(
+      0,
+      (sum, c) => sum + (c['targetAudience']! as int),
+    );
+    final registered = campaignId == null
+        ? _registeredByCampaign.values.fold<int>(0, (a, b) => a + b)
+        : (_registeredByCampaign[campaignId] ?? 0);
+
+    bool inRange(_AnalyticsAttendance a) =>
+        (campaignId == null || a.campaignId == campaignId) &&
+        !a.capturedAt.isBefore(fromUtc) &&
+        a.capturedAt.isBefore(toExclusive);
+
+    final rangedRows = _analyticsAttendance.where(inRange).toList();
+
+    final statusCounts = <String, int>{};
+    for (final row in rangedRows) {
+      statusCounts[row.status] = (statusCounts[row.status] ?? 0) + 1;
+    }
+    final captured = rangedRows.length;
+    final approved = statusCounts['APPROVED'] ?? 0;
+    final inReview = statusCounts['CRM_REVIEW'] ?? 0;
+    final rejected = statusCounts['REJECTED'] ?? 0;
+    final returned = statusCounts['RETURNED'] ?? 0;
+
+    final perDay = <String, int>{};
+    for (final row in rangedRows.where((r) => r.status == 'APPROVED')) {
+      final day = _dateOnly(row.capturedAt);
+      perDay[day] = (perDay[day] ?? 0) + 1;
+    }
+    final sortedDays = perDay.keys.toList()..sort();
+    final verifiedPerDay = [
+      for (final day in sortedDays) {'date': day, 'count': perDay[day]!},
+    ];
+
+    final bandCounts = <String, int>{};
+    for (final row in rangedRows) {
+      bandCounts[row.band] = (bandCounts[row.band] ?? 0) + 1;
+    }
+    final bandMix = {for (final key in _bandKeys) key: bandCounts[key] ?? 0};
+
+    final campaignRows = [
+      for (final c in scopedCampaigns)
+        {
+          'id': c['id'],
+          'name': c['name'],
+          'status': c['status'],
+          'target': c['targetAudience'],
+          'verified': _analyticsAttendance
+              .where(
+                (a) =>
+                    a.campaignId == c['id'] &&
+                    a.status == 'APPROVED' &&
+                    !a.capturedAt.isBefore(fromUtc) &&
+                    a.capturedAt.isBefore(toExclusive),
+              )
+              .length,
+          'inReview': _analyticsAttendance
+              .where(
+                (a) =>
+                    a.campaignId == c['id'] &&
+                    a.status == 'CRM_REVIEW' &&
+                    !a.capturedAt.isBefore(fromUtc) &&
+                    a.capturedAt.isBefore(toExclusive),
+              )
+              .length,
+        },
+    ]..sort((a, b) => (a['name']! as String).compareTo(b['name']! as String));
+
+    return {
+      'funnel': {
+        'target': target,
+        'registered': registered,
+        'captured': captured,
+        'inReview': inReview,
+        'approved': approved,
+        'rejected': rejected,
+        'returned': returned,
+      },
+      'verifiedPerDay': verifiedPerDay,
+      'bandMix': bandMix,
+      'campaigns': campaignRows,
+      'sample': {'totalAttendance': captured, 'small': captured < 30},
+      'range': {'from': _dateOnly(fromUtc), 'to': _dateOnly(toDateOnly)},
+      'generatedAt': DateTime.now().toUtc().toIso8601String(),
+    };
+  }
 }
+
+/// One `/analytics/summary` fixture row (RD3.D1) -- see `_Store.
+/// _analyticsAttendance`'s doc comment for why these dates are fixed in
+/// mid-2025.
+class _AnalyticsAttendance {
+  const _AnalyticsAttendance({
+    required this.campaignId,
+    required this.status,
+    required this.band,
+    required this.capturedAt,
+  });
+
+  final String campaignId;
+  final String status;
+  final String band;
+  final DateTime capturedAt;
+}
+
+/// yyyy-MM-dd for a UTC [d] -- mirrors `AnalyticsRepo`'s own `_dateOnly`.
+String _dateOnly(DateTime d) => d.toIso8601String().substring(0, 10);
 
 /// 1×1 transparent PNG — enough for Image.network to load in E2E.
 const _pngPixel =

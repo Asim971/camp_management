@@ -1,6 +1,7 @@
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
+import 'analytics/analytics_routes.dart';
 import 'attendance/attendance_routes.dart';
 import 'auth/auth_routes.dart';
 import 'auth/middleware.dart';
@@ -143,6 +144,12 @@ Handler buildApp({required Db db, required ServerConfig config}) {
         verificationRouter(db: db, signingKey: config.uploadSigningKey).call,
       );
 
+  final analyticsHandler = const Pipeline()
+      .addMiddleware(
+        _authenticateUnder(const {'analytics'}, db: db, tokens: tokens),
+      )
+      .addHandler(analyticsRouter(db: db).call);
+
   var cascade = Cascade()
       .add(publicRouter.call)
       .add(authHandler)
@@ -153,7 +160,8 @@ Handler buildApp({required Db db, required ServerConfig config}) {
       .add(mediaHandler)
       .add(consentHandler)
       .add(attendanceHandler)
-      .add(verificationHandler);
+      .add(verificationHandler)
+      .add(analyticsHandler);
 
   // Seed routes are ABSENT, not registered-and-guarded, when seeding is
   // disabled: there is no route at all for a probe to find (spec §9; Task 11

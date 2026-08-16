@@ -26,11 +26,13 @@ import '../../core/storage/secure_store.dart';
 import '../../core/sync/sync_engine.dart';
 import '../../core/sync/sync_engine_impl.dart';
 import '../../core/sync/sync_uploader.dart';
+import '../../data/analytics/analytics_repository_impl.dart';
 import '../../data/campaign/campaign_repository_impl.dart';
 import '../../data/import/import_repository_impl.dart';
 import '../../data/registration/registration_repository_impl.dart';
 import '../../data/session/session_repository_impl.dart';
 import '../../data/verification/verification_repository_impl.dart';
+import '../../domain/analytics/analytics_repository.dart';
 import '../../domain/campaign/campaign_repository.dart';
 import '../../domain/import/import_repository.dart';
 import '../../domain/registration/registration_repository.dart';
@@ -149,6 +151,10 @@ final Provider<Dio> dioProvider = Provider<Dio>((ref) {
 
 final campaignRepositoryProvider = Provider<CampaignRepository>(
   (ref) => CampaignRepositoryImpl(ref.watch(dioProvider)),
+);
+
+final analyticsRepositoryProvider = Provider<AnalyticsRepository>(
+  (ref) => AnalyticsRepositoryImpl(ref.watch(dioProvider)),
 );
 
 // ---- Offline sync stack (mobile field) ------------------------------------

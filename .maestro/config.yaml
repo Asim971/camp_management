@@ -38,3 +38,4 @@ flows:
   - flows/bulk_import.yaml
   - flows/session_ops.yaml
   - flows/attendance_capture.yaml
+  - flows/analytics_summary.yaml

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/design_system/placeholder_screen.dart';
 import '../../core/motion/transitions.dart';
+import '../../features/analytics/presentation/analytics_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/bulk_import/presentation/bulk_import_screen.dart';
 import '../../features/camera_capture/presentation/capture_flow_screen.dart';
@@ -174,14 +175,8 @@ List<RouteBase> _appRoutes({required bool devRoutesEnabled}) => [
   ),
   GoRoute(
     path: '/analytics',
-    pageBuilder: (_, state) => fadeThroughPage(
-      key: state.pageKey,
-      child: const PlaceholderScreen(
-        title: 'Campaign Analytics',
-        screenId: 'A-02',
-        prdRefs: ['CM-FR-080..087'],
-      ),
-    ),
+    pageBuilder: (_, state) =>
+        fadeThroughPage(key: state.pageKey, child: const AnalyticsScreen()),
   ),
   GoRoute(
     path: '/settings/language',

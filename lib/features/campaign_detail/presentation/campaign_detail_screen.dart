@@ -13,10 +13,13 @@ import '../../../core/design_system/screen_hero.dart';
 import '../../../core/design_system/status_chip.dart';
 import '../../../core/motion/motion_tokens.dart';
 import '../../../core/motion/reveal.dart';
+import '../../../domain/analytics/analytics_summary.dart';
 import '../../../domain/common/status.dart';
 import '../../../domain/common/status_labels.dart';
 import '../../../domain/session/campaign_session.dart';
 import '../../../l10n/generated/app_localizations.dart';
+import '../../analytics/presentation/analytics_panel.dart';
+import '../../analytics/presentation/widgets/range_chip_row.dart';
 import '../application/campaign_detail_controller.dart';
 
 /// Campaign Detail & Session Operations (W-05). One operational source: header
@@ -78,7 +81,7 @@ class CampaignDetailScreen extends ConsumerWidget {
                       const _Placeholder(
                         'Attendance timeline — W-05 follow-up',
                       ),
-                      const _Placeholder('Analytics — see A-02'),
+                      _DetailAnalyticsTab(campaignId: campaignId),
                       const _Placeholder('Audit trail — AD-01'),
                     ],
                   ),
@@ -421,6 +424,40 @@ class _RegistrationsTab extends StatelessWidget {
           onPressed: () => context.go('/campaigns/$campaignId/register'),
         ),
       ),
+    );
+  }
+}
+
+/// Campaign-detail Analytics tab (spec A-02) — the campaign-scoped mount of
+/// [AnalyticsPanel]. Holds its own range preset (the panel's drill table is
+/// dropped via `showDrillTable: false`; the campaign is already fixed by the
+/// tab's context, so that table would only ever show one row).
+class _DetailAnalyticsTab extends StatefulWidget {
+  const _DetailAnalyticsTab({required this.campaignId});
+  final String campaignId;
+
+  @override
+  State<_DetailAnalyticsTab> createState() => _DetailAnalyticsTabState();
+}
+
+class _DetailAnalyticsTabState extends State<_DetailAnalyticsTab> {
+  DateRangePreset _range = DateRangePreset.d30;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      children: [
+        RangeChipRow(
+          value: _range,
+          onChanged: (range) => setState(() => _range = range),
+        ),
+        const SizedBox(height: 16),
+        AnalyticsPanel(
+          query: AnalyticsQuery(campaignId: widget.campaignId, range: _range),
+          showDrillTable: false,
+        ),
+      ],
     );
   }
 }
