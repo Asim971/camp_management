@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../app/theme/tokens.dart';
 import '../../../../core/design_system/bmd_data_table.dart';
 import '../../../../core/design_system/status_chip.dart';
 import '../../../../domain/analytics/analytics_summary.dart';
@@ -31,11 +32,31 @@ class AnalyticsDrillTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Resolved once here rather than inside the cell/rowDetail closures:
+    // those are invoked later by BmdDataTable and, for the row detail, from
+    // inside a side-sheet route whose own context sits under a different
+    // Navigator (mirrors `campaign_list_screen.dart`'s identical note).
     final l10n = AppL10n.of(context);
     return BmdDataTable<AnalyticsCampaignRow>(
       rows: campaigns,
       rowId: (r) => r.id,
       onRowTap: (r) => context.go('/campaigns/${r.id}'),
+      // Every column below can be dropped at a narrow width (only `name` is
+      // `identity`) — `rowDetailBuilder` is what BmdDataTable's own
+      // assertion requires so that data stays reachable instead of silently
+      // disappearing (bmd_data_table.dart's `_visible`/build-time assert).
+      rowDetailTitle: (r) => r.name,
+      rowDetailBuilder: (r) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          StatusChip(label: r.status.label(l10n), tone: _toneFor(r.status)),
+          const SizedBox(height: BmdSpace.s3),
+          Text('Target: ${r.target}'),
+          Text('Verified: ${r.verified}'),
+          Text('In review: ${r.inReview}'),
+        ],
+      ),
       columns: [
         BmdColumn(
           id: 'name',

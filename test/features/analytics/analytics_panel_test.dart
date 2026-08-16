@@ -224,6 +224,32 @@ void main() {
   );
 
   testWidgets(
+    'analytics_panel: at a 390px-wide mobile viewport, analytics_table still '
+    'resolves with no exception — BmdDataTable can drop every non-identity '
+    'column at that width, and its own build-time assertion requires a '
+    'rowDetailBuilder so the dropped data stays reachable (regression for '
+    'the Linux CI mobile golden that caught the missing one)',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final container = buildTestContainer(
+        overrides: [
+          analyticsSummaryProvider.overrideWith(
+            () => _SeededNotifier(_seedSummary()),
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(_host(container: container));
+      await tester.pumpAndSettle();
+
+      expect(_byIdentifier('analytics_table'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
     'analytics_panel: funnel.captured == 0 renders the empty state copy, '
     'with no zone identifiers present',
     (tester) async {
